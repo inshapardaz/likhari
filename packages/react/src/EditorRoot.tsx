@@ -30,6 +30,15 @@ export interface EditorRootProps {
   colorScheme?: 'light' | 'dark';
   locale?: 'en' | 'ur' | 'pa-shahmukhi';
   placeholder?: string;
+  /**
+   * CSS height for the editor box (toolbar + canvas together) — accepts any
+   * CSS length, e.g. '100%' to fill a sized parent, '60vh', or a number of
+   * pixels. The canvas scrolls internally once its content exceeds this,
+   * rather than the editor (and the page around it) growing without bound.
+   * Defaults to a fixed height so the editor has a sane size out of the box
+   * even when the host hasn't given its container an explicit height.
+   */
+  height?: string | number;
   onChange?: (state: SerializedEditorState) => void;
   onSave?: (content: string, format: FormatId) => void;
 }
@@ -58,6 +67,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     colorScheme,
     locale = 'en',
     placeholder = 'Start writing…',
+    height = '480px',
     onChange,
     onSave,
   },
@@ -139,7 +149,13 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
 
   return (
     <EditorThemeProvider theme={theme} colorScheme={colorScheme}>
-      <div className="likhari-root" dir={dir} ref={rootElementRef} data-document-id={documentId}>
+      <div
+        className="likhari-root"
+        dir={dir}
+        ref={rootElementRef}
+        data-document-id={documentId}
+        style={{ height: typeof height === 'number' ? `${height}px` : height }}
+      >
         <LexicalComposer initialConfig={initialConfig}>
           <Toolbar config={config} onSave={onSave ? handleSave : undefined} isDirty={isDirty} showSave={Boolean(onSave)} />
           <div className="likhari-canvas">

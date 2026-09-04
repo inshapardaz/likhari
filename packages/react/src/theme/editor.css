@@ -2,6 +2,11 @@
    injected by <EditorThemeProvider> (packages/core design tokens). */
 
 .likhari-root {
+  /* Actual height comes from EditorRoot's `height` prop (inline style) —
+     this class only defines the internal flex layout that makes the
+     toolbar stay fixed-height while the canvas absorbs whatever's left. */
+  display: flex;
+  flex-direction: column;
   background: var(--editor-paper);
   color: var(--editor-ink);
   border: 1px solid var(--editor-line);
@@ -10,9 +15,11 @@
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
 }
 
-/* Toolbar — editor-ui-design-spec.md §3.2 */
+/* Toolbar — editor-ui-design-spec.md §3.2. flex-shrink: 0 keeps it pinned at
+   its own height so only the canvas below scrolls. */
 .likhari-toolbar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
   min-height: 46px;
@@ -101,14 +108,23 @@
   color: var(--editor-accent);
 }
 
-/* Canvas — editor-ui-design-spec.md §4 */
+/* Canvas — editor-ui-design-spec.md §4. flex: 1 1 auto + min-height: 0 lets
+   this pane absorb the root's height and scroll internally instead of the
+   editor (and the page around it) growing to fit the content. */
 .likhari-canvas {
   position: relative;
-  min-height: 240px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   padding: 20px 24px;
 }
 
 .likhari-content-editable {
+  /* Fills the canvas so a click anywhere in the visible area — not just on
+     existing text — focuses the editor and places the caret, matching how
+     a text editor's empty space is expected to behave. */
+  height: 100%;
+  min-height: 100%;
   outline: none;
   font-family: 'IBM Plex Serif', Georgia, serif;
   font-size: 15px;

@@ -164,14 +164,21 @@ export function App() {
           </div>
 
           <div>
-            <EditorRoot
-              ref={editorRef}
-              documentId="demo-doc"
-              featureConfig={config}
-              colorScheme={colorScheme}
-              placeholder="Start writing…"
-              onSave={showSave ? (content, format) => setOutput(`[${format}]\n${content}`) : undefined}
-            />
+            {/* This wrapper is given an explicit height so the editor below
+                (height="100%") fits it exactly and scrolls internally once
+                its content overflows, instead of growing and pushing the
+                rest of the page down. */}
+            <div style={{ height: '60vh' }}>
+              <EditorRoot
+                ref={editorRef}
+                documentId="demo-doc"
+                featureConfig={config}
+                colorScheme={colorScheme}
+                placeholder="Start writing…"
+                height="100%"
+                onSave={showSave ? (content, format) => setOutput(`[${format}]\n${content}`) : undefined}
+              />
+            </div>
 
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
               <button onClick={() => setOutput(editorRef.current?.getContent('plain-text') ?? '')}>Get plain text</button>

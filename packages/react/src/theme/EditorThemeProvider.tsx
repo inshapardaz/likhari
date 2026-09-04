@@ -33,7 +33,13 @@ export interface EditorThemeProviderProps {
 export function EditorThemeProvider({ theme, colorScheme, children }: EditorThemeProviderProps) {
   useThemeCssInjection();
   return (
-    <div className="likhari-theme-scope" data-editor-color-scheme={colorScheme}>
+    // display: contents keeps this wrapper out of the layout tree — CSS
+    // custom properties still cascade to children through it (inheritance
+    // doesn't depend on layout), but it doesn't sit between EditorRoot's own
+    // element and the host's actual parent, so EditorRoot's `height` prop
+    // (e.g. '100%') resolves against the host's container as if this div
+    // weren't there at all.
+    <div className="likhari-theme-scope" data-editor-color-scheme={colorScheme} style={{ display: 'contents' }}>
       <MantineProvider theme={theme ?? defaultMantineTheme}>{children}</MantineProvider>
     </div>
   );
