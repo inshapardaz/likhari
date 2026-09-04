@@ -53,9 +53,11 @@
   border: none;
   background: transparent;
   color: var(--editor-ink);
-  font-size: 13px;
-  white-space: nowrap;
   cursor: pointer;
+}
+
+.likhari-toolbar-button svg {
+  display: block;
 }
 
 .likhari-toolbar-button:hover {
@@ -91,6 +93,18 @@
 .likhari-toolbar-select:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Icon shown to the left of a <select> — native selects can't render an
+   icon per-option, so the control itself is labeled this way instead. */
+.likhari-toolbar-select-group {
+  gap: 4px;
+}
+
+.likhari-toolbar-select-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--editor-ink-soft);
 }
 
 /* Overflow menu ("⋯") — houses less-frequent formatting (strikethrough,
@@ -131,6 +145,7 @@
 .likhari-save-button {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   height: 30px;
   padding: 0 14px;
   border-radius: 6px;

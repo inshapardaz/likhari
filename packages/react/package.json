@@ -9,16 +9,17 @@
     "*.css"
   ],
   "dependencies": {
-    "@likhari/core": "*",
-    "@likhari/converters": "*",
     "@lexical/link": "^0.20.0",
     "@lexical/list": "^0.20.0",
     "@lexical/react": "^0.20.0",
     "@lexical/rich-text": "^0.20.0",
     "@lexical/selection": "^0.20.0",
     "@lexical/utils": "^0.20.0",
+    "@likhari/converters": "*",
+    "@likhari/core": "*",
     "@mantine/core": "^7.13.5",
     "@mantine/hooks": "^7.13.5",
+    "@tabler/icons-react": "^3.46.0",
     "lexical": "^0.20.0"
   },
   "peerDependencies": {

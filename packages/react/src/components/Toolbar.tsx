@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -30,11 +30,44 @@ import {
 } from '@lexical/list';
 import { $findMatchingParent } from '@lexical/utils';
 import type { ResolvedEditorFeatureConfig } from '@likhari/core';
+import {
+  IconAbc,
+  IconAlignCenter,
+  IconAlignJustified,
+  IconAlignLeft,
+  IconAlignRight,
+  IconArrowBackUp,
+  IconArrowForwardUp,
+  IconBold,
+  IconClearFormatting,
+  IconDeviceFloppy,
+  IconDots,
+  IconFeather,
+  IconIndentDecrease,
+  IconIndentIncrease,
+  IconItalic,
+  IconLetterCase,
+  IconLetterCaseLower,
+  IconLetterCaseUpper,
+  IconLink,
+  IconPhoto,
+  IconPilcrow,
+  IconSparkles,
+  IconStrikethrough,
+  IconSubscript,
+  IconSuperscript,
+  IconTextSize,
+  IconTypography,
+  IconUnderline,
+  IconWand,
+  type IconProps,
+} from '@tabler/icons-react';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
 type ListType = 'bullet' | 'number' | 'check';
 /** The unified value the single "Formatting" dropdown shows/sets. */
 type FormattingValue = BlockType | ListType;
+type TablerIcon = ComponentType<IconProps>;
 
 interface ToolbarState {
   blockType: BlockType;
@@ -54,15 +87,27 @@ const INITIAL_STATE: ToolbarState = {
   canRedo: false,
 };
 
+const ICON_SIZE = 17;
+const ICON_STROKE = 1.75;
+
+const ALIGN_ICONS: Partial<Record<ElementFormatType, TablerIcon>> = {
+  start: IconAlignLeft,
+  left: IconAlignLeft,
+  center: IconAlignCenter,
+  end: IconAlignRight,
+  right: IconAlignRight,
+  justify: IconAlignJustified,
+};
+
 function ToolbarButton({
-  label,
+  icon: Icon,
   title,
   active,
   disabled,
   onClick,
 }: {
-  label: string;
-  title?: string;
+  icon: TablerIcon;
+  title: string;
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -74,12 +119,12 @@ function ToolbarButton({
       data-active={active ? 'true' : 'false'}
       disabled={disabled}
       aria-pressed={active}
-      aria-label={title ?? label}
-      title={title ?? label}
+      aria-label={title}
+      title={title}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
     >
-      {label}
+      <Icon size={ICON_SIZE} stroke={ICON_STROKE} />
     </button>
   );
 }
@@ -88,8 +133,18 @@ function ToolbarButton({
  * isn't implemented yet (link/image/poetry/font/language-tooling — see
  * docs/lexical-editor-spec.md §13's phasing). Renders so the toolbar's
  * layout is final now and only needs its onClick wired up later. */
-function StubButton({ label, title }: { label: string; title: string }) {
-  return <ToolbarButton label={label} title={`${title} (coming soon)`} disabled onClick={undefined} />;
+function StubButton({ icon, title }: { icon: TablerIcon; title: string }) {
+  return <ToolbarButton icon={icon} title={`${title} (coming soon)`} disabled onClick={undefined} />;
+}
+
+/** Icon shown to the left of a <select> — native selects can't render icons
+ * per-option, so this labels the control itself instead. */
+function SelectIcon({ icon: Icon }: { icon: TablerIcon }) {
+  return (
+    <span className="likhari-toolbar-select-icon" aria-hidden="true">
+      <Icon size={15} stroke={ICON_STROKE} />
+    </span>
+  );
 }
 
 export interface ToolbarProps {
@@ -282,12 +337,14 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
 
   const formattingValue: FormattingValue = state.listType ?? state.blockType;
+  const AlignIcon = ALIGN_ICONS[state.elementFormat] ?? IconAlignLeft;
 
   return (
     <div className="likhari-toolbar" role="toolbar" aria-label="Formatting">
       {/* Save */}
       {showSave && (
         <button type="button" className="likhari-save-button" data-dirty={isDirty ? 'true' : 'false'} onClick={onSave}>
+          <IconDeviceFloppy size={16} stroke={ICON_STROKE} />
           Save
         </button>
       )}
@@ -295,14 +352,25 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       {/* Undo / redo */}
       {config.history && (
         <div className="likhari-toolbar-group">
-          <ToolbarButton label="↶" title="Undo" disabled={!state.canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} />
-          <ToolbarButton label="↷" title="Redo" disabled={!state.canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} />
+          <ToolbarButton
+            icon={IconArrowBackUp}
+            title="Undo"
+            disabled={!state.canUndo}
+            onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+          />
+          <ToolbarButton
+            icon={IconArrowForwardUp}
+            title="Redo"
+            disabled={!state.canRedo}
+            onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+          />
         </div>
       )}
 
       {/* Formatting: block type + list type + quote, unified into one dropdown */}
       {showFormattingGroup && (
-        <div className="likhari-toolbar-group">
+        <div className="likhari-toolbar-group likhari-toolbar-select-group">
+          <SelectIcon icon={IconPilcrow} />
           <select
             className="likhari-toolbar-select"
             aria-label="Formatting"
@@ -326,13 +394,20 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       {/* Bold / italic / underline */}
       {showInlineGroup && (
         <div className="likhari-toolbar-group">
-          {fmt.bold && <ToolbarButton label="B" title="Bold" active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
+          {fmt.bold && (
+            <ToolbarButton icon={IconBold} title="Bold" active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />
+          )}
           {fmt.italic && (
-            <ToolbarButton label="I" title="Italic" active={state.activeFormats.has('italic')} onClick={() => formatText('italic')} />
+            <ToolbarButton
+              icon={IconItalic}
+              title="Italic"
+              active={state.activeFormats.has('italic')}
+              onClick={() => formatText('italic')}
+            />
           )}
           {fmt.underline && (
             <ToolbarButton
-              label="U"
+              icon={IconUnderline}
               title="Underline"
               active={state.activeFormats.has('underline')}
               onClick={() => formatText('underline')}
@@ -346,22 +421,29 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
           here so it (not alignment, which actually works) is what collapses
           on small viewports — see the collapse-tablet comment below. */}
       {(config.font.family || config.font.size) && (
-        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
+        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet likhari-toolbar-select-group">
           {config.font.family && (
-            <select className="likhari-toolbar-select" aria-label="Font family" disabled title="Font family (coming soon)">
-              <option>Font</option>
-            </select>
+            <>
+              <SelectIcon icon={IconTypography} />
+              <select className="likhari-toolbar-select" aria-label="Font family" disabled title="Font family (coming soon)">
+                <option>Font</option>
+              </select>
+            </>
           )}
           {config.font.size && (
-            <select className="likhari-toolbar-select" aria-label="Font size" disabled title="Font size (coming soon)">
-              <option>Size</option>
-            </select>
+            <>
+              <SelectIcon icon={IconTextSize} />
+              <select className="likhari-toolbar-select" aria-label="Font size" disabled title="Font size (coming soon)">
+                <option>Size</option>
+              </select>
+            </>
           )}
         </div>
       )}
 
       {showAlignGroup && (
-        <div className="likhari-toolbar-group">
+        <div className="likhari-toolbar-group likhari-toolbar-select-group">
+          <SelectIcon icon={AlignIcon} />
           <select
             className="likhari-toolbar-select"
             aria-label="Alignment"
@@ -381,18 +463,18 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       {/* Link, image, poetry blocks — stubs, gated by config, not implemented yet */}
       {showInsertPoetryGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
-          {config.links && <StubButton label="🔗" title="Insert link" />}
-          {(config.images.linked || config.images.embedded) && <StubButton label="🖼" title="Insert image" />}
-          {config.poetry.enabled && <StubButton label="Poetry ▾" title="Poetry blocks" />}
+          {config.links && <StubButton icon={IconLink} title="Insert link" />}
+          {(config.images.linked || config.images.embedded) && <StubButton icon={IconPhoto} title="Insert image" />}
+          {config.poetry.enabled && <StubButton icon={IconFeather} title="Poetry blocks" />}
         </div>
       )}
 
       {/* Auto-correct, text cleanup, spell-checker — stubs, gated by config, not implemented yet */}
       {showLanguageGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
-          {config.language.autocorrect && <StubButton label="AC" title="Auto-correct" />}
-          {config.language.textCleanup && <StubButton label="TC" title="Text cleanup" />}
-          {config.language.spellCheck && <StubButton label="ABC" title="Spell-checker" />}
+          {config.language.autocorrect && <StubButton icon={IconWand} title="Auto-correct" />}
+          {config.language.textCleanup && <StubButton icon={IconSparkles} title="Text cleanup" />}
+          {config.language.spellCheck && <StubButton icon={IconAbc} title="Spell-checker" />}
         </div>
       )}
 
@@ -401,12 +483,12 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
           keeps the primary row compact for small/mobile viewports. */}
       {showOverflowMenu && (
         <div className="likhari-toolbar-overflow" ref={overflowRef}>
-          <ToolbarButton label="⋯" title="More formatting" active={overflowOpen} onClick={() => setOverflowOpen((o) => !o)} />
+          <ToolbarButton icon={IconDots} title="More formatting" active={overflowOpen} onClick={() => setOverflowOpen((o) => !o)} />
           {overflowOpen && (
             <div className="likhari-toolbar-overflow-panel" role="menu">
               {fmt.strikethrough && (
                 <ToolbarButton
-                  label="S"
+                  icon={IconStrikethrough}
                   title="Strikethrough"
                   active={state.activeFormats.has('strikethrough')}
                   onClick={() => formatText('strikethrough')}
@@ -414,7 +496,7 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
               )}
               {fmt.superscript && (
                 <ToolbarButton
-                  label="x²"
+                  icon={IconSuperscript}
                   title="Superscript"
                   active={state.activeFormats.has('superscript')}
                   onClick={() => formatText('superscript')}
@@ -422,7 +504,7 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
               )}
               {fmt.subscript && (
                 <ToolbarButton
-                  label="x₂"
+                  icon={IconSubscript}
                   title="Subscript"
                   active={state.activeFormats.has('subscript')}
                   onClick={() => formatText('subscript')}
@@ -430,16 +512,24 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
               )}
               {fmt.caseTransforms && (
                 <>
-                  <ToolbarButton label="AA" title="UPPERCASE" onClick={() => applyCaseTransform('upper')} />
-                  <ToolbarButton label="aa" title="lowercase" onClick={() => applyCaseTransform('lower')} />
-                  <ToolbarButton label="Aa" title="Capitalize" onClick={() => applyCaseTransform('capitalize')} />
+                  <ToolbarButton icon={IconLetterCaseUpper} title="UPPERCASE" onClick={() => applyCaseTransform('upper')} />
+                  <ToolbarButton icon={IconLetterCaseLower} title="lowercase" onClick={() => applyCaseTransform('lower')} />
+                  <ToolbarButton icon={IconLetterCase} title="Capitalize" onClick={() => applyCaseTransform('capitalize')} />
                 </>
               )}
-              {fmt.clearFormatting && <ToolbarButton label="Tx" title="Clear formatting" onClick={clearFormatting} />}
+              {fmt.clearFormatting && <ToolbarButton icon={IconClearFormatting} title="Clear formatting" onClick={clearFormatting} />}
               {config.indent && (
                 <>
-                  <ToolbarButton label="⇦" title="Outdent" onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)} />
-                  <ToolbarButton label="⇨" title="Indent" onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)} />
+                  <ToolbarButton
+                    icon={IconIndentDecrease}
+                    title="Outdent"
+                    onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)}
+                  />
+                  <ToolbarButton
+                    icon={IconIndentIncrease}
+                    title="Indent"
+                    onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)}
+                  />
                 </>
               )}
             </div>
