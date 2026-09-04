@@ -1,0 +1,12 @@
+{
+  "name": "@likhari/converters",
+  "version": "0.1.0",
+  "description": "Format transformers (Markdown/HTML/plain-text/Lexical JSON) against the canonical Lexical EditorState, isolated from UI.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "lexical": "^0.20.0"
+  }
+}

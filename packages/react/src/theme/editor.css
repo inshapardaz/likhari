@@ -1,0 +1,195 @@
+/* Canvas + toolbar styling built on the --editor-* custom properties
+   injected by <EditorThemeProvider> (packages/core design tokens). */
+
+.likhari-root {
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  border: 1px solid var(--editor-line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Toolbar — editor-ui-design-spec.md §3.2 */
+.likhari-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 8px;
+  background: var(--editor-paper-dim);
+  border-bottom: 1px solid var(--editor-line);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.likhari-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 0.5px solid var(--editor-line);
+}
+
+.likhari-toolbar-group:last-child {
+  border-right: none;
+}
+
+.likhari-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.likhari-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--editor-ink);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.likhari-toolbar-button:hover {
+  background: var(--editor-line);
+}
+
+.likhari-toolbar-button[data-active='true'] {
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.likhari-toolbar-button:focus-visible {
+  outline: 2px solid var(--editor-accent);
+  outline-offset: 1px;
+}
+
+.likhari-toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.likhari-toolbar-select {
+  height: 30px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--editor-line-strong);
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  padding: 0 6px;
+}
+
+.likhari-save-button {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--editor-accent);
+  background: var(--editor-accent);
+  color: var(--editor-paper);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.likhari-save-button[data-dirty='false'] {
+  background: transparent;
+  color: var(--editor-accent);
+}
+
+/* Canvas — editor-ui-design-spec.md §4 */
+.likhari-canvas {
+  position: relative;
+  min-height: 240px;
+  padding: 20px 24px;
+}
+
+.likhari-content-editable {
+  outline: none;
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.likhari-content-editable[dir='rtl'] {
+  font-family: 'Noto Nastaliq Urdu', serif;
+  font-size: 20px;
+  line-height: 2.3;
+}
+
+.likhari-placeholder {
+  position: absolute;
+  top: 20px;
+  inset-inline-start: 24px;
+  color: var(--editor-ink-soft);
+  pointer-events: none;
+  user-select: none;
+}
+
+.likhari-paragraph {
+  margin: 0 0 1em 0;
+}
+
+.likhari-quote {
+  margin: 0 0 1em 0;
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--editor-line-strong);
+  color: var(--editor-ink-soft);
+}
+
+.likhari-h1,
+.likhari-h2,
+.likhari-h3,
+.likhari-h4,
+.likhari-h5,
+.likhari-h6 {
+  font-weight: 600;
+  margin: 0.6em 0 0.4em 0;
+}
+
+.likhari-h1 { font-size: 1.8em; }
+.likhari-h2 { font-size: 1.5em; }
+.likhari-h3 { font-size: 1.3em; }
+.likhari-h4 { font-size: 1.2em; }
+.likhari-h5 { font-size: 1.1em; }
+.likhari-h6 { font-size: 1.05em; }
+
+.likhari-ul,
+.likhari-ol {
+  margin: 0 0 1em 0;
+  padding-inline-start: 1.5em;
+}
+
+.likhari-listitem {
+  margin: 0.2em 0;
+}
+
+.likhari-listitem-checked,
+.likhari-listitem-unchecked {
+  list-style: none;
+  padding-inline-start: 1.5em;
+  position: relative;
+}
+
+.likhari-link {
+  color: var(--editor-accent);
+  text-decoration: underline;
+}
+
+.likhari-text-bold { font-weight: 600; }
+.likhari-text-italic { font-style: italic; }
+.likhari-text-underline { text-decoration: underline; }
+.likhari-text-strikethrough { text-decoration: line-through; }
+.likhari-text-underline.likhari-text-strikethrough { text-decoration: underline line-through; }
+.likhari-text-subscript { vertical-align: sub; font-size: 0.8em; }
+.likhari-text-superscript { vertical-align: super; font-size: 0.8em; }
+
+.likhari-hr {
+  border: none;
+  border-top: 1px solid var(--editor-line);
+  margin: 1.5em 0;
+}

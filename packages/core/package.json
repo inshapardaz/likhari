@@ -1,0 +1,9 @@
+{
+  "name": "@likhari/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic pieces of the Likhari editor: feature-config schema, presets, and default theme tokens.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false
+}
