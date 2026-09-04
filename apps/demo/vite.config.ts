@@ -8,7 +8,7 @@ export default defineConfig(({ command }) => ({
   // the root so `npm run dev` doesn't need it.
   base: command === 'build' ? '/likhari/' : '/',
   server: {
-    port: Number(process.env.PORT) || 5174,
+    port: Number(process.env.PORT) || 6175,
     strictPort: true,
   },
 }));
