@@ -1,0 +1,29 @@
+{
+  "name": "@likhari/editor-react",
+  "version": "0.1.0",
+  "description": "React implementation of the Likhari editor, built on @lexical/react.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "dependencies": {
+    "@lexical/link": "^0.20.0",
+    "@lexical/list": "^0.20.0",
+    "@lexical/react": "^0.20.0",
+    "@lexical/rich-text": "^0.20.0",
+    "@lexical/selection": "^0.20.0",
+    "@lexical/utils": "^0.20.0",
+    "@likhari/converters": "*",
+    "@likhari/core": "*",
+    "@mantine/core": "^7.13.5",
+    "@mantine/hooks": "^7.13.5",
+    "@tabler/icons-react": "^3.46.0",
+    "lexical": "^0.20.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

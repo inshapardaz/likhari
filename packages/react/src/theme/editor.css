@@ -1,0 +1,265 @@
+/* Canvas + toolbar styling built on the --editor-* custom properties
+   injected by <EditorThemeProvider> (packages/core design tokens). */
+
+.likhari-root {
+  /* Actual height comes from EditorRoot's `height` prop (inline style) —
+     this class only defines the internal flex layout that makes the
+     toolbar stay fixed-height while the canvas absorbs whatever's left. */
+  display: flex;
+  flex-direction: column;
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  border: 1px solid var(--editor-line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Toolbar — editor-ui-design-spec.md §3.2. flex-shrink: 0 keeps it pinned at
+   its own height so only the canvas below scrolls. */
+.likhari-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 8px;
+  background: var(--editor-paper-dim);
+  border-bottom: 1px solid var(--editor-line);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.likhari-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 0.5px solid var(--editor-line);
+}
+
+.likhari-toolbar-group:last-child {
+  border-right: none;
+}
+
+.likhari-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--editor-ink);
+  cursor: pointer;
+}
+
+.likhari-toolbar-button svg {
+  display: block;
+}
+
+.likhari-toolbar-button:hover {
+  background: var(--editor-line);
+}
+
+.likhari-toolbar-button[data-active='true'] {
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.likhari-toolbar-button:focus-visible {
+  outline: 2px solid var(--editor-accent);
+  outline-offset: 1px;
+}
+
+.likhari-toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.likhari-toolbar-select {
+  height: 30px;
+  max-width: 116px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--editor-line-strong);
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  padding: 0 6px;
+}
+
+.likhari-toolbar-select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Icon shown to the left of a <select> — native selects can't render an
+   icon per-option, so the control itself is labeled this way instead. */
+.likhari-toolbar-select-group {
+  gap: 4px;
+}
+
+.likhari-toolbar-select-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--editor-ink-soft);
+}
+
+/* Overflow menu ("⋯") — houses less-frequent formatting (strikethrough,
+   super/subscript, case transforms, clear formatting, indent/outdent) so
+   the primary row stays compact on small/mobile viewports. */
+.likhari-toolbar-overflow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.likhari-toolbar-overflow-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: 168px;
+  padding: 6px;
+  background: var(--editor-paper);
+  border: 0.5px solid var(--editor-line);
+  border-radius: 8px;
+}
+
+/* Responsive collapse — editor-ui-design-spec.md §3.3. These groups hold
+   only not-yet-implemented placeholders, so hiding them below the tablet
+   breakpoint costs nothing functional while keeping the primary row usable
+   on small screens; the toolbar's horizontal scroll (below) remains the
+   fallback if the still-visible controls alone overflow a narrow viewport. */
+@media (max-width: 900px) {
+  .likhari-toolbar-group--collapse-tablet {
+    display: none;
+  }
+}
+
+.likhari-save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--editor-accent);
+  background: var(--editor-accent);
+  color: var(--editor-paper);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.likhari-save-button[data-dirty='false'] {
+  background: transparent;
+  color: var(--editor-accent);
+}
+
+/* Canvas — editor-ui-design-spec.md §4. flex: 1 1 auto + min-height: 0 lets
+   this pane absorb the root's height and scroll internally instead of the
+   editor (and the page around it) growing to fit the content. */
+.likhari-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.likhari-content-editable {
+  /* Fills the canvas so a click anywhere in the visible area — not just on
+     existing text — focuses the editor and places the caret, matching how
+     a text editor's empty space is expected to behave. */
+  height: 100%;
+  min-height: 100%;
+  outline: none;
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.likhari-content-editable[dir='rtl'] {
+  font-family: 'Noto Nastaliq Urdu', serif;
+  font-size: 20px;
+  line-height: 2.3;
+}
+
+.likhari-placeholder {
+  position: absolute;
+  top: 20px;
+  inset-inline-start: 24px;
+  color: var(--editor-ink-soft);
+  pointer-events: none;
+  user-select: none;
+}
+
+.likhari-paragraph {
+  margin: 0 0 1em 0;
+}
+
+.likhari-quote {
+  margin: 0 0 1em 0;
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--editor-line-strong);
+  color: var(--editor-ink-soft);
+}
+
+.likhari-h1,
+.likhari-h2,
+.likhari-h3,
+.likhari-h4,
+.likhari-h5,
+.likhari-h6 {
+  font-weight: 600;
+  margin: 0.6em 0 0.4em 0;
+}
+
+.likhari-h1 { font-size: 1.8em; }
+.likhari-h2 { font-size: 1.5em; }
+.likhari-h3 { font-size: 1.3em; }
+.likhari-h4 { font-size: 1.2em; }
+.likhari-h5 { font-size: 1.1em; }
+.likhari-h6 { font-size: 1.05em; }
+
+.likhari-ul,
+.likhari-ol {
+  margin: 0 0 1em 0;
+  padding-inline-start: 1.5em;
+}
+
+.likhari-listitem {
+  margin: 0.2em 0;
+}
+
+.likhari-listitem-checked,
+.likhari-listitem-unchecked {
+  list-style: none;
+  padding-inline-start: 1.5em;
+  position: relative;
+}
+
+.likhari-link {
+  color: var(--editor-accent);
+  text-decoration: underline;
+}
+
+.likhari-text-bold { font-weight: 600; }
+.likhari-text-italic { font-style: italic; }
+.likhari-text-underline { text-decoration: underline; }
+.likhari-text-strikethrough { text-decoration: line-through; }
+.likhari-text-underline.likhari-text-strikethrough { text-decoration: underline line-through; }
+.likhari-text-subscript { vertical-align: sub; font-size: 0.8em; }
+.likhari-text-superscript { vertical-align: super; font-size: 0.8em; }
+
+.likhari-hr {
+  border: none;
+  border-top: 1px solid var(--editor-line);
+  margin: 1.5em 0;
+}
