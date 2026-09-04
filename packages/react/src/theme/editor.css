@@ -42,21 +42,19 @@
   border-right: none;
 }
 
-.likhari-toolbar-spacer {
-  flex: 1 1 auto;
-}
-
 .likhari-toolbar-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
+  min-width: 30px;
   height: 30px;
+  padding: 0 6px;
   border-radius: 6px;
   border: none;
   background: transparent;
   color: var(--editor-ink);
-  font-size: 15px;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -76,17 +74,58 @@
 
 .likhari-toolbar-button:disabled {
   opacity: 0.4;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .likhari-toolbar-select {
   height: 30px;
+  max-width: 116px;
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid var(--editor-line-strong);
   background: var(--editor-paper);
   color: var(--editor-ink);
   padding: 0 6px;
+}
+
+.likhari-toolbar-select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Overflow menu ("⋯") — houses less-frequent formatting (strikethrough,
+   super/subscript, case transforms, clear formatting, indent/outdent) so
+   the primary row stays compact on small/mobile viewports. */
+.likhari-toolbar-overflow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.likhari-toolbar-overflow-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: 168px;
+  padding: 6px;
+  background: var(--editor-paper);
+  border: 0.5px solid var(--editor-line);
+  border-radius: 8px;
+}
+
+/* Responsive collapse — editor-ui-design-spec.md §3.3. These groups hold
+   only not-yet-implemented placeholders, so hiding them below the tablet
+   breakpoint costs nothing functional while keeping the primary row usable
+   on small screens; the toolbar's horizontal scroll (below) remains the
+   fallback if the still-visible controls alone overflow a narrow viewport. */
+@media (max-width: 900px) {
+  .likhari-toolbar-group--collapse-tablet {
+    display: none;
+  }
 }
 
 .likhari-save-button {

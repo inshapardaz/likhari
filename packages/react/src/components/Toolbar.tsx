@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -32,12 +32,15 @@ import { $findMatchingParent } from '@lexical/utils';
 import type { ResolvedEditorFeatureConfig } from '@likhari/core';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
+type ListType = 'bullet' | 'number' | 'check';
+/** The unified value the single "Formatting" dropdown shows/sets. */
+type FormattingValue = BlockType | ListType;
 
 interface ToolbarState {
   blockType: BlockType;
   activeFormats: Set<TextFormatType>;
   elementFormat: ElementFormatType;
-  listType: 'bullet' | 'number' | 'check' | null;
+  listType: ListType | null;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -53,14 +56,16 @@ const INITIAL_STATE: ToolbarState = {
 
 function ToolbarButton({
   label,
+  title,
   active,
   disabled,
   onClick,
 }: {
   label: string;
+  title?: string;
   active?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
 }) {
   return (
     <button
@@ -69,14 +74,22 @@ function ToolbarButton({
       data-active={active ? 'true' : 'false'}
       disabled={disabled}
       aria-pressed={active}
-      aria-label={label}
-      title={label}
+      aria-label={title ?? label}
+      title={title ?? label}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
     >
       {label}
     </button>
   );
+}
+
+/** A disabled placeholder for a feature whose config flag is on but that
+ * isn't implemented yet (link/image/poetry/font/language-tooling — see
+ * docs/lexical-editor-spec.md §13's phasing). Renders so the toolbar's
+ * layout is final now and only needs its onClick wired up later. */
+function StubButton({ label, title }: { label: string; title: string }) {
+  return <ToolbarButton label={label} title={`${title} (coming soon)`} disabled onClick={undefined} />;
 }
 
 export interface ToolbarProps {
@@ -89,6 +102,8 @@ export interface ToolbarProps {
 export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement | null>(null);
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -164,6 +179,23 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     );
   }, [editor]);
 
+  // Close the overflow panel on outside click or Escape.
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) setOverflowOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverflowOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [overflowOpen]);
+
   const setBlockType = (type: BlockType) => {
     editor.update(() => {
       const selection = $getSelection();
@@ -176,6 +208,26 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         $setBlocksType(selection, () => $createHeadingNode(type));
       }
     });
+  };
+
+  const insertList = (type: ListType) => {
+    const command =
+      type === 'bullet' ? INSERT_UNORDERED_LIST_COMMAND : type === 'number' ? INSERT_ORDERED_LIST_COMMAND : INSERT_CHECK_LIST_COMMAND;
+    editor.dispatchCommand(command, undefined);
+  };
+
+  /** Handler for the single "Formatting" dropdown — unifies block type and
+   * list type into one control (Heading 1-6 / Numbered / Bullet / Task /
+   * Quote / Paragraph), matching the requested compact toolbar layout. */
+  const applyFormatting = (value: FormattingValue) => {
+    if (value === 'bullet' || value === 'number' || value === 'check') {
+      insertList(value);
+      return;
+    }
+    if (state.listType) {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    }
+    setBlockType(value);
   };
 
   const formatText = (format: TextFormatType) => editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
@@ -216,36 +268,46 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     });
   };
 
-  const toggleList = (type: 'bullet' | 'number' | 'check') => {
-    if (state.listType === type) {
-      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-      return;
-    }
-    const command =
-      type === 'bullet' ? INSERT_UNORDERED_LIST_COMMAND : type === 'number' ? INSERT_ORDERED_LIST_COMMAND : INSERT_CHECK_LIST_COMMAND;
-    editor.dispatchCommand(command, undefined);
-  };
-
   const headingLevels = config.blocks.headingLevels ?? [];
   const fmt = config.formatting;
-  const showScriptGroup = fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting;
-  const showListGroup = config.lists.bullet || config.lists.numbered || config.lists.check || config.blocks.quote;
+
+  const showFormattingGroup =
+    headingLevels.length > 0 || config.lists.bullet || config.lists.numbered || config.lists.check || config.blocks.quote;
+  const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
+  const showInsertPoetryGroup = config.links || config.images.linked || config.images.embedded || config.poetry.enabled;
+  const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
+  const showOverflowMenu =
+    fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
+
+  const formattingValue: FormattingValue = state.listType ?? state.blockType;
 
   return (
     <div className="likhari-toolbar" role="toolbar" aria-label="Formatting">
-      {/* Group 1: block type. The reference mockup (mockups/editor-ui-mockup.html)
-          settles the requirements doc's ambiguous "quote as list items" line: its
-          block-type <select> holds only Paragraph/Heading levels, and Quote is a
-          separate toggle button in the lists group (group 4) — followed here. */}
-      {headingLevels.length > 0 && (
+      {/* Save */}
+      {showSave && (
+        <button type="button" className="likhari-save-button" data-dirty={isDirty ? 'true' : 'false'} onClick={onSave}>
+          Save
+        </button>
+      )}
+
+      {/* Undo / redo */}
+      {config.history && (
+        <div className="likhari-toolbar-group">
+          <ToolbarButton label="↶" title="Undo" disabled={!state.canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} />
+          <ToolbarButton label="↷" title="Redo" disabled={!state.canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} />
+        </div>
+      )}
+
+      {/* Formatting: block type + list type + quote, unified into one dropdown */}
+      {showFormattingGroup && (
         <div className="likhari-toolbar-group">
           <select
             className="likhari-toolbar-select"
-            aria-label="Block type"
-            value={state.blockType === 'quote' ? 'paragraph' : state.blockType}
-            onChange={(e) => setBlockType(e.target.value as BlockType)}
+            aria-label="Formatting"
+            value={formattingValue}
+            onChange={(e) => applyFormatting(e.target.value as FormattingValue)}
           >
             <option value="paragraph">Paragraph</option>
             {headingLevels.map((level) => (
@@ -253,112 +315,136 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
                 Heading {level}
               </option>
             ))}
+            {config.lists.numbered && <option value="number">Numbered list</option>}
+            {config.lists.bullet && <option value="bullet">Bullet list</option>}
+            {config.lists.check && <option value="check">Task list</option>}
+            {config.blocks.quote && <option value="quote">Quote</option>}
           </select>
         </div>
       )}
 
-      {/* Group 2: inline formatting */}
-      {(fmt.bold || fmt.italic || fmt.underline || fmt.strikethrough) && (
+      {/* Bold / italic / underline */}
+      {showInlineGroup && (
         <div className="likhari-toolbar-group">
-          {fmt.bold && <ToolbarButton label="B" active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
-          {fmt.italic && <ToolbarButton label="I" active={state.activeFormats.has('italic')} onClick={() => formatText('italic')} />}
+          {fmt.bold && <ToolbarButton label="B" title="Bold" active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
+          {fmt.italic && (
+            <ToolbarButton label="I" title="Italic" active={state.activeFormats.has('italic')} onClick={() => formatText('italic')} />
+          )}
           {fmt.underline && (
-            <ToolbarButton label="U" active={state.activeFormats.has('underline')} onClick={() => formatText('underline')} />
-          )}
-          {fmt.strikethrough && (
-            <ToolbarButton label="S" active={state.activeFormats.has('strikethrough')} onClick={() => formatText('strikethrough')} />
-          )}
-        </div>
-      )}
-
-      {/* Group 3: script & cleanup (case transforms simplified to inline buttons for
-          Phase 1; the spec's overflow submenu is a UI-polish item for a later pass) */}
-      {showScriptGroup && (
-        <div className="likhari-toolbar-group">
-          {fmt.superscript && (
-            <ToolbarButton label="x²" active={state.activeFormats.has('superscript')} onClick={() => formatText('superscript')} />
-          )}
-          {fmt.subscript && (
-            <ToolbarButton label="x₂" active={state.activeFormats.has('subscript')} onClick={() => formatText('subscript')} />
-          )}
-          {fmt.caseTransforms && (
-            <>
-              <ToolbarButton label="AA" onClick={() => applyCaseTransform('upper')} />
-              <ToolbarButton label="aa" onClick={() => applyCaseTransform('lower')} />
-              <ToolbarButton label="Aa" onClick={() => applyCaseTransform('capitalize')} />
-            </>
-          )}
-          {fmt.clearFormatting && <ToolbarButton label="Tx" onClick={clearFormatting} />}
-        </div>
-      )}
-
-      {/* Group 4: lists */}
-      {showListGroup && (
-        <div className="likhari-toolbar-group">
-          {config.lists.bullet && (
-            <ToolbarButton label="•" active={state.listType === 'bullet'} onClick={() => toggleList('bullet')} />
-          )}
-          {config.lists.numbered && (
-            <ToolbarButton label="1." active={state.listType === 'number'} onClick={() => toggleList('number')} />
-          )}
-          {config.lists.check && (
-            <ToolbarButton label="☑" active={state.listType === 'check'} onClick={() => toggleList('check')} />
-          )}
-          {config.blocks.quote && (
             <ToolbarButton
-              label="❝"
-              active={state.blockType === 'quote'}
-              onClick={() => setBlockType(state.blockType === 'quote' ? 'paragraph' : 'quote')}
+              label="U"
+              title="Underline"
+              active={state.activeFormats.has('underline')}
+              onClick={() => formatText('underline')}
             />
           )}
         </div>
       )}
 
-      {/* Group 5: alignment & indent */}
+      {/* Font family, font size — stubs, not implemented yet. Grouped with
+          alignment in the requested layout, but split into its own group
+          here so it (not alignment, which actually works) is what collapses
+          on small viewports — see the collapse-tablet comment below. */}
+      {(config.font.family || config.font.size) && (
+        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
+          {config.font.family && (
+            <select className="likhari-toolbar-select" aria-label="Font family" disabled title="Font family (coming soon)">
+              <option>Font</option>
+            </select>
+          )}
+          {config.font.size && (
+            <select className="likhari-toolbar-select" aria-label="Font size" disabled title="Font size (coming soon)">
+              <option>Size</option>
+            </select>
+          )}
+        </div>
+      )}
+
       {showAlignGroup && (
         <div className="likhari-toolbar-group">
-          {config.alignment.start && (
-            <ToolbarButton label="⇤" active={state.elementFormat === 'start'} onClick={() => formatElement('start')} />
-          )}
-          {config.alignment.center && (
-            <ToolbarButton label="↔" active={state.elementFormat === 'center'} onClick={() => formatElement('center')} />
-          )}
-          {config.alignment.start && (
-            <ToolbarButton label="⇥" active={state.elementFormat === 'end'} onClick={() => formatElement('end')} />
-          )}
-          {config.alignment.justify && (
-            <ToolbarButton label="≡" active={state.elementFormat === 'justify'} onClick={() => formatElement('justify')} />
-          )}
-          {config.alignment.left && (
-            <ToolbarButton label="L" active={state.elementFormat === 'left'} onClick={() => formatElement('left')} />
-          )}
-          {config.alignment.right && (
-            <ToolbarButton label="R" active={state.elementFormat === 'right'} onClick={() => formatElement('right')} />
-          )}
-          {config.indent && (
-            <>
-              <ToolbarButton label="⇦" onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)} />
-              <ToolbarButton label="⇨" onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)} />
-            </>
-          )}
+          <select
+            className="likhari-toolbar-select"
+            aria-label="Alignment"
+            value={state.elementFormat || 'start'}
+            onChange={(e) => formatElement(e.target.value as ElementFormatType)}
+          >
+            {config.alignment.start && <option value="start">Align start</option>}
+            {config.alignment.center && <option value="center">Align center</option>}
+            {config.alignment.start && <option value="end">Align end</option>}
+            {config.alignment.justify && <option value="justify">Justify</option>}
+            {config.alignment.left && <option value="left">Align left</option>}
+            {config.alignment.right && <option value="right">Align right</option>}
+          </select>
         </div>
       )}
 
-      <div className="likhari-toolbar-spacer" />
-
-      {/* Group 9: history */}
-      {config.history && (
-        <div className="likhari-toolbar-group">
-          <ToolbarButton label="↶" disabled={!state.canUndo} onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} />
-          <ToolbarButton label="↷" disabled={!state.canRedo} onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} />
+      {/* Link, image, poetry blocks — stubs, gated by config, not implemented yet */}
+      {showInsertPoetryGroup && (
+        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
+          {config.links && <StubButton label="🔗" title="Insert link" />}
+          {(config.images.linked || config.images.embedded) && <StubButton label="🖼" title="Insert image" />}
+          {config.poetry.enabled && <StubButton label="Poetry ▾" title="Poetry blocks" />}
         </div>
       )}
 
-      {/* Group 10: save */}
-      {showSave && (
-        <button type="button" className="likhari-save-button" data-dirty={isDirty ? 'true' : 'false'} onClick={onSave}>
-          Save
-        </button>
+      {/* Auto-correct, text cleanup, spell-checker — stubs, gated by config, not implemented yet */}
+      {showLanguageGroup && (
+        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
+          {config.language.autocorrect && <StubButton label="AC" title="Auto-correct" />}
+          {config.language.textCleanup && <StubButton label="TC" title="Text cleanup" />}
+          {config.language.spellCheck && <StubButton label="ABC" title="Spell-checker" />}
+        </div>
+      )}
+
+      {/* Overflow: less-frequent formatting (strikethrough, superscript/
+          subscript, case transforms, clear formatting, indent/outdent) —
+          keeps the primary row compact for small/mobile viewports. */}
+      {showOverflowMenu && (
+        <div className="likhari-toolbar-overflow" ref={overflowRef}>
+          <ToolbarButton label="⋯" title="More formatting" active={overflowOpen} onClick={() => setOverflowOpen((o) => !o)} />
+          {overflowOpen && (
+            <div className="likhari-toolbar-overflow-panel" role="menu">
+              {fmt.strikethrough && (
+                <ToolbarButton
+                  label="S"
+                  title="Strikethrough"
+                  active={state.activeFormats.has('strikethrough')}
+                  onClick={() => formatText('strikethrough')}
+                />
+              )}
+              {fmt.superscript && (
+                <ToolbarButton
+                  label="x²"
+                  title="Superscript"
+                  active={state.activeFormats.has('superscript')}
+                  onClick={() => formatText('superscript')}
+                />
+              )}
+              {fmt.subscript && (
+                <ToolbarButton
+                  label="x₂"
+                  title="Subscript"
+                  active={state.activeFormats.has('subscript')}
+                  onClick={() => formatText('subscript')}
+                />
+              )}
+              {fmt.caseTransforms && (
+                <>
+                  <ToolbarButton label="AA" title="UPPERCASE" onClick={() => applyCaseTransform('upper')} />
+                  <ToolbarButton label="aa" title="lowercase" onClick={() => applyCaseTransform('lower')} />
+                  <ToolbarButton label="Aa" title="Capitalize" onClick={() => applyCaseTransform('capitalize')} />
+                </>
+              )}
+              {fmt.clearFormatting && <ToolbarButton label="Tx" title="Clear formatting" onClick={clearFormatting} />}
+              {config.indent && (
+                <>
+                  <ToolbarButton label="⇦" title="Outdent" onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)} />
+                  <ToolbarButton label="⇨" title="Indent" onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)} />
+                </>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
