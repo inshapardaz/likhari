@@ -5,7 +5,7 @@
       "name": "demo",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "apps/demo"],
-      "port": 5173,
+      "port": 5174,
       "autoPort": true
     }
   ]
