@@ -1,6 +1,7 @@
 {
   "name": "likhari",
   "private": true,
+  "version": "0.0.0",
   "description": "An Urdu-first multilingual rich text editor, built on Lexical.",
   "workspaces": [
     "packages/*",
