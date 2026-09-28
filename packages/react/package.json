@@ -1,13 +1,35 @@
 {
-  "name": "@likhari/editor-react",
+  "name": "@inshapardaz/likhari-react",
   "version": "0.1.0",
   "description": "React implementation of the Likhari editor, built on @lexical/react.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inshapardaz/likhari"
+  },
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "*.css"
   ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/fix-esm-extensions.mjs ./dist && node ../../scripts/copy-assets.mjs src dist \"**/*.css\"",
+    "prepublishOnly": "npm run build"
+  },
   "dependencies": {
     "@lexical/link": "^0.20.0",
     "@lexical/list": "^0.20.0",
@@ -15,8 +37,8 @@
     "@lexical/rich-text": "^0.20.0",
     "@lexical/selection": "^0.20.0",
     "@lexical/utils": "^0.20.0",
-    "@likhari/converters": "*",
-    "@likhari/core": "*",
+    "@inshapardaz/likhari-converters": "^0.1.0",
+    "@inshapardaz/likhari-core": "^0.1.0",
     "@mantine/core": "^7.13.5",
     "@mantine/hooks": "^7.13.5",
     "@tabler/icons-react": "^3.46.0",

@@ -1,6 +1,6 @@
 /**
  * Design tokens from editor-ui-design-spec.md §2. Consumed both as plain JS
- * values (Mantine theme mapping in @likhari/react) and re-exported as CSS
+ * values (Mantine theme mapping in @inshapardaz/likhari-react) and re-exported as CSS
  * custom properties (theme.css) for non-React / Web Component consumers.
  */
 export interface ColorTokens {

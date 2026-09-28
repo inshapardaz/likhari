@@ -1,11 +1,33 @@
 {
-  "name": "@likhari/converters",
+  "name": "@inshapardaz/likhari-converters",
   "version": "0.1.0",
   "description": "Format transformers (Markdown/HTML/plain-text/Lexical JSON) against the canonical Lexical EditorState, isolated from UI.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inshapardaz/likhari"
+  },
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/fix-esm-extensions.mjs ./dist",
+    "prepublishOnly": "npm run build"
+  },
   "dependencies": {
     "lexical": "^0.20.0"
   }

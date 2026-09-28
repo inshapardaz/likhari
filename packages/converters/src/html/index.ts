@@ -8,9 +8,9 @@ import type { FormatConverter } from '../types';
 export const htmlConverter: FormatConverter = {
   id: 'html',
   serialize() {
-    throw new Error('@likhari/converters: HTML export is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
+    throw new Error('@inshapardaz/likhari-converters: HTML export is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
   },
   parse() {
-    throw new Error('@likhari/converters: HTML import is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
+    throw new Error('@inshapardaz/likhari-converters: HTML import is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
   },
 };

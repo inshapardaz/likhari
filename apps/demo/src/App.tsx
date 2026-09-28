@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { EditorRoot, type EditorRef } from '@likhari/editor-react';
-import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@likhari/core';
+import { EditorRoot, type EditorRef } from '@inshapardaz/likhari-react';
+import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 

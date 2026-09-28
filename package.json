@@ -12,6 +12,10 @@
     "test": "vitest run",
     "typecheck": "tsc -b --pretty"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inshapardaz/likhari"
+  },
   "devDependencies": {
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
