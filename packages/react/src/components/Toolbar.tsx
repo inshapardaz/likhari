@@ -29,7 +29,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent } from '@lexical/utils';
-import type { ResolvedEditorFeatureConfig } from '@likhari/core';
+import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import {
   IconAbc,
   IconAlignCenter,

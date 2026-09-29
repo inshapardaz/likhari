@@ -21,7 +21,7 @@ export class FormatRegistry {
   get(format: FormatId): FormatConverter {
     const converter = this.converters.get(format);
     if (!converter) {
-      throw new Error(`@likhari/converters: no converter registered for format "${format}".`);
+      throw new Error(`@inshapardaz/likhari-converters: no converter registered for format "${format}".`);
     }
     return converter;
   }

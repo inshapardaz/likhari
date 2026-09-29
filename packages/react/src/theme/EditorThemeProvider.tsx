@@ -1,6 +1,6 @@
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { buildThemeCss } from '@likhari/core';
+import { buildThemeCss } from '@inshapardaz/likhari-core';
 import { defaultMantineTheme } from './mantineTheme';
 import './editor.css';
 

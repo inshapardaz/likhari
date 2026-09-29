@@ -1,6 +1,7 @@
 {
   "name": "likhari",
   "private": true,
+  "version": "0.0.0",
   "description": "An Urdu-first multilingual rich text editor, built on Lexical.",
   "workspaces": [
     "packages/*",
@@ -11,6 +12,10 @@
     "dev": "npm run dev --workspace apps/demo",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inshapardaz/likhari"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",

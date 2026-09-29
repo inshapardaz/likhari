@@ -2,7 +2,7 @@ import { DARK_TOKENS, LIGHT_TOKENS, tokensToCssVars } from './tokens';
 
 /**
  * A ready-to-inject CSS string defining `--editor-*` custom properties for
- * light and dark mode. Used by @likhari/react's default theme provider and
+ * light and dark mode. Used by @inshapardaz/likhari-react's default theme provider and
  * available standalone for Web Component / non-React consumers (spec §10)
  * who can't pass a Mantine theme object directly.
  *

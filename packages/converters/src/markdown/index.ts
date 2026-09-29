@@ -10,12 +10,12 @@ export const markdownConverter: FormatConverter = {
   id: 'markdown',
   serialize() {
     throw new Error(
-      '@likhari/converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
+      '@inshapardaz/likhari-converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
     );
   },
   parse() {
     throw new Error(
-      '@likhari/converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
+      '@inshapardaz/likhari-converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
     );
   },
 };

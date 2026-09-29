@@ -1,5 +1,5 @@
 import { createTheme, type MantineThemeOverride } from '@mantine/core';
-import { LIGHT_TOKENS } from '@likhari/core';
+import { LIGHT_TOKENS } from '@inshapardaz/likhari-core';
 
 /**
  * Default Mantine theme (headless mode, UI spec §10) — supplies structure/

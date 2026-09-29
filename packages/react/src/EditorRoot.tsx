@@ -9,8 +9,8 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import type { EditorState, SerializedEditorState } from 'lexical';
-import { defaultFormatRegistry, type FormatId } from '@likhari/converters';
-import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@likhari/core';
+import { defaultFormatRegistry, type FormatId } from '@inshapardaz/likhari-converters';
+import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 import { EDITOR_NODES } from './nodes';
 import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
@@ -108,7 +108,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         void value;
         void format;
         throw new Error(
-          '@likhari/editor-react: EditorRef.setContent is not implemented yet — controlled mode is Phase 2 work (docs/editor-architecture-design.md §5).',
+          '@inshapardaz/likhari-react: EditorRef.setContent is not implemented yet — controlled mode is Phase 2 work (docs/editor-architecture-design.md §5).',
         );
       },
       hasUnsavedChanges() {

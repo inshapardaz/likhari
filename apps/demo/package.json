@@ -8,9 +8,9 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@likhari/core": "*",
-    "@likhari/converters": "*",
-    "@likhari/editor-react": "*",
+    "@inshapardaz/likhari-core": "*",
+    "@inshapardaz/likhari-converters": "*",
+    "@inshapardaz/likhari-react": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

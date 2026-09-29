@@ -20,7 +20,7 @@ packages/
   core/            EditorFeatureConfig schema + presets, design tokens/theme.css
   converters/       Format transformers (plain-text, Lexical JSON done;
                      Markdown/HTML are Phase 2 stubs behind the same interface)
-  react/            @likhari/editor-react — the editor component + toolbar
+  react/            @inshapardaz/likhari-react — the editor component + toolbar
 apps/
   demo/             Vite app for manually exercising the editor
 ```
