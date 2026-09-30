@@ -37,6 +37,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
@@ -83,6 +84,7 @@ import {
   IconPhoto,
   IconPilcrow,
   IconQuote,
+  IconSeparatorHorizontal,
   IconSparkles,
   IconStrikethrough,
   IconSubscript,
@@ -732,7 +734,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showStubInsertGroup = config.images.linked || config.images.embedded || config.poetry.enabled;
+  const showStubInsertGroup = config.images.linked || config.images.embedded || config.blocks.horizontalRule || config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
@@ -1040,6 +1042,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="stubInsert">
         {(config.images.linked || config.images.embedded) && (
           <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
+        )}
+        {config.blocks.horizontalRule && (
+          <ToolbarButton
+            icon={IconSeparatorHorizontal}
+            title={strings.toolbar.insertHorizontalRule}
+            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+          />
         )}
         {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
       </div>
