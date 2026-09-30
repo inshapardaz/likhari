@@ -234,3 +234,14 @@
   border-top: 1px solid var(--editor-line);
   margin: 1.5em 0;
 }
+
+/* Link menu: the URL item shows one truncated line. */
+.likhari-link-menu-url {
+  max-width: 100%;
+}
+
+.likhari-link-menu-url .mantine-Menu-itemLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
