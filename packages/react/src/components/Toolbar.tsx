@@ -6,6 +6,9 @@ import {
   $isRangeSelection,
   $isElementNode,
   $setSelection,
+  $createTextNode,
+  KEY_MODIFIER_COMMAND,
+  COMMAND_PRIORITY_NORMAL,
   type BaseSelection,
   FORMAT_TEXT_COMMAND,
   FORMAT_ELEMENT_COMMAND,
@@ -32,6 +35,8 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent } from '@lexical/utils';
+import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { LinkDialog } from './LinkDialog';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import {
   IconAbc,
@@ -77,6 +82,9 @@ interface ToolbarState {
   activeFormats: Set<TextFormatType>;
   elementFormat: ElementFormatType;
   listType: ListType | null;
+  /** Selection is inside a link; `linkUrl` is that link's URL. */
+  isLink: boolean;
+  linkUrl: string;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -86,6 +94,8 @@ const INITIAL_STATE: ToolbarState = {
   activeFormats: new Set(),
   elementFormat: 'start' as ElementFormatType,
   listType: null,
+  isLink: false,
+  linkUrl: '',
   canUndo: false,
   canRedo: false,
 };
@@ -233,6 +243,10 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         blockType = 'quote';
       }
 
+      const linkNode = $findMatchingParent(anchorNode, $isLinkNode);
+      const isLink = Boolean(linkNode);
+      const linkUrl = linkNode && $isLinkNode(linkNode) ? linkNode.getURL() : '';
+
       const activeFormats = new Set<TextFormatType>();
       (['bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript'] as TextFormatType[]).forEach(
         (format) => {
@@ -252,6 +266,8 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         activeFormats,
         elementFormat,
         listType,
+        isLink,
+        linkUrl,
       }));
     });
   }, [editor]);
@@ -342,6 +358,69 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     editor.focus();
   };
 
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkNeedsText, setLinkNeedsText] = useState(false);
+
+  const openLinkDialog = useCallback(() => {
+    // Snapshot first: the dialog's focus trap makes Lexical drop the selection.
+    let collapsed = false;
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      menuSelectionRef.current = selection ? selection.clone() : null;
+      collapsed = $isRangeSelection(selection) && selection.isCollapsed();
+    });
+    setLinkNeedsText(collapsed && !state.isLink);
+    setLinkDialogOpen(true);
+  }, [editor, state.isLink]);
+
+  const closeLinkDialog = () => {
+    setLinkDialogOpen(false);
+    editor.focus();
+  };
+
+  const restoreSelection = () => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+  };
+
+  const applyLink = ({ url, text }: { url: string; text: string }) => {
+    restoreSelection();
+    if (linkNeedsText) {
+      // Nothing selected: insert a new link with its own text.
+      editor.update(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        const link = $createLinkNode(url);
+        link.append($createTextNode(text));
+        selection.insertNodes([link]);
+      });
+    } else {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+    }
+    closeLinkDialog();
+  };
+
+  const removeLink = () => {
+    restoreSelection();
+    editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+    closeLinkDialog();
+  };
+
+  // Ctrl/Cmd+K opens the link dialog.
+  useEffect(() => {
+    if (!config.links) return;
+    return editor.registerCommand(
+      KEY_MODIFIER_COMMAND,
+      (event: KeyboardEvent) => {
+        if (event.key.toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey)) return false;
+        event.preventDefault();
+        openLinkDialog();
+        return true;
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  }, [editor, config.links, openLinkDialog]);
+
   const withRefocus = <T,>(fn: (value: T) => void) => (value: T) => {
     fn(value);
     editor.focus();
@@ -393,7 +472,7 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showInsertPoetryGroup = config.links || config.images.linked || config.images.embedded || config.poetry.enabled;
+  const showStubInsertGroup = config.images.linked || config.images.embedded || config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
@@ -512,9 +591,20 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       )}
 
       {/* Link, image, poetry blocks — stubs, gated by config, not implemented yet */}
-      {showInsertPoetryGroup && (
+      {config.links && (
+        <div className="likhari-toolbar-group">
+          <ToolbarButton
+            icon={IconLink}
+            title={state.isLink ? 'Edit link (Ctrl+K)' : 'Insert link (Ctrl+K)'}
+            active={state.isLink}
+            onClick={openLinkDialog}
+          />
+        </div>
+      )}
+
+      {/* Image, poetry blocks — stubs, gated by config, not implemented yet */}
+      {showStubInsertGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
-          {config.links && <StubButton icon={IconLink} title="Insert link" />}
           {(config.images.linked || config.images.embedded) && <StubButton icon={IconPhoto} title="Insert image" />}
           {config.poetry.enabled && <StubButton icon={IconFeather} title="Poetry blocks" />}
         </div>
@@ -572,6 +662,16 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
             )}
           </Menu.Dropdown>
         </Menu>
+      )}
+      {config.links && (
+        <LinkDialog
+          opened={linkDialogOpen}
+          initialUrl={state.linkUrl}
+          showTextField={linkNeedsText}
+          onSubmit={applyLink}
+          onRemove={state.isLink ? removeLink : undefined}
+          onClose={closeLinkDialog}
+        />
       )}
     </div>
   );
