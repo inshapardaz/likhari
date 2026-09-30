@@ -278,3 +278,14 @@
   border-bottom-color: var(--editor-line-strong);
   outline: none;
 }
+
+/* Link menu: the URL item shows one truncated line. */
+.likhari-link-menu-url {
+  max-width: 100%;
+}
+
+.likhari-link-menu-url .mantine-Menu-itemLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
