@@ -32,10 +32,23 @@ export interface EditorThemeProviderProps {
   /** Overrides both Mantine's primary color and the `--editor-accent` /
    * `--editor-accent-soft` CSS variables — see EditorRootProps.accentColor. */
   accentColor?: string;
+  /**
+   * The id of the portal-anchor element EditorRoot renders inside
+   * `.likhari-root` (see PortalTargetContext.tsx). Scopes Mantine's OWN
+   * `data-mantine-color-scheme` attribute and CSS variables to that single
+   * element instead of the default `document.documentElement` — without
+   * this, Mantine's Modal/Menu/Select/Tooltip surfaces (background, text,
+   * border colors) would always render in Mantine's global light scheme
+   * regardless of `colorScheme`, since nothing ever told MantineProvider
+   * which scheme to use; forcing it at `document.documentElement` instead
+   * would work but would leak dark mode onto the rest of the host page and
+   * collide between multiple EditorRoot instances with different schemes.
+   */
+  scopeElementId?: string;
   children: React.ReactNode;
 }
 
-export function EditorThemeProvider({ theme, colorScheme, accentColor, children }: EditorThemeProviderProps) {
+export function EditorThemeProvider({ theme, colorScheme, accentColor, scopeElementId, children }: EditorThemeProviderProps) {
   useThemeCssInjection();
 
   // Mantine wants a 10-shade array; a host only supplies one color, so a
@@ -71,7 +84,15 @@ export function EditorThemeProvider({ theme, colorScheme, accentColor, children 
       data-editor-color-scheme={colorScheme}
       style={{ display: 'contents', ...accentStyle }}
     >
-      <MantineProvider theme={resolvedTheme}>{children}</MantineProvider>
+      <MantineProvider
+        theme={resolvedTheme}
+        forceColorScheme={colorScheme}
+        defaultColorScheme="auto"
+        getRootElement={scopeElementId ? () => document.getElementById(scopeElementId) ?? undefined : undefined}
+        cssVariablesSelector={scopeElementId ? `#${CSS.escape(scopeElementId)}` : undefined}
+      >
+        {children}
+      </MantineProvider>
     </div>
   );
 }

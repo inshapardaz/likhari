@@ -227,7 +227,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const portalTargetSelector = `#${CSS.escape(portalTargetId)}`;
 
   return (
-    <EditorThemeProvider theme={theme} colorScheme={colorScheme} accentColor={accentColor}>
+    <EditorThemeProvider theme={theme} colorScheme={colorScheme} accentColor={accentColor} scopeElementId={portalTargetId}>
       <div
         className="likhari-root"
         dir={dir}
