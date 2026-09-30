@@ -39,6 +39,8 @@ import {
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
+import { TableDialog, type TableDialogValue } from './TableDialog';
+import { INSERT_TABLE_COMMAND } from '@lexical/table';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
@@ -87,6 +89,7 @@ import {
   IconStrikethrough,
   IconSubscript,
   IconSuperscript,
+  IconTable,
   IconTextSize,
   IconTypography,
   IconUnderline,
@@ -568,6 +571,29 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     closeImageDialog();
   };
 
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
+
+  const openTableDialog = () => {
+    snapshotSelection();
+    setTableDialogOpen(true);
+  };
+
+  const closeTableDialog = () => {
+    setTableDialogOpen(false);
+    editor.focus();
+  };
+
+  const insertTable = ({ rows, columns, headerRow }: TableDialogValue) => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    editor.dispatchCommand(INSERT_TABLE_COMMAND, {
+      rows: String(rows),
+      columns: String(columns),
+      includeHeaders: { rows: headerRow, columns: false },
+    });
+    closeTableDialog();
+  };
+
   /** Applies a font property per `config.font.scope`: to the selection, to
    * every text node in the document, or (for 'both') to the selection when
    * there is a range and to the whole document when there isn't. */
@@ -732,7 +758,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showStubInsertGroup = config.images.linked || config.images.embedded || config.poetry.enabled;
+  const showStubInsertGroup = config.images.linked || config.images.embedded || config.tables || config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
@@ -1041,6 +1067,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         {(config.images.linked || config.images.embedded) && (
           <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
         )}
+        {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
         {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
       </div>
     ),
@@ -1155,6 +1182,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       {(config.images.linked || config.images.embedded) && (
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
+      {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
       {config.links && (
         <LinkDialog
           opened={linkDialogOpen}

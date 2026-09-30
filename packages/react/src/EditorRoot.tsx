@@ -7,6 +7,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import type { EditorState, SerializedEditorState } from 'lexical';
@@ -259,6 +260,11 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
+          {/* hasCellMerge disabled: cell merge/split is an explicitly
+              flagged open risk (lexical-editor-spec.md §12 item 3) needing
+              its own scope decision — every table stays a plain grid until
+              that's resolved, rather than shipping a half-built merge UI. */}
+          {config.tables && <TablePlugin hasCellMerge={false} hasTabHandler />}
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>

@@ -42,6 +42,7 @@ export interface Strings {
     linkOptions: string;
     insertLink: string;
     insertImage: string;
+    insertTable: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
@@ -89,6 +90,12 @@ export interface Strings {
     textPlaceholder: string;
     invalidUrl: string;
     apply: string;
+  };
+  tableDialog: {
+    title: string;
+    rows: string;
+    columns: string;
+    headerRow: string;
   };
   imageDialog: {
     titleInsert: string;
@@ -179,6 +186,7 @@ const en: Strings = {
     linkOptions: 'Link options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
+    insertTable: 'Insert table',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
@@ -226,6 +234,12 @@ const en: Strings = {
     textPlaceholder: 'Link text (defaults to the URL)',
     invalidUrl: 'Enter a valid http(s), mailto, tel or relative URL',
     apply: 'Apply',
+  },
+  tableDialog: {
+    title: 'Insert table',
+    rows: 'Rows',
+    columns: 'Columns',
+    headerRow: 'Header row',
   },
   imageDialog: {
     titleInsert: 'Insert image',
@@ -317,6 +331,7 @@ const ur: Strings = {
     linkOptions: 'لنک کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
+    insertTable: 'جدول شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
@@ -364,6 +379,12 @@ const ur: Strings = {
     textPlaceholder: 'لنک کی عبارت (نہ دینے پر یو آر ایل ہی استعمال ہوگا)',
     invalidUrl: 'براہِ کرم ایک درست http(s)، mailto، tel یا رشتہ دار یو آر ایل درج کریں',
     apply: 'لاگو کریں',
+  },
+  tableDialog: {
+    title: 'جدول شامل کریں',
+    rows: 'قطاریں',
+    columns: 'کالم',
+    headerRow: 'سرِ فہرست قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر شامل کریں',
@@ -455,6 +476,7 @@ const paShahmukhi: Strings = {
     linkOptions: 'لنک دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
+    insertTable: 'ٹیبل پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
@@ -502,6 +524,12 @@ const paShahmukhi: Strings = {
     textPlaceholder: 'لنک دی لکھت (نہ دین تے یو آر ایل ای ورتیا جاوے گا)',
     invalidUrl: 'کِرپا کر کے صحیح http(s)، mailto، tel یا نسبتی یو آر ایل پاؤ',
     apply: 'لاگو کرو',
+  },
+  tableDialog: {
+    title: 'ٹیبل پاؤ',
+    rows: 'قطاراں',
+    columns: 'کالم',
+    headerRow: 'سرکڑی قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر پاؤ',

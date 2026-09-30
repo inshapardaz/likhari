@@ -37,6 +37,7 @@
     "@lexical/react": "^0.20.0",
     "@lexical/rich-text": "^0.20.0",
     "@lexical/selection": "^0.20.0",
+    "@lexical/table": "^0.20.0",
     "@lexical/utils": "^0.20.0",
     "@inshapardaz/likhari-converters": "^0.1.0",
     "@inshapardaz/likhari-core": "^0.1.0",

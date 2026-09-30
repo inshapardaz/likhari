@@ -253,6 +253,37 @@
   margin: 1.5em 0;
 }
 
+/* Tables — cell merge/split is deliberately out of scope for now (a flagged
+   open risk, lexical-editor-spec.md §12 item 3, needing its own scope
+   decision); TablePlugin is configured with hasCellMerge={false} to keep
+   every table a plain grid until that's resolved. */
+.likhari-table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.likhari-table-row {
+  border-bottom: 1px solid var(--editor-line);
+}
+
+.likhari-table-cell {
+  border: 1px solid var(--editor-line);
+  padding: 6px 10px;
+  min-width: 72px;
+  vertical-align: top;
+}
+
+.likhari-table-cell-header {
+  background: var(--editor-paper-dim);
+  font-weight: 600;
+  text-align: start;
+}
+
+.likhari-table-cell-selected {
+  background: var(--editor-accent-soft);
+}
+
 /* Images — block-level figure; the caption is static text (edited in the
    image's dialog), and a selected image gets a corner resize handle. */
 .likhari-image-block {
