@@ -42,6 +42,31 @@ comment and updated on each push. The preview is removed when the PR is merged
 or closed. `main` deploys to the site root. Requires Pages set to
 **Deploy from a branch: `gh-pages` / root** (one-time setting).
 
+## Fonts
+
+When `font.family` / `font.size` are enabled in the feature config, the toolbar
+has a searchable font-family dropdown and a size dropdown (12–48 px). They set
+an inline `font-family` / `font-size` style on text, following
+`font.scope`: `'selection'` styles the selected text, `'document'` styles every
+text node, and `'both'` (the full preset's default) styles the selection, or the
+whole document when nothing is selected.
+
+The family list is three generic Latin faces plus the Urdu/Arabic-script
+collection from [inshapardaz/urdu-web-fonts](https://github.com/inshapardaz/urdu-web-fonts)
+(Noto Nastaliq Urdu, Jameel Noori Nastaleeq, Amiri, Lateef, Scheherazade New and
+20+ more) — the same source and pinned commit that
+[qari](https://github.com/inshapardaz/qari) uses. Their stylesheets load from
+jsDelivr's GitHub CDN (no npm dependency, nothing bundled); a font file is only
+downloaded once it is used. To change the list, pass `fontOptions`:
+
+```tsx
+import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
+
+<EditorRoot
+  fontOptions={[...DEFAULT_FONT_OPTIONS, { name: 'My font', family: '"My font", serif', group: 'Custom' }]}
+/>
+```
+
 ## Theming and customization (Mantine, headless)
 
 > **Status: planned.** Phase 1 uses Mantine internally with a default theme,

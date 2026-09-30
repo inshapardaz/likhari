@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { MantineThemeOverride } from '@mantine/core';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
@@ -15,6 +15,7 @@ import { EDITOR_NODES } from './nodes';
 import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
+import { injectUrduWebFontsCss, type FontOption } from './fonts';
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -52,6 +53,14 @@ export interface EditorRootProps {
    * the unsaved-changes state) or to hide it while keeping `onSave`.
    */
   showSave?: boolean;
+  /**
+   * Entries for the toolbar's font-family dropdown. Defaults to
+   * `DEFAULT_FONT_OPTIONS` (generic Latin faces plus the Urdu/Arabic-script
+   * collection from inshapardaz/urdu-web-fonts, the same source qari uses).
+   * Spread the defaults to add your own, e.g.
+   * `[...DEFAULT_FONT_OPTIONS, { name: 'Mine', family: '"Mine", serif' }]`.
+   */
+  fontOptions?: FontOption[];
 }
 
 export interface EditorRef {
@@ -82,10 +91,17 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     onChange,
     onSave,
     showSave = Boolean(onSave),
+    fontOptions,
   },
   ref,
 ) {
   const config = useMemo(() => resolveFeatureConfig(featureConfig, featurePreset), [featureConfig, featurePreset]);
+  // The urdu-web-fonts stylesheets are needed for the font dropdown and for
+  // RTL content, whose canvas font (editor.css) is one of those families.
+  useEffect(() => {
+    if (config.font.family || locale !== 'en') injectUrduWebFontsCss();
+  }, [config.font.family, locale]);
+
   const editorStateRef = useRef<EditorState | null>(null);
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -169,7 +185,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} />
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}
