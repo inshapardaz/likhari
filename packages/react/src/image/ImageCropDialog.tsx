@@ -4,6 +4,7 @@ import { normalizeImageUrl } from './imageUrl';
 import { dataUrlBytes, dataUrlToFile, fitDimension, mimeFromSrc } from './imageEdit';
 import { ImageCropper } from './ImageCropper';
 import { useImageOptions } from './ImageOptionsContext';
+import { useUiStrings } from '../i18n/useStrings';
 
 export interface ImageCropDialogValue {
   src: string;
@@ -43,6 +44,7 @@ function useNaturalSize(src: string | null) {
  * its context menu. Edits that change pixels are re-embedded as a data URI,
  * or stored through the host's `onImageUpload` when there is one. */
 export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCropDialogProps) {
+  const strings = useUiStrings();
   const { maxSizeMB, onImageUpload } = useImageOptions();
 
   const [pixelSrc, setPixelSrc] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
       let src = effectiveSrc;
       if (pixelSrc) {
         if (dataUrlBytes(pixelSrc) > maxSizeMB * 1024 * 1024) {
-          setError(`Image is larger than ${maxSizeMB} MB`);
+          setError(strings.imageCropDialog.errors.largerThan(maxSizeMB));
           return;
         }
         if (onImageUpload) {
@@ -101,21 +103,24 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
           const ext = mimeFromSrc(pixelSrc).split('/')[1];
           src = await onImageUpload(dataUrlToFile(pixelSrc, `image.${ext}`));
           if (!normalizeImageUrl(src)) {
-            setError('The upload handler returned an unusable image URL');
+            setError(strings.imageCropDialog.errors.uploadUnusable);
             return;
           }
         }
       }
       onSubmit({ src, width, height });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the image');
+      // ImageCropper's own pixel-edit error message (imageEdit.ts,
+      // applyPixelOp) is shown as-is when present — see the note in
+      // ImageDialog.tsx for why that pure utility's messages stay English.
+      setError(err instanceof Error ? err.message : strings.imageCropDialog.errors.couldNotSave);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Crop & resize" centered size="lg">
+    <Modal opened={opened} onClose={onClose} title={strings.imageCropDialog.title} centered size="lg">
       <form onSubmit={handleSubmit}>
         <Stack gap="md">
           <ImageCropper
@@ -131,29 +136,29 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
               setHeight(initial.height);
             }}
           />
-          <Divider label="Size" labelPosition="left" />
+          <Divider label={strings.imageCropDialog.sizeLabel} labelPosition="left" />
           <Stack gap="sm">
             <Group grow align="flex-end">
               <NumberInput
-                label="Width (px)"
+                label={strings.imageCropDialog.widthLabel}
                 min={1}
                 max={10000}
                 hideControls
-                placeholder={natural ? String(natural.width) : 'Auto'}
+                placeholder={natural ? String(natural.width) : strings.imageCropDialog.autoPlaceholder}
                 value={width ?? ''}
                 onChange={(v) => onSizeChange('width', v)}
               />
               <NumberInput
-                label="Height (px)"
+                label={strings.imageCropDialog.heightLabel}
                 min={1}
                 max={10000}
                 hideControls
-                placeholder={natural ? String(natural.height) : 'Auto'}
+                placeholder={natural ? String(natural.height) : strings.imageCropDialog.autoPlaceholder}
                 value={height ?? ''}
                 onChange={(v) => onSizeChange('height', v)}
               />
             </Group>
-            <Checkbox label="Keep proportions" checked={lockAspect} onChange={(e) => setLockAspect(e.currentTarget.checked)} />
+            <Checkbox label={strings.imageCropDialog.keepProportions} checked={lockAspect} onChange={(e) => setLockAspect(e.currentTarget.checked)} />
             <Group gap="xs">
               {[25, 50, 75, 100].map((pct) => (
                 <Button
@@ -171,11 +176,11 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
                 </Button>
               ))}
               <Button size="xs" variant="subtle" onClick={resetSize}>
-                Original size
+                {strings.imageCropDialog.originalSize}
               </Button>
             </Group>
             <Text size="xs" c="dimmed">
-              You can also drag the corner handle on a selected image. {natural ? `Original: ${natural.width} × ${natural.height} px.` : ''}
+              {strings.imageCropDialog.dragHint(natural)}
             </Text>
           </Stack>
           {error && (
@@ -185,10 +190,10 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
           )}
           <Group justify="flex-end" gap="xs">
             <Button variant="default" onClick={onClose}>
-              Cancel
+              {strings.common.cancel}
             </Button>
             <Button type="submit" loading={busy}>
-              Save
+              {strings.common.save}
             </Button>
           </Group>
         </Stack>

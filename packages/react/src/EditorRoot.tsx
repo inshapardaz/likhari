@@ -19,6 +19,7 @@ import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
+import { UiStringsContext, getStrings, type Locale } from './i18n';
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -32,7 +33,7 @@ export interface EditorRootProps {
   featurePreset?: FeatureConfigPresetName;
   theme?: MantineThemeOverride;
   colorScheme?: 'light' | 'dark';
-  locale?: 'en' | 'ur' | 'pa-shahmukhi';
+  locale?: Locale;
   placeholder?: string;
   /**
    * CSS height for the editor box (toolbar + canvas together) — accepts any
@@ -104,7 +105,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     theme,
     colorScheme,
     locale = 'en',
-    placeholder = 'Start writing…',
+    placeholder,
     height = '480px',
     onChange,
     onSave,
@@ -116,6 +117,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   ref,
 ) {
   const config = useMemo(() => resolveFeatureConfig(featureConfig, featurePreset), [featureConfig, featurePreset]);
+  const strings = useMemo(() => getStrings(locale), [locale]);
+  const resolvedPlaceholder = placeholder ?? strings.editor.placeholder;
   // The urdu-web-fonts stylesheets are needed for the font dropdown and for
   // RTL content, whose canvas font (editor.css) is one of those families.
   useEffect(() => {
@@ -177,13 +180,13 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       async confirmDiscard() {
         if (!isDirty) return true;
         if (typeof window === 'undefined') return true;
-        return window.confirm('You have unsaved changes. Discard them?');
+        return window.confirm(strings.editor.confirmDiscard);
       },
       focus() {
         rootElementRef.current?.focus();
       },
     }),
-    [isDirty],
+    [isDirty, strings],
   );
 
   const rootElementRef = useRef<HTMLDivElement | null>(null);
@@ -216,13 +219,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         data-document-id={documentId}
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
+        <UiStringsContext.Provider value={strings}>
         <ImageOptionsContext.Provider value={imageOptions}>
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} direction={dir} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} direction={dir} locale={locale} />
           <div className="likhari-canvas">
             <RichTextPlugin
-              contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}
-              placeholder={<div className="likhari-placeholder">{placeholder}</div>}
+              contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label={strings.editor.contentLabel} />}
+              placeholder={<div className="likhari-placeholder">{resolvedPlaceholder}</div>}
               ErrorBoundary={LexicalErrorBoundary}
             />
           </div>
@@ -234,6 +238,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
+        </UiStringsContext.Provider>
       </div>
     </EditorThemeProvider>
   );

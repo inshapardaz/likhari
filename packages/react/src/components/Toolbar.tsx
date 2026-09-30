@@ -45,6 +45,8 @@ import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
+import { useStrings } from '../i18n/useStrings';
+import type { Locale, Strings } from '../i18n/strings';
 import {
   IconAbc,
   IconAlignCenter,
@@ -172,8 +174,8 @@ function ToolbarButton({
  * isn't implemented yet (link/image/poetry/font/language-tooling — see
  * docs/lexical-editor-spec.md §13's phasing). Renders so the toolbar's
  * layout is final now and only needs its onClick wired up later. */
-function StubButton({ icon, title }: { icon: TablerIcon; title: string }) {
-  return <ToolbarButton icon={icon} title={`${title} (coming soon)`} disabled onClick={undefined} />;
+function StubButton({ icon, title, comingSoon }: { icon: TablerIcon; title: string; comingSoon: (label: string) => string }) {
+  return <ToolbarButton icon={icon} title={comingSoon(title)} disabled onClick={undefined} />;
 }
 
 interface ToolbarSelectProps {
@@ -187,26 +189,28 @@ interface ToolbarSelectProps {
   searchable?: boolean;
   renderOption?: SelectProps['renderOption'];
   onChange?: (value: string) => void;
+  comingSoon?: (label: string) => string;
+  noMatchMessage?: string;
 }
 
 /** Mantine Select (combobox) for the toolbar's dropdown controls. The icon
  * labels the control itself, since a dropdown can't show one per option in
  * its closed state. The dropdown portals to <body>, so it is not clipped by
  * the editor's `overflow: hidden` frame. */
-function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, searchable, renderOption, onChange }: ToolbarSelectProps) {
+function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, searchable, renderOption, onChange, comingSoon, noMatchMessage }: ToolbarSelectProps) {
   return (
     <Select
       size="xs"
       w={width}
       aria-label={label}
-      title={disabled ? `${label} (coming soon)` : label}
+      title={disabled && comingSoon ? comingSoon(label) : label}
       data={data}
       value={value}
       placeholder={placeholder}
       disabled={disabled}
       searchable={searchable}
       renderOption={renderOption}
-      nothingFoundMessage={searchable ? 'No match' : undefined}
+      nothingFoundMessage={searchable ? noMatchMessage : undefined}
       allowDeselect={false}
       leftSection={<Icon size={15} stroke={ICON_STROKE} />}
       comboboxProps={{ withinPortal: true, position: 'bottom-start', middlewares: { flip: true, shift: true } }}
@@ -243,12 +247,12 @@ function OverflowItem({
 
 /** The link menu's contents — shared by the toolbar button and the right-click
  * menu: the URL (opens in a new tab), Edit link, Remove link. */
-function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => void; onRemove: () => void }) {
+function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings }) {
   // Only offer the link as clickable if it's a URL the editor would have accepted.
   const safeUrl = normalizeLinkUrl(url);
   return (
     <>
-      <Menu.Label>Link</Menu.Label>
+      <Menu.Label>{strings.link.menuLabel}</Menu.Label>
       {safeUrl ? (
         <Menu.Item
           component="a"
@@ -264,7 +268,7 @@ function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => v
       ) : (
         // Not a URL the editor would accept (e.g. loaded from a document): show it, don't make it clickable.
         <Menu.Item disabled title={url} className="likhari-link-menu-url">
-          {url || '(no URL)'}
+          {url || strings.link.noUrl}
         </Menu.Item>
       )}
       <Menu.Item
@@ -272,7 +276,7 @@ function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => v
         onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
         onClick={onEdit}
       >
-        Edit link
+        {strings.link.editLink}
       </Menu.Item>
       <Menu.Item
         color="red"
@@ -280,7 +284,7 @@ function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => v
         onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
         onClick={onRemove}
       >
-        Remove link
+        {strings.link.removeLink}
       </Menu.Item>
     </>
   );
@@ -295,11 +299,14 @@ export interface ToolbarProps {
   fontOptions?: FontOption[];
   /** Text direction of the canvas; picks which default font and size are pre-selected. */
   direction?: 'ltr' | 'rtl';
+  /** UI locale — picks the translated strings for labels, tooltips and menu items. */
+  locale?: Locale;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr' }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en' }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
+  const strings = useStrings(locale);
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -664,30 +671,30 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
 
   const formattingOptions = [
-    { value: 'paragraph', label: 'Paragraph' },
-    ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
-    ...(config.lists.numbered ? [{ value: 'number', label: 'Numbered list' }] : []),
-    ...(config.lists.bullet ? [{ value: 'bullet', label: 'Bullet list' }] : []),
-    ...(config.lists.check ? [{ value: 'check', label: 'Task list' }] : []),
-    ...(config.blocks.quote ? [{ value: 'quote', label: 'Quote' }] : []),
+    { value: 'paragraph', label: strings.toolbar.formattingOptions.paragraph },
+    ...headingLevels.map((level) => ({ value: `h${level}`, label: strings.toolbar.formattingOptions.heading(level) })),
+    ...(config.lists.numbered ? [{ value: 'number', label: strings.toolbar.formattingOptions.numberedList }] : []),
+    ...(config.lists.bullet ? [{ value: 'bullet', label: strings.toolbar.formattingOptions.bulletList }] : []),
+    ...(config.lists.check ? [{ value: 'check', label: strings.toolbar.formattingOptions.taskList }] : []),
+    ...(config.blocks.quote ? [{ value: 'quote', label: strings.toolbar.formattingOptions.quote }] : []),
   ];
   const alignOptions = [
-    ...(config.alignment.start ? [{ value: 'start', label: 'Align start' }] : []),
-    ...(config.alignment.center ? [{ value: 'center', label: 'Align center' }] : []),
-    ...(config.alignment.start ? [{ value: 'end', label: 'Align end' }] : []),
-    ...(config.alignment.justify ? [{ value: 'justify', label: 'Justify' }] : []),
-    ...(config.alignment.left ? [{ value: 'left', label: 'Align left' }] : []),
-    ...(config.alignment.right ? [{ value: 'right', label: 'Align right' }] : []),
+    ...(config.alignment.start ? [{ value: 'start', label: strings.toolbar.alignOptions.start }] : []),
+    ...(config.alignment.center ? [{ value: 'center', label: strings.toolbar.alignOptions.center }] : []),
+    ...(config.alignment.start ? [{ value: 'end', label: strings.toolbar.alignOptions.end }] : []),
+    ...(config.alignment.justify ? [{ value: 'justify', label: strings.toolbar.alignOptions.justify }] : []),
+    ...(config.alignment.left ? [{ value: 'left', label: strings.toolbar.alignOptions.left }] : []),
+    ...(config.alignment.right ? [{ value: 'right', label: strings.toolbar.alignOptions.right }] : []),
   ];
   const formattingValue: FormattingValue = state.listType ?? state.blockType;
   const AlignIcon = ALIGN_ICONS[state.elementFormat] ?? IconAlignLeft;
 
   return (
-    <div className="likhari-toolbar" role="toolbar" aria-label="Formatting">
+    <div className="likhari-toolbar" role="toolbar" aria-label={strings.toolbar.ariaLabel}>
       {/* Save — icon only; filled while dirty, outline once saved */}
       {showSave && (
         <div className="likhari-toolbar-group">
-          <ToolbarButton icon={IconDeviceFloppy} title="Save" dirty={Boolean(isDirty)} onClick={onSave} />
+          <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
         </div>
       )}
 
@@ -696,13 +703,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <div className="likhari-toolbar-group">
           <ToolbarButton
             icon={IconArrowBackUp}
-            title="Undo"
+            title={strings.toolbar.undo}
             disabled={!state.canUndo}
             onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
           />
           <ToolbarButton
             icon={IconArrowForwardUp}
-            title="Redo"
+            title={strings.toolbar.redo}
             disabled={!state.canRedo}
             onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
           />
@@ -714,10 +721,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <div className="likhari-toolbar-group">
           <ToolbarSelect
             icon={IconPilcrow}
-            label="Formatting"
+            label={strings.toolbar.formattingLabel}
             width={148}
             value={formattingValue}
             data={formattingOptions}
+            comingSoon={strings.toolbar.comingSoon}
             onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
           />
         </div>
@@ -727,12 +735,12 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       {showInlineGroup && (
         <div className="likhari-toolbar-group">
           {fmt.bold && (
-            <ToolbarButton icon={IconBold} title="Bold" active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />
+            <ToolbarButton icon={IconBold} title={strings.toolbar.bold} active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />
           )}
           {fmt.italic && (
             <ToolbarButton
               icon={IconItalic}
-              title="Italic"
+              title={strings.toolbar.italic}
               active={state.activeFormats.has('italic')}
               onClick={() => formatText('italic')}
             />
@@ -740,7 +748,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           {fmt.underline && (
             <ToolbarButton
               icon={IconUnderline}
-              title="Underline"
+              title={strings.toolbar.underline}
               active={state.activeFormats.has('underline')}
               onClick={() => formatText('underline')}
             />
@@ -754,12 +762,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           {config.font.family && (
             <ToolbarSelect
               icon={IconTypography}
-              label="Font family"
+              label={strings.toolbar.fontFamily}
               width={150}
               value={fontOptions.some((f) => f.family === shownFontFamily) ? shownFontFamily : null}
-              placeholder="Font"
+              placeholder={strings.toolbar.fontFamilyPlaceholder}
               data={fontData}
               searchable
+              noMatchMessage={strings.toolbar.noMatch}
               renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
               onChange={withRefocus((v: string) => applyFont('font-family', v))}
             />
@@ -767,10 +776,10 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           {config.font.size && (
             <ToolbarSelect
               icon={IconTextSize}
-              label="Font size"
+              label={strings.toolbar.fontSize}
               width={84}
               value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
-              placeholder="Size"
+              placeholder={strings.toolbar.fontSizePlaceholder}
               data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
               onChange={withRefocus((v: string) => applyFont('font-size', v))}
             />
@@ -782,7 +791,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <div className="likhari-toolbar-group">
           <ToolbarSelect
             icon={AlignIcon}
-            label="Alignment"
+            label={strings.toolbar.alignment}
             width={138}
             value={state.elementFormat || 'start'}
             data={alignOptions}
@@ -804,8 +813,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
                   data-active="true"
                   aria-pressed="true"
                   aria-haspopup="menu"
-                  aria-label="Link options"
-                  title="Link options"
+                  aria-label={strings.toolbar.linkOptions}
+                  title={strings.toolbar.linkOptions}
                   onMouseDown={(e) => e.preventDefault()}
                 >
                   <IconLink size={ICON_SIZE} stroke={ICON_STROKE} />
@@ -819,11 +828,12 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
                     openLinkDialog();
                   }}
                   onRemove={removeLink}
+                  strings={strings}
                 />
               </Menu.Dropdown>
             </Menu>
           ) : (
-            <ToolbarButton icon={IconLink} title="Insert link (Ctrl+K)" onClick={openLinkDialog} />
+            <ToolbarButton icon={IconLink} title={strings.toolbar.insertLink} onClick={openLinkDialog} />
           )}
         </div>
       )}
@@ -854,6 +864,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
                 openLinkDialog();
               }}
               onRemove={removeLink}
+              strings={strings}
             />
           </Menu.Dropdown>
         </Menu>
@@ -863,18 +874,18 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       {showStubInsertGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
           {(config.images.linked || config.images.embedded) && (
-            <ToolbarButton icon={IconPhoto} title="Insert image" onClick={openImageDialog} />
+            <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
           )}
-          {config.poetry.enabled && <StubButton icon={IconFeather} title="Poetry blocks" />}
+          {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
         </div>
       )}
 
       {/* Auto-correct, text cleanup, spell-checker — stubs, gated by config, not implemented yet */}
       {showLanguageGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
-          {config.language.autocorrect && <StubButton icon={IconWand} title="Auto-correct" />}
-          {config.language.textCleanup && <StubButton icon={IconSparkles} title="Text cleanup" />}
-          {config.language.spellCheck && <StubButton icon={IconAbc} title="Spell-checker" />}
+          {config.language.autocorrect && <StubButton icon={IconWand} title={strings.toolbar.autocorrect} comingSoon={strings.toolbar.comingSoon} />}
+          {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
+          {config.language.spellCheck && <StubButton icon={IconAbc} title={strings.toolbar.spellChecker} comingSoon={strings.toolbar.comingSoon} />}
         </div>
       )}
 
@@ -888,8 +899,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             <button
               type="button"
               className="likhari-toolbar-button"
-              aria-label="More formatting"
-              title="More formatting"
+              aria-label={strings.toolbar.moreFormatting}
+              title={strings.toolbar.moreFormatting}
               onMouseDown={(e) => e.preventDefault()}
             >
               <IconDots size={ICON_SIZE} stroke={ICON_STROKE} />
@@ -897,26 +908,26 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           </Menu.Target>
           <Menu.Dropdown>
             {fmt.strikethrough && (
-              <OverflowItem icon={IconStrikethrough} label="Strikethrough" active={state.activeFormats.has('strikethrough')} onClick={runOverflowAction(() => formatText('strikethrough'))} />
+              <OverflowItem icon={IconStrikethrough} label={strings.toolbar.strikethrough} active={state.activeFormats.has('strikethrough')} onClick={runOverflowAction(() => formatText('strikethrough'))} />
             )}
             {fmt.superscript && (
-              <OverflowItem icon={IconSuperscript} label="Superscript" active={state.activeFormats.has('superscript')} onClick={runOverflowAction(() => formatText('superscript'))} />
+              <OverflowItem icon={IconSuperscript} label={strings.toolbar.superscript} active={state.activeFormats.has('superscript')} onClick={runOverflowAction(() => formatText('superscript'))} />
             )}
             {fmt.subscript && (
-              <OverflowItem icon={IconSubscript} label="Subscript" active={state.activeFormats.has('subscript')} onClick={runOverflowAction(() => formatText('subscript'))} />
+              <OverflowItem icon={IconSubscript} label={strings.toolbar.subscript} active={state.activeFormats.has('subscript')} onClick={runOverflowAction(() => formatText('subscript'))} />
             )}
             {fmt.caseTransforms && (
               <>
-                <OverflowItem icon={IconLetterCaseUpper} label="UPPERCASE" onClick={runOverflowAction(() => applyCaseTransform('upper'))} />
-                <OverflowItem icon={IconLetterCaseLower} label="lowercase" onClick={runOverflowAction(() => applyCaseTransform('lower'))} />
-                <OverflowItem icon={IconLetterCase} label="Capitalize" onClick={runOverflowAction(() => applyCaseTransform('capitalize'))} />
+                <OverflowItem icon={IconLetterCaseUpper} label={strings.toolbar.uppercase} onClick={runOverflowAction(() => applyCaseTransform('upper'))} />
+                <OverflowItem icon={IconLetterCaseLower} label={strings.toolbar.lowercase} onClick={runOverflowAction(() => applyCaseTransform('lower'))} />
+                <OverflowItem icon={IconLetterCase} label={strings.toolbar.capitalize} onClick={runOverflowAction(() => applyCaseTransform('capitalize'))} />
               </>
             )}
-            {fmt.clearFormatting && <OverflowItem icon={IconClearFormatting} label="Clear formatting" onClick={runOverflowAction(clearFormatting)} />}
+            {fmt.clearFormatting && <OverflowItem icon={IconClearFormatting} label={strings.toolbar.clearFormatting} onClick={runOverflowAction(clearFormatting)} />}
             {config.indent && (
               <>
-                <OverflowItem icon={IconIndentDecrease} label="Outdent" onClick={runOverflowAction(() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined))} />
-                <OverflowItem icon={IconIndentIncrease} label="Indent" onClick={runOverflowAction(() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined))} />
+                <OverflowItem icon={IconIndentDecrease} label={strings.toolbar.outdent} onClick={runOverflowAction(() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined))} />
+                <OverflowItem icon={IconIndentIncrease} label={strings.toolbar.indent} onClick={runOverflowAction(() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined))} />
               </>
             )}
           </Menu.Dropdown>

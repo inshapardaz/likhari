@@ -17,6 +17,7 @@ import {
 import { ImageCropDialog, type ImageCropDialogValue } from './ImageCropDialog';
 import { ImageDialog, type ImageDialogValue } from './ImageDialog';
 import { useImageOptions } from './ImageOptionsContext';
+import { useUiStrings } from '../i18n/useStrings';
 import { dataUrlBytes, fetchImageAsDataUrl } from './imageEdit';
 import type { ImageLinkType, ImageNode } from './ImageNode';
 
@@ -50,6 +51,7 @@ interface ImageComponentProps {
 export function ImageComponent({ nodeKey, src, altText, caption, linkType, width, height }: ImageComponentProps) {
   const [editor] = useLexicalComposerContext();
   const options = useImageOptions();
+  const strings = useUiStrings();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const figureRef = useRef<HTMLElement | null>(null);
@@ -116,7 +118,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
     try {
       const dataUrl = await fetchImageAsDataUrl(src, options.fetchImage);
       if (dataUrlBytes(dataUrl) > options.maxSizeMB * 1024 * 1024) {
-        throw new Error(`Image is larger than ${options.maxSizeMB} MB`);
+        throw new Error(strings.imageDialog.errors.largerThan(options.maxSizeMB));
       }
       updateNode((node) => node.setSource(dataUrl, 'embedded'));
     } catch {
@@ -213,7 +215,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
           <span
             className="likhari-image-resize-handle"
             role="separator"
-            aria-label="Resize image"
+            aria-label={strings.imageMenu.resizeImage}
             onPointerDown={onResizeDown}
             onPointerMove={onResizeMove}
             onPointerUp={onResizeUp}
@@ -242,31 +244,31 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
         </Menu.Target>
         <Menu.Dropdown>
           <Menu.Item leftSection={<IconPhotoEdit size={16} stroke={1.75} />} onClick={() => setDialog({})}>
-            Edit image…
+            {strings.imageMenu.editImage}
           </Menu.Item>
           {linkType === 'linked' && options.allowEmbedded && (
             <Menu.Item leftSection={<IconPhotoDown size={16} stroke={1.75} />} onClick={() => void convertToEmbedded()}>
-              Convert to embedded image
+              {strings.imageMenu.convertToEmbedded}
             </Menu.Item>
           )}
           {linkType === 'embedded' && (
             <Menu.Item leftSection={<IconCrop size={16} stroke={1.75} />} onClick={() => setCropDialogOpen(true)}>
-              Crop &amp; resize…
+              {strings.imageMenu.cropResize}
             </Menu.Item>
           )}
           {options.allowCaption && (
             <Menu.Item leftSection={<IconTextCaption size={16} stroke={1.75} />} onClick={() => setDialog({ intent: 'caption' })}>
-              {caption ? 'Edit caption…' : 'Add caption…'}
+              {caption ? strings.imageMenu.editCaption : strings.imageMenu.addCaption}
             </Menu.Item>
           )}
           {options.allowCaption && caption && (
             <Menu.Item leftSection={<IconX size={16} stroke={1.75} />} onClick={() => updateNode((node) => node.setCaption(null))}>
-              Remove caption
+              {strings.imageMenu.removeCaption}
             </Menu.Item>
           )}
           <Menu.Divider />
           <Menu.Item color="red" leftSection={<IconTrash size={16} stroke={1.75} />} onClick={removeImage}>
-            Delete image
+            {strings.imageMenu.deleteImage}
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

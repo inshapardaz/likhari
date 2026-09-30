@@ -4,6 +4,7 @@ import { IconPhotoDown } from '@tabler/icons-react';
 import { ACCEPTED_IMAGE_TYPES, normalizeImageUrl, validateImageFile } from './imageUrl';
 import { dataUrlBytes, dataUrlToFile, fetchImageAsDataUrl, mimeFromSrc } from './imageEdit';
 import { useImageOptions } from './ImageOptionsContext';
+import { useUiStrings } from '../i18n/useStrings';
 import type { ImageLinkType } from './ImageNode';
 
 export interface ImageDialogValue {
@@ -36,7 +37,7 @@ function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read the file'));
+    reader.onerror = () => reject(new Error('READ_FAILED'));
     reader.readAsDataURL(file);
   });
 }
@@ -49,6 +50,7 @@ function readAsDataUrl(file: File): Promise<string> {
  * image's context menu once it has pixels of its own to edit.
  */
 export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }: ImageDialogProps) {
+  const strings = useUiStrings();
   const { allowLinked, allowEmbedded, allowCaption, maxSizeMB, onImageUpload, fetchImage } = useImageOptions();
   const editing = mode === 'edit' && initial !== undefined;
   const defaultSource: Source = editing ? 'keep' : allowLinked ? 'linked' : 'embedded';
@@ -103,8 +105,8 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
     }
     try {
       setFileSrc(await readAsDataUrl(next));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read the file');
+    } catch {
+      setError(strings.imageDialog.errors.couldNotReadFile);
     }
   };
 
@@ -115,12 +117,16 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
     setError(null);
     try {
       const dataUrl = await fetchImageAsDataUrl(src, fetchImage);
-      if (dataUrlBytes(dataUrl) > maxSizeMB * 1024 * 1024) throw new Error(`Image is larger than ${maxSizeMB} MB`);
+      if (dataUrlBytes(dataUrl) > maxSizeMB * 1024 * 1024) throw new Error(strings.imageDialog.errors.largerThan(maxSizeMB));
       setSource('embedded');
       setFile(null);
       setFileSrc(dataUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not convert the image');
+      // fetchImageAsDataUrl's own errors (network/CORS failures, unsupported
+      // type) are English (packages/react/src/image/imageEdit.ts) — shown
+      // as-is since threading locale into that pure utility isn't worth the
+      // refactor here; only the size-limit message above is ours to localize.
+      setError(err instanceof Error ? err.message : strings.imageDialog.errors.couldNotConvert);
     } finally {
       setConverting(false);
     }
@@ -131,7 +137,13 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
     setError(null);
 
     if (!baseSrc) {
-      setError(source === 'linked' ? 'Enter an http(s) or relative image URL' : source === 'embedded' ? 'Choose an image file' : 'No image');
+      setError(
+        source === 'linked'
+          ? strings.imageDialog.errors.enterUrl
+          : source === 'embedded'
+            ? strings.imageDialog.errors.chooseFile
+            : strings.imageDialog.errors.noImage,
+      );
       return;
     }
 
@@ -149,7 +161,7 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
       }
       if (newPixels) {
         if (dataUrlBytes(newPixels) > maxSizeMB * 1024 * 1024) {
-          setError(`Image is larger than ${maxSizeMB} MB`);
+          setError(strings.imageDialog.errors.largerThan(maxSizeMB));
           return;
         }
         linkType = 'embedded';
@@ -159,7 +171,7 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
           const upload = !file ? dataUrlToFile(newPixels, `image.${ext}`) : file;
           src = await onImageUpload(upload);
           if (!normalizeImageUrl(src)) {
-            setError('The upload handler returned an unusable image URL');
+            setError(strings.imageDialog.errors.uploadUnusable);
             return;
           }
         } else {
@@ -175,7 +187,9 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
         sourceChanged: source !== 'keep',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the image');
+      // fetchImageAsDataUrl's own network/CORS error message (imageEdit.ts)
+      // is shown as-is when present — see note in `convert` above.
+      setError(err instanceof Error ? err.message : strings.imageDialog.errors.couldNotSave);
     } finally {
       setBusy(false);
     }
@@ -190,12 +204,12 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
       disabled={!baseSrc}
       onClick={() => convert(baseSrc)}
     >
-      Convert to embedded image
+      {strings.imageDialog.convertButton}
     </Button>
   );
 
   return (
-    <Modal opened={opened} onClose={onClose} title={editing ? 'Edit image' : 'Insert image'} centered size="sm">
+    <Modal opened={opened} onClose={onClose} title={editing ? strings.imageDialog.titleEdit : strings.imageDialog.titleInsert} centered size="sm">
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
           {(editing || (allowLinked && allowEmbedded)) && (
@@ -204,22 +218,22 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
               value={source}
               onChange={(v) => changeSource(v as Source)}
               data={[
-                ...(editing ? [{ value: 'keep', label: 'Current image' }] : []),
-                ...(allowLinked ? [{ value: 'linked', label: 'From URL' }] : []),
-                ...(allowEmbedded ? [{ value: 'embedded', label: 'Upload' }] : []),
+                ...(editing ? [{ value: 'keep', label: strings.imageDialog.currentImage }] : []),
+                ...(allowLinked ? [{ value: 'linked', label: strings.imageDialog.fromUrl }] : []),
+                ...(allowEmbedded ? [{ value: 'embedded', label: strings.imageDialog.upload }] : []),
               ]}
             />
           )}
           {source === 'keep' && (
             <Stack gap={6}>
               <Text size="sm" c="dimmed" lineClamp={2} style={{ wordBreak: 'break-all' }}>
-                {initial?.linkType === 'embedded' ? 'Embedded in the document' : `Linked from ${initial?.src}`}
+                {initial?.linkType === 'embedded' ? strings.imageDialog.embeddedInDocument : strings.imageDialog.linkedFrom(initial?.src ?? '')}
               </Text>
               {initial?.linkType === 'linked' && allowEmbedded && (
                 <Group gap="xs">
                   {convertButton}
                   <Text size="xs" c="dimmed">
-                    Downloads a copy into the document, so it can be cropped, rotated and resized.
+                    {strings.imageDialog.convertHint}
                   </Text>
                 </Group>
               )}
@@ -228,16 +242,16 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
           {source === 'linked' && (
             <>
               <TextInput
-                label="Image URL"
-                placeholder="https://example.com/photo.jpg"
+                label={strings.imageDialog.imageUrlLabel}
+                placeholder={strings.imageDialog.imageUrlPlaceholder}
                 value={url}
                 onChange={(e) => setUrl(e.currentTarget.value)}
                 data-autofocus={intent !== 'caption' ? true : undefined}
               />
               {allowEmbedded && (
                 <Checkbox
-                  label="Embed a copy in the document"
-                  description="Downloads the image so it can be edited and no longer depends on the URL."
+                  label={strings.imageDialog.embedCopyLabel}
+                  description={strings.imageDialog.embedCopyDescription}
                   checked={embedCopy}
                   onChange={(e) => setEmbedCopy(e.currentTarget.checked)}
                 />
@@ -247,28 +261,28 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
           {source === 'embedded' &&
             (convertedFromUrl ? (
               <Text size="sm" c="dimmed">
-                Converted from the URL: a copy will be embedded in the document.
+                {strings.imageDialog.convertedFromUrl}
               </Text>
             ) : (
               <FileInput
-                label="Image file"
-                placeholder="Choose an image"
+                label={strings.imageDialog.fileLabel}
+                placeholder={strings.imageDialog.filePlaceholder}
                 accept={ACCEPTED_IMAGE_TYPES.join(',')}
                 value={file}
                 onChange={changeFile}
-                description={`Up to ${maxSizeMB} MB${onImageUpload ? '' : '; stored inside the document'}`}
+                description={strings.imageDialog.fileDescription(maxSizeMB, !onImageUpload)}
               />
             ))}
           <TextInput
-            label="Alt text"
-            description="Describes the image for screen readers"
+            label={strings.imageDialog.altTextLabel}
+            description={strings.imageDialog.altTextDescription}
             value={altText}
             onChange={(e) => setAltText(e.currentTarget.value)}
           />
           {allowCaption && (
             <TextInput
-              label="Caption"
-              description="Shown under the image. Leave empty for none."
+              label={strings.imageDialog.captionLabel}
+              description={strings.imageDialog.captionDescription}
               value={caption}
               onChange={(e) => setCaption(e.currentTarget.value)}
               data-autofocus={intent === 'caption' ? true : undefined}
@@ -281,10 +295,10 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
           )}
           <Group justify="flex-end" gap="xs">
             <Button variant="default" onClick={onClose}>
-              Cancel
+              {strings.common.cancel}
             </Button>
             <Button type="submit" loading={busy}>
-              {editing ? 'Save' : 'Insert'}
+              {editing ? strings.common.save : strings.common.insert}
             </Button>
           </Group>
         </Stack>

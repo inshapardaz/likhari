@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Group, Modal, TextInput } from '@mantine/core';
 import { normalizeLinkUrl } from '../utils/linkUrl';
+import { useUiStrings } from '../i18n/useStrings';
 
 export interface LinkDialogProps {
   opened: boolean;
@@ -17,6 +18,7 @@ export interface LinkDialogProps {
 /** Insert/edit-link dialog (UI spec §6). Mantine Modal supplies focus
  * trapping, Escape-to-close and the overlay. */
 export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemove, onClose }: LinkDialogProps) {
+  const strings = useUiStrings();
   const [url, setUrl] = useState(initialUrl);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -33,18 +35,18 @@ export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemo
     e.preventDefault();
     const normalized = normalizeLinkUrl(url);
     if (!normalized) {
-      setError('Enter a valid http(s), mailto, tel or relative URL');
+      setError(strings.linkDialog.invalidUrl);
       return;
     }
     onSubmit({ url: normalized, text: text.trim() || normalized });
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={onRemove ? 'Edit link' : 'Insert link'} centered size="sm">
+    <Modal opened={opened} onClose={onClose} title={onRemove ? strings.linkDialog.titleEdit : strings.linkDialog.titleInsert} centered size="sm">
       <form onSubmit={handleSubmit}>
         <TextInput
-          label="URL"
-          placeholder="https://example.com"
+          label={strings.linkDialog.urlLabel}
+          placeholder={strings.linkDialog.urlPlaceholder}
           value={url}
           onChange={(e) => {
             setUrl(e.currentTarget.value);
@@ -56,8 +58,8 @@ export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemo
         {showTextField && (
           <TextInput
             mt="sm"
-            label="Text"
-            placeholder="Link text (defaults to the URL)"
+            label={strings.linkDialog.textLabel}
+            placeholder={strings.linkDialog.textPlaceholder}
             value={text}
             onChange={(e) => setText(e.currentTarget.value)}
           />
@@ -65,16 +67,16 @@ export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemo
         <Group justify="space-between" mt="md">
           {onRemove ? (
             <Button variant="subtle" color="red" onClick={onRemove}>
-              Remove link
+              {strings.link.removeLink}
             </Button>
           ) : (
             <span />
           )}
           <Group gap="xs">
             <Button variant="default" onClick={onClose}>
-              Cancel
+              {strings.common.cancel}
             </Button>
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{strings.linkDialog.apply}</Button>
           </Group>
         </Group>
       </form>
