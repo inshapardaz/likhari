@@ -4,6 +4,7 @@ import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageNode } from './image/ImageNode';
+import { PageBreakNode } from './blocks/PageBreakNode';
 
 /**
  * Node types registered on the editor at construction time. Per
@@ -22,4 +23,5 @@ export const EDITOR_NODES: Klass<LexicalNode>[] = [
   LinkNode,
   HorizontalRuleNode,
   ImageNode,
+  PageBreakNode,
 ];

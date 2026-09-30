@@ -18,6 +18,7 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
+import { PageBreakPlugin } from './plugins/PageBreakPlugin';
 import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
 import { PortalTargetContext } from './PortalTargetContext';
 import { UiStringsContext, getStrings, type Locale } from './i18n';
@@ -259,6 +260,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
+          {config.blocks.pageBreak && <PageBreakPlugin />}
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>

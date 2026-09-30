@@ -17,6 +17,8 @@ export interface Strings {
     contentLabel: string;
     /** window.confirm() prompt shown by EditorRef.confirmDiscard() when there are unsaved changes. */
     confirmDiscard: string;
+    /** Label shown on a page-break marker's dashed line while editing. */
+    pageBreakLabel: string;
   };
   common: {
     cancel: string;
@@ -42,6 +44,7 @@ export interface Strings {
     linkOptions: string;
     insertLink: string;
     insertImage: string;
+    insertPageBreak: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
@@ -155,6 +158,7 @@ const en: Strings = {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
     confirmDiscard: 'You have unsaved changes. Discard them?',
+    pageBreakLabel: 'Page break',
   },
   common: {
     cancel: 'Cancel',
@@ -179,6 +183,7 @@ const en: Strings = {
     linkOptions: 'Link options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
+    insertPageBreak: 'Insert page break',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
@@ -293,6 +298,7 @@ const ur: Strings = {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
     confirmDiscard: 'آپ کی غیر محفوظ شدہ تبدیلیاں ہیں۔ کیا انہیں رد کر دیا جائے؟',
+    pageBreakLabel: 'صفحے کی تقسیم',
   },
   common: {
     cancel: 'منسوخ کریں',
@@ -317,6 +323,7 @@ const ur: Strings = {
     linkOptions: 'لنک کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
+    insertPageBreak: 'صفحے کی تقسیم شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
@@ -431,6 +438,7 @@ const paShahmukhi: Strings = {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
     confirmDiscard: 'تہاڈیاں کجھ تبدیلیاں سنبھالیاں نئیں گئیاں۔ کی ایہناں نوں رد کر دیئے؟',
+    pageBreakLabel: 'صفحے دی ونڈ',
   },
   common: {
     cancel: 'رد کرو',
@@ -455,6 +463,7 @@ const paShahmukhi: Strings = {
     linkOptions: 'لنک دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
+    insertPageBreak: 'صفحے دی ونڈ پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
