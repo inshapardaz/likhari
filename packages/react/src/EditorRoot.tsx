@@ -16,6 +16,7 @@ import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
+import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -196,6 +197,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.history && <HistoryPlugin />}
           {(config.lists.bullet || config.lists.numbered || config.lists.check) && <ListPlugin />}
           {config.links && <LinkPlugin />}
+          {config.links && <LinkPastePlugin />}
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
       </div>

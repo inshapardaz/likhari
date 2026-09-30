@@ -7,6 +7,10 @@ import {
   $isElementNode,
   $setSelection,
   $getRoot,
+  $getNearestNodeFromDOMNode,
+  $createTextNode,
+  KEY_MODIFIER_COMMAND,
+  COMMAND_PRIORITY_NORMAL,
   type BaseSelection,
   FORMAT_TEXT_COMMAND,
   FORMAT_ELEMENT_COMMAND,
@@ -33,6 +37,9 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent } from '@lexical/utils';
+import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { LinkDialog } from './LinkDialog';
+import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
@@ -48,6 +55,7 @@ import {
   IconClearFormatting,
   IconDeviceFloppy,
   IconDots,
+  IconExternalLink,
   IconFeather,
   IconIndentDecrease,
   IconIndentIncrease,
@@ -56,6 +64,8 @@ import {
   IconLetterCaseLower,
   IconLetterCaseUpper,
   IconLink,
+  IconLinkOff,
+  IconPencil,
   IconPhoto,
   IconPilcrow,
   IconSparkles,
@@ -85,6 +95,9 @@ interface ToolbarState {
    * applies. */
   fontFamily: string;
   fontSize: string;
+  /** Selection is inside a link; `linkUrl` is that link's URL. */
+  isLink: boolean;
+  linkUrl: string;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -101,6 +114,8 @@ const INITIAL_STATE: ToolbarState = {
   listType: null,
   fontFamily: UNSET_STYLE,
   fontSize: UNSET_STYLE,
+  isLink: false,
+  linkUrl: '',
   canUndo: false,
   canRedo: false,
 };
@@ -224,6 +239,51 @@ function OverflowItem({
   );
 }
 
+/** The link menu's contents — shared by the toolbar button and the right-click
+ * menu: the URL (opens in a new tab), Edit link, Remove link. */
+function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => void; onRemove: () => void }) {
+  // Only offer the link as clickable if it's a URL the editor would have accepted.
+  const safeUrl = normalizeLinkUrl(url);
+  return (
+    <>
+      <Menu.Label>Link</Menu.Label>
+      {safeUrl ? (
+        <Menu.Item
+          component="a"
+          href={safeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          leftSection={<IconExternalLink size={ICON_SIZE} stroke={ICON_STROKE} />}
+          title={url}
+          className="likhari-link-menu-url"
+        >
+          {url}
+        </Menu.Item>
+      ) : (
+        // Not a URL the editor would accept (e.g. loaded from a document): show it, don't make it clickable.
+        <Menu.Item disabled title={url} className="likhari-link-menu-url">
+          {url || '(no URL)'}
+        </Menu.Item>
+      )}
+      <Menu.Item
+        leftSection={<IconPencil size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onEdit}
+      >
+        Edit link
+      </Menu.Item>
+      <Menu.Item
+        color="red"
+        leftSection={<IconLinkOff size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onRemove}
+      >
+        Remove link
+      </Menu.Item>
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -259,6 +319,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
 
       const fontFamily = $getSelectionStyleValueForProperty(selection, 'font-family', UNSET_STYLE);
       const fontSize = $getSelectionStyleValueForProperty(selection, 'font-size', UNSET_STYLE);
+      const linkNode = $findMatchingParent(anchorNode, $isLinkNode);
+      const isLink = Boolean(linkNode);
+      const linkUrl = linkNode && $isLinkNode(linkNode) ? linkNode.getURL() : '';
 
       const activeFormats = new Set<TextFormatType>();
       (['bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript'] as TextFormatType[]).forEach(
@@ -281,9 +344,17 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         listType,
         fontFamily,
         fontSize,
+        isLink,
+        linkUrl,
       }));
     });
   }, [editor]);
+
+  // Selection changes alone miss edits that change the toolbar's state without
+  // moving the caret (e.g. removing the link the caret is in).
+  useEffect(() => {
+    return editor.registerUpdateListener(() => updateToolbar());
+  }, [editor, updateToolbar]);
 
   useEffect(() => {
     return editor.registerCommand(
@@ -364,6 +435,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       menuSelectionRef.current = selection ? selection.clone() : null;
     });
   };
+  const snapshotSelectionRef = useRef(snapshotSelection);
+  snapshotSelectionRef.current = snapshotSelection;
   const runOverflowAction = (action: () => void) => () => {
     const saved = menuSelectionRef.current;
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
@@ -389,6 +462,100 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       }
     });
   };
+
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkNeedsText, setLinkNeedsText] = useState(false);
+
+  const openLinkDialog = useCallback(() => {
+    // Snapshot first: the dialog's focus trap makes Lexical drop the selection.
+    let collapsed = false;
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      menuSelectionRef.current = selection ? selection.clone() : null;
+      collapsed = $isRangeSelection(selection) && selection.isCollapsed();
+    });
+    setLinkNeedsText(collapsed && !state.isLink);
+    setLinkDialogOpen(true);
+  }, [editor, state.isLink]);
+
+  const closeLinkDialog = () => {
+    setLinkDialogOpen(false);
+    editor.focus();
+  };
+
+  const restoreSelection = () => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+  };
+
+  const applyLink = ({ url, text }: { url: string; text: string }) => {
+    restoreSelection();
+    if (linkNeedsText) {
+      // Nothing selected: insert a new link with its own text.
+      editor.update(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        const link = $createLinkNode(url);
+        link.append($createTextNode(text));
+        selection.insertNodes([link]);
+      });
+    } else {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+    }
+    closeLinkDialog();
+  };
+
+  const removeLink = () => {
+    restoreSelection();
+    editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+    closeLinkDialog();
+  };
+
+  // Right-clicking a link in the text opens the same menu, at the pointer.
+  const [linkContext, setLinkContext] = useState<{ x: number; y: number; url: string } | null>(null);
+
+  useEffect(() => {
+    if (!config.links) return;
+    const onContextMenu = (event: MouseEvent) => {
+      const anchor = (event.target as HTMLElement | null)?.closest?.('a');
+      if (!anchor) return;
+      let url: string | null = null;
+      // Select the whole link first, so Edit / Remove act on it wherever the caret was.
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(anchor);
+          const link = node ? $findMatchingParent(node, $isLinkNode) : null;
+          if (!link || !$isLinkNode(link)) return;
+          url = link.getURL();
+          link.select(0, link.getChildrenSize());
+        },
+        { discrete: true },
+      );
+      if (url === null) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      setLinkContext({ x: event.clientX, y: event.clientY, url });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.links]);
+
+  // Ctrl/Cmd+K opens the link dialog.
+  useEffect(() => {
+    if (!config.links) return;
+    return editor.registerCommand(
+      KEY_MODIFIER_COMMAND,
+      (event: KeyboardEvent) => {
+        if (event.key.toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey)) return false;
+        event.preventDefault();
+        openLinkDialog();
+        return true;
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  }, [editor, config.links, openLinkDialog]);
 
   const withRefocus = <T,>(fn: (value: T) => void) => (value: T) => {
     fn(value);
@@ -441,7 +608,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showInsertPoetryGroup = config.links || config.images.linked || config.images.embedded || config.poetry.enabled;
+  const showStubInsertGroup = config.images.linked || config.images.embedded || config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
@@ -601,9 +768,76 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       )}
 
       {/* Link, image, poetry blocks — stubs, gated by config, not implemented yet */}
-      {showInsertPoetryGroup && (
+      {config.links && (
+        <div className="likhari-toolbar-group">
+          {state.isLink ? (
+            // Caret is in a link: the button opens a menu to see, edit or remove it.
+            <Menu position="bottom-start" withinPortal shadow="sm" width={240} onOpen={snapshotSelection}>
+              <Menu.Target>
+                <button
+                  type="button"
+                  className="likhari-toolbar-button"
+                  data-active="true"
+                  aria-pressed="true"
+                  aria-haspopup="menu"
+                  aria-label="Link options"
+                  title="Link options"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <IconLink size={ICON_SIZE} stroke={ICON_STROKE} />
+                </button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <LinkMenuItems
+                  url={state.linkUrl}
+                  onEdit={() => {
+                    restoreSelection();
+                    openLinkDialog();
+                  }}
+                  onRemove={removeLink}
+                />
+              </Menu.Dropdown>
+            </Menu>
+          ) : (
+            <ToolbarButton icon={IconLink} title="Insert link (Ctrl+K)" onClick={openLinkDialog} />
+          )}
+        </div>
+      )}
+
+      {config.links && (
+        <Menu
+          opened={linkContext !== null}
+          onChange={(opened) => {
+            if (!opened) setLinkContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          shadow="sm"
+          width={240}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: linkContext?.x ?? -9999, top: linkContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <LinkMenuItems
+              url={linkContext?.url ?? ''}
+              onEdit={() => {
+                restoreSelection();
+                openLinkDialog();
+              }}
+              onRemove={removeLink}
+            />
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
+      {/* Image, poetry blocks — stubs, gated by config, not implemented yet */}
+      {showStubInsertGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
-          {config.links && <StubButton icon={IconLink} title="Insert link" />}
           {(config.images.linked || config.images.embedded) && <StubButton icon={IconPhoto} title="Insert image" />}
           {config.poetry.enabled && <StubButton icon={IconFeather} title="Poetry blocks" />}
         </div>
@@ -661,6 +895,16 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             )}
           </Menu.Dropdown>
         </Menu>
+      )}
+      {config.links && (
+        <LinkDialog
+          opened={linkDialogOpen}
+          initialUrl={state.linkUrl}
+          showTextField={linkNeedsText}
+          onSubmit={applyLink}
+          onRemove={state.isLink ? removeLink : undefined}
+          onClose={closeLinkDialog}
+        />
       )}
     </div>
   );
