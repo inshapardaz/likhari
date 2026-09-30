@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { Menu, Select } from '@mantine/core';
+import { Menu, Select, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
   $isRangeSelection,
   $isElementNode,
   $setSelection,
+  $getRoot,
   $getNearestNodeFromDOMNode,
   $createTextNode,
   KEY_MODIFIER_COMMAND,
@@ -24,7 +25,7 @@ import {
   type ElementFormatType,
   type TextFormatType,
 } from 'lexical';
-import { $setBlocksType } from '@lexical/selection';
+import { $getSelectionStyleValueForProperty, $patchStyleText, $setBlocksType } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
 import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import {
@@ -40,6 +41,8 @@ import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link
 import { LinkDialog } from './LinkDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
+import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
+import { setStyleProperty } from '../utils/style';
 import {
   IconAbc,
   IconAlignCenter,
@@ -87,6 +90,11 @@ interface ToolbarState {
   activeFormats: Set<TextFormatType>;
   elementFormat: ElementFormatType;
   listType: ListType | null;
+  /** Inline font-family / font-size at the selection (Lexical reports the first
+   * selected text node's): UNSET_STYLE when it has none, so the canvas default
+   * applies. */
+  fontFamily: string;
+  fontSize: string;
   /** Selection is inside a link; `linkUrl` is that link's URL. */
   isLink: boolean;
   linkUrl: string;
@@ -94,11 +102,18 @@ interface ToolbarState {
   canRedo: boolean;
 }
 
+/** Sentinel for "no inline style": Lexical returns the default it is given when
+ * the selection has none, so this tells "unstyled" (show the canvas default)
+ * apart from "styled with a value the dropdown doesn't list" (show nothing). */
+const UNSET_STYLE = '__unset__';
+
 const INITIAL_STATE: ToolbarState = {
   blockType: 'paragraph',
   activeFormats: new Set(),
   elementFormat: 'start' as ElementFormatType,
   listType: null,
+  fontFamily: UNSET_STYLE,
+  fontSize: UNSET_STYLE,
   isLink: false,
   linkUrl: '',
   canUndo: false,
@@ -163,10 +178,12 @@ interface ToolbarSelectProps {
   icon: TablerIcon;
   label: string;
   value: string | null;
-  data: { value: string; label: string }[];
+  data: ComboboxData;
   width: number;
   disabled?: boolean;
   placeholder?: string;
+  searchable?: boolean;
+  renderOption?: SelectProps['renderOption'];
   onChange?: (value: string) => void;
 }
 
@@ -174,7 +191,7 @@ interface ToolbarSelectProps {
  * labels the control itself, since a dropdown can't show one per option in
  * its closed state. The dropdown portals to <body>, so it is not clipped by
  * the editor's `overflow: hidden` frame. */
-function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, onChange }: ToolbarSelectProps) {
+function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, searchable, renderOption, onChange }: ToolbarSelectProps) {
   return (
     <Select
       size="xs"
@@ -185,6 +202,9 @@ function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeh
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      searchable={searchable}
+      renderOption={renderOption}
+      nothingFoundMessage={searchable ? 'No match' : undefined}
       allowDeselect={false}
       leftSection={<Icon size={15} stroke={ICON_STROKE} />}
       comboboxProps={{ withinPortal: true, position: 'bottom-start', middlewares: { flip: true, shift: true } }}
@@ -269,9 +289,13 @@ export interface ToolbarProps {
   onSave?: () => void;
   isDirty?: boolean;
   showSave?: boolean;
+  /** Font-family dropdown entries; defaults to DEFAULT_FONT_OPTIONS. */
+  fontOptions?: FontOption[];
+  /** Text direction of the canvas; picks which default font and size are pre-selected. */
+  direction?: 'ltr' | 'rtl';
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr' }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
 
@@ -293,6 +317,8 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         blockType = 'quote';
       }
 
+      const fontFamily = $getSelectionStyleValueForProperty(selection, 'font-family', UNSET_STYLE);
+      const fontSize = $getSelectionStyleValueForProperty(selection, 'font-size', UNSET_STYLE);
       const linkNode = $findMatchingParent(anchorNode, $isLinkNode);
       const isLink = Boolean(linkNode);
       const linkUrl = linkNode && $isLinkNode(linkNode) ? linkNode.getURL() : '';
@@ -316,6 +342,8 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         activeFormats,
         elementFormat,
         listType,
+        fontFamily,
+        fontSize,
         isLink,
         linkUrl,
       }));
@@ -414,6 +442,25 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
     action();
     editor.focus();
+  };
+
+  /** Applies a font property per `config.font.scope`: to the selection, to
+   * every text node in the document, or (for 'both') to the selection when
+   * there is a range and to the whole document when there isn't. */
+  const applyFont = (property: 'font-family' | 'font-size', value: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      const scope = config.font.scope;
+      const wholeDocument =
+        scope === 'document' || (scope === 'both' && (!$isRangeSelection(selection) || selection.isCollapsed()));
+      if (wholeDocument) {
+        for (const node of $getRoot().getAllTextNodes()) {
+          node.setStyle(setStyleProperty(node.getStyle(), property, value));
+        }
+      } else if ($isRangeSelection(selection)) {
+        $patchStyleText(selection, { [property]: value });
+      }
+    });
   };
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -566,6 +613,32 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
 
+  // Grouped for the dropdown when options declare groups (Latin / Urdu).
+  const fontData: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = (() => {
+    const data: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = [];
+    const groups = new Map<string, ComboboxItemGroup<ComboboxItem>>();
+    for (const f of fontOptions) {
+      const item: ComboboxItem = { value: f.family, label: f.name };
+      if (!f.group) {
+        data.push(item);
+        continue;
+      }
+      let group = groups.get(f.group);
+      if (!group) {
+        group = { group: f.group, items: [] };
+        groups.set(f.group, group);
+        data.push(group);
+      }
+      group.items.push(item);
+    }
+    return data;
+  })();
+
+  // Unstyled text shows the canvas default (pre-selected).
+  const canvasDefaults = CANVAS_FONT_DEFAULTS[direction];
+  const shownFontFamily = state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
+  const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
+
   const formattingOptions = [
     { value: 'paragraph', label: 'Paragraph' },
     ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
@@ -651,17 +724,32 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
         </div>
       )}
 
-      {/* Font family, font size — stubs, not implemented yet. Grouped with
-          alignment in the requested layout, but split into its own group
-          here so it (not alignment, which actually works) is what collapses
-          on small viewports — see the collapse-tablet comment below. */}
+      {/* Font family (grouped Latin / Urdu-Arabic script) and font size. Applied per config.font.scope. */}
       {(config.font.family || config.font.size) && (
-        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
+        <div className="likhari-toolbar-group">
           {config.font.family && (
-            <ToolbarSelect icon={IconTypography} label="Font family" width={110} value={null} placeholder="Font" data={[]} disabled />
+            <ToolbarSelect
+              icon={IconTypography}
+              label="Font family"
+              width={150}
+              value={fontOptions.some((f) => f.family === shownFontFamily) ? shownFontFamily : null}
+              placeholder="Font"
+              data={fontData}
+              searchable
+              renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
+              onChange={withRefocus((v: string) => applyFont('font-family', v))}
+            />
           )}
           {config.font.size && (
-            <ToolbarSelect icon={IconTextSize} label="Font size" width={90} value={null} placeholder="Size" data={[]} disabled />
+            <ToolbarSelect
+              icon={IconTextSize}
+              label="Font size"
+              width={84}
+              value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
+              placeholder="Size"
+              data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
+              onChange={withRefocus((v: string) => applyFont('font-size', v))}
+            />
           )}
         </div>
       )}
