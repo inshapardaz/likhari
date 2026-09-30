@@ -16,6 +16,7 @@ import {
 } from 'lexical';
 import { ImageDialog, type ImageDialogValue } from './ImageDialog';
 import { useImageOptions } from './ImageOptionsContext';
+import { dataUrlBytes, fetchImageAsDataUrl } from './imageEdit';
 import type { ImageLinkType, ImageNode } from './ImageNode';
 
 // A type-only import of ImageNode (ImageNode itself imports this file), so the
@@ -104,6 +105,23 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
       if (isImageNode(node)) change(node);
     });
   };
+
+  // Converting from the context menu (as opposed to the "Crop & size" tab's
+  // checkbox) needs no review: just download and swap the source in place.
+  // Only on failure do we fall back to the full dialog, which shows the error
+  // and lets the person retry or pick a different image.
+  const convertToEmbedded = useCallback(async () => {
+    try {
+      const dataUrl = await fetchImageAsDataUrl(src, options.fetchImage);
+      if (dataUrlBytes(dataUrl) > options.maxSizeMB * 1024 * 1024) {
+        throw new Error(`Image is larger than ${options.maxSizeMB} MB`);
+      }
+      updateNode((node) => node.setSource(dataUrl, 'embedded'));
+    } catch {
+      setDialog({ intent: 'convert' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, options.fetchImage, options.maxSizeMB]);
 
   const applyEdit = (value: ImageDialogValue) => {
     updateNode((node) => {
@@ -214,8 +232,8 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
             Edit image…
           </Menu.Item>
           {linkType === 'linked' && options.allowEmbedded && (
-            <Menu.Item leftSection={<IconPhotoDown size={16} stroke={1.75} />} onClick={() => setDialog({ intent: 'convert' })}>
-              Convert to embedded image…
+            <Menu.Item leftSection={<IconPhotoDown size={16} stroke={1.75} />} onClick={() => void convertToEmbedded()}>
+              Convert to embedded image
             </Menu.Item>
           )}
           {options.allowCaption && (
