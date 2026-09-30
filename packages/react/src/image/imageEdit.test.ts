@@ -56,8 +56,10 @@ describe('data URL helpers', () => {
 });
 
 describe('fetchImageAsDataUrl', () => {
-  const respond = (type: string, ok = true) =>
-    (async () => ({ ok, blob: async () => new Blob(['abc'], { type }) }) as Response) as unknown as typeof fetch;
+  const respond = (type: string) => async () => new Blob(['abc'], { type });
+  const failWith = (err: unknown) => async () => {
+    throw err;
+  };
 
   it('downloads an image as a data URI', async () => {
     const dataUrl = await fetchImageAsDataUrl('https://a.com/x.png', respond('image/png'));
@@ -65,21 +67,29 @@ describe('fetchImageAsDataUrl', () => {
   });
 
   it('passes an existing data URI straight through', async () => {
-    const failing = (async () => {
-      throw new Error('should not fetch');
-    }) as unknown as typeof fetch;
-    expect(await fetchImageAsDataUrl('data:image/png;base64,QUJD', failing)).toBe('data:image/png;base64,QUJD');
+    expect(await fetchImageAsDataUrl('data:image/png;base64,QUJD', failWith(new Error('should not fetch')))).toBe(
+      'data:image/png;base64,QUJD',
+    );
   });
 
   it('explains a blocked or failed download', async () => {
-    const blocked = (async () => {
-      throw new TypeError('Failed to fetch');
-    }) as unknown as typeof fetch;
-    await expect(fetchImageAsDataUrl('https://a.com/x.png', blocked)).rejects.toThrow(CANNOT_DOWNLOAD);
-    await expect(fetchImageAsDataUrl('https://a.com/x.png', respond('image/png', false))).rejects.toThrow(CANNOT_DOWNLOAD);
+    await expect(fetchImageAsDataUrl('https://a.com/x.png', failWith(new TypeError('Failed to fetch')))).rejects.toThrow(
+      CANNOT_DOWNLOAD,
+    );
+    await expect(fetchImageAsDataUrl('https://a.com/x.png', failWith(new Error('bad status')))).rejects.toThrow(CANNOT_DOWNLOAD);
   });
 
   it('refuses a URL that is not an image', async () => {
     await expect(fetchImageAsDataUrl('https://a.com/page', respond('text/html'))).rejects.toThrow(/doesn't point to/);
+  });
+
+  it('uses a host-provided fetcher to work around CORS, instead of the browser fetch', async () => {
+    let requestedUrl: string | undefined;
+    const proxied = async (url: string) => {
+      requestedUrl = url;
+      return new Blob(['abc'], { type: 'image/png' });
+    };
+    await fetchImageAsDataUrl('https://a.com/x.png', proxied);
+    expect(requestedUrl).toBe('https://a.com/x.png');
   });
 });

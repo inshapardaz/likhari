@@ -62,6 +62,15 @@ export interface EditorRootProps {
    */
   onImageUpload?: (file: File) => Promise<string>;
   /**
+   * Downloads a linked image's bytes when converting it to an embedded copy
+   * or applying a crop/rotate/flip. Without it, the browser fetches the URL
+   * directly, which fails for any image server that doesn't send CORS
+   * headers — that restriction can't be worked around from the browser
+   * alone. Provide this to route the request through your own backend (or a
+   * CORS proxy) instead.
+   */
+  fetchImage?: (url: string) => Promise<Blob>;
+  /**
    * Entries for the toolbar's font-family dropdown. Defaults to
    * `DEFAULT_FONT_OPTIONS` (generic Latin faces plus the Urdu/Arabic-script
    * collection from inshapardaz/urdu-web-fonts, the same source qari uses).
@@ -100,6 +109,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     onSave,
     showSave = Boolean(onSave),
     onImageUpload,
+    fetchImage,
     fontOptions,
   },
   ref,
@@ -118,8 +128,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       allowCaption: config.images.caption,
       maxSizeMB: config.images.maxSizeMB,
       onImageUpload,
+      fetchImage,
     }),
-    [config.images.linked, config.images.embedded, config.images.caption, config.images.maxSizeMB, onImageUpload],
+    [config.images.linked, config.images.embedded, config.images.caption, config.images.maxSizeMB, onImageUpload, fetchImage],
   );
 
   const editorStateRef = useRef<EditorState | null>(null);

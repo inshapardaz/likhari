@@ -13,6 +13,13 @@ export interface ImageOptions {
   maxSizeMB: number;
   /** Host upload handler; without it, uploads are embedded as base64 data URIs. */
   onImageUpload?: (file: File) => Promise<string>;
+  /** Host override for downloading a linked image's bytes, used when converting
+   * a link to an embedded image or applying a crop/rotate/flip. Without it, the
+   * browser fetches the URL directly, which fails for any server that doesn't
+   * send CORS headers. A host can provide this to route the request through
+   * its own backend (or a CORS proxy) instead, since that restriction can only
+   * be worked around server-side, never from the browser alone. */
+  fetchImage?: (url: string) => Promise<Blob>;
 }
 
 export const ImageOptionsContext = createContext<ImageOptions>({

@@ -67,14 +67,21 @@ export const CANNOT_DOWNLOAD =
   "Couldn't download this image (its server doesn't allow it). Download the file and upload it instead.";
 
 /** Downloads an image and returns it as a base64 data URI, to embed it in the
- * document. Needs the image's server to allow cross-origin reads (CORS). */
-export async function fetchImageAsDataUrl(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+ * document. Without a `fetchBlob` override, needs the image's server to allow
+ * cross-origin reads (CORS) — a host can pass one to route the download
+ * through its own backend or a CORS proxy instead. */
+export async function fetchImageAsDataUrl(
+  url: string,
+  fetchBlob: (url: string) => Promise<Blob> = (u) =>
+    fetch(u, { mode: 'cors' }).then((response) => {
+      if (!response.ok) throw new Error('bad status');
+      return response.blob();
+    }),
+): Promise<string> {
   if (/^data:image\//i.test(url)) return url;
   let blob: Blob;
   try {
-    const response = await fetchImpl(url, { mode: 'cors' });
-    if (!response.ok) throw new Error('bad status');
-    blob = await response.blob();
+    blob = await fetchBlob(url);
   } catch {
     throw new Error(CANNOT_DOWNLOAD);
   }

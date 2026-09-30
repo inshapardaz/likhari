@@ -90,7 +90,7 @@ function useNaturalSize(src: string | null) {
  * `onImageUpload` when there is one.
  */
 export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }: ImageDialogProps) {
-  const { allowLinked, allowEmbedded, allowCaption, maxSizeMB, onImageUpload } = useImageOptions();
+  const { allowLinked, allowEmbedded, allowCaption, maxSizeMB, onImageUpload, fetchImage } = useImageOptions();
   const editing = mode === 'edit' && initial !== undefined;
   const defaultSource: Source = editing ? 'keep' : allowLinked ? 'linked' : 'embedded';
 
@@ -181,7 +181,7 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
     setConverting(true);
     setError(null);
     try {
-      const dataUrl = await fetchImageAsDataUrl(src);
+      const dataUrl = await fetchImageAsDataUrl(src, fetchImage);
       if (dataUrlBytes(dataUrl) > maxSizeMB * 1024 * 1024) throw new Error(`Image is larger than ${maxSizeMB} MB`);
       setSource('embedded');
       setFile(null);
@@ -228,7 +228,7 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
       let newPixels = pixelSrc ?? (source === 'embedded' ? fileSrc : null);
       if (!newPixels && source === 'linked' && embedCopy) {
         setBusy(true);
-        newPixels = await fetchImageAsDataUrl(effectiveSrc);
+        newPixels = await fetchImageAsDataUrl(effectiveSrc, fetchImage);
       }
       if (newPixels) {
         if (dataUrlBytes(newPixels) > maxSizeMB * 1024 * 1024) {
