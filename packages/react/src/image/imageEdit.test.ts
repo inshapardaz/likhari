@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataUrlBytes, dataUrlToFile, fitDimension, mimeFromSrc, toPixelRect } from './imageEdit';
+import { CANNOT_DOWNLOAD, dataUrlBytes, dataUrlToFile, fetchImageAsDataUrl, fitDimension, mimeFromSrc, toPixelRect } from './imageEdit';
 
 describe('toPixelRect', () => {
   it('converts fractions to whole pixels', () => {
@@ -52,5 +52,34 @@ describe('data URL helpers', () => {
     expect(file.type).toBe('image/png');
     expect(file.size).toBe(3);
     expect(file.name).toBe('a.png');
+  });
+});
+
+describe('fetchImageAsDataUrl', () => {
+  const respond = (type: string, ok = true) =>
+    (async () => ({ ok, blob: async () => new Blob(['abc'], { type }) }) as Response) as unknown as typeof fetch;
+
+  it('downloads an image as a data URI', async () => {
+    const dataUrl = await fetchImageAsDataUrl('https://a.com/x.png', respond('image/png'));
+    expect(dataUrl).toBe('data:image/png;base64,YWJj');
+  });
+
+  it('passes an existing data URI straight through', async () => {
+    const failing = (async () => {
+      throw new Error('should not fetch');
+    }) as unknown as typeof fetch;
+    expect(await fetchImageAsDataUrl('data:image/png;base64,QUJD', failing)).toBe('data:image/png;base64,QUJD');
+  });
+
+  it('explains a blocked or failed download', async () => {
+    const blocked = (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+    await expect(fetchImageAsDataUrl('https://a.com/x.png', blocked)).rejects.toThrow(CANNOT_DOWNLOAD);
+    await expect(fetchImageAsDataUrl('https://a.com/x.png', respond('image/png', false))).rejects.toThrow(CANNOT_DOWNLOAD);
+  });
+
+  it('refuses a URL that is not an image', async () => {
+    await expect(fetchImageAsDataUrl('https://a.com/page', respond('text/html'))).rejects.toThrow(/doesn't point to/);
   });
 });

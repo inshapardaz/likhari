@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Menu } from '@mantine/core';
-import { IconPhotoEdit, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
+import { IconPhotoDown, IconPhotoEdit, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import {
@@ -39,8 +39,9 @@ interface ImageComponentProps {
 
 /**
  * An image in the document. Click selects it (Delete/Backspace removes it),
- * drag the corner handle to resize, double-click or right-click for the edit
- * dialog and menu (edit image, add/edit/remove caption, delete). The caption
+ * drag the corner handle to resize an embedded image, double-click or
+ * right-click for the edit dialog and menu (edit image, convert a linked image
+ * to embedded, add/edit/remove caption, delete). The caption
  * is shown as plain text under the image — it is edited in the dialog, not in
  * place.
  */
@@ -52,7 +53,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
   const figureRef = useRef<HTMLElement | null>(null);
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [dialog, setDialog] = useState<{ focus?: 'caption' } | null>(null);
+  const [dialog, setDialog] = useState<{ intent?: 'caption' | 'convert' } | null>(null);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
 
   // Selecting must go through CLICK_COMMAND (returning true) rather than a
@@ -177,7 +178,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
           width={shownWidth}
           draggable={false}
         />
-        {isSelected && (
+        {isSelected && linkType === 'embedded' && (
           <span
             className="likhari-image-resize-handle"
             role="separator"
@@ -212,8 +213,13 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
           <Menu.Item leftSection={<IconPhotoEdit size={16} stroke={1.75} />} onClick={() => setDialog({})}>
             Edit image…
           </Menu.Item>
+          {linkType === 'linked' && options.allowEmbedded && (
+            <Menu.Item leftSection={<IconPhotoDown size={16} stroke={1.75} />} onClick={() => setDialog({ intent: 'convert' })}>
+              Convert to embedded image…
+            </Menu.Item>
+          )}
           {options.allowCaption && (
-            <Menu.Item leftSection={<IconTextCaption size={16} stroke={1.75} />} onClick={() => setDialog({ focus: 'caption' })}>
+            <Menu.Item leftSection={<IconTextCaption size={16} stroke={1.75} />} onClick={() => setDialog({ intent: 'caption' })}>
               {caption ? 'Edit caption…' : 'Add caption…'}
             </Menu.Item>
           )}
@@ -233,7 +239,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
         mode="edit"
         opened={dialog !== null}
         initial={{ src, altText, caption, linkType, width, height }}
-        initialFocus={dialog?.focus}
+        intent={dialog?.intent}
         onSubmit={applyEdit}
         onClose={() => {
           setDialog(null);

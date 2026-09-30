@@ -1,3 +1,5 @@
+import { ACCEPTED_IMAGE_TYPES } from './imageUrl';
+
 /** A crop rectangle as fractions (0–1) of the image's width and height. */
 export interface CropRect {
   x: number;
@@ -59,6 +61,30 @@ export function dataUrlToFile(dataUrl: string, name: string): File {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new File([bytes], name, { type: mime });
+}
+
+export const CANNOT_DOWNLOAD =
+  "Couldn't download this image (its server doesn't allow it). Download the file and upload it instead.";
+
+/** Downloads an image and returns it as a base64 data URI, to embed it in the
+ * document. Needs the image's server to allow cross-origin reads (CORS). */
+export async function fetchImageAsDataUrl(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  if (/^data:image\//i.test(url)) return url;
+  let blob: Blob;
+  try {
+    const response = await fetchImpl(url, { mode: 'cors' });
+    if (!response.ok) throw new Error('bad status');
+    blob = await response.blob();
+  } catch {
+    throw new Error(CANNOT_DOWNLOAD);
+  }
+  if (!ACCEPTED_IMAGE_TYPES.includes(blob.type)) throw new Error("That URL doesn't point to a PNG, JPEG, GIF, WebP or SVG image");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(CANNOT_DOWNLOAD));
+    reader.readAsDataURL(blob);
+  });
 }
 
 export type PixelOp =

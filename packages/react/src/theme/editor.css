@@ -294,11 +294,18 @@
   display: inline-block;
   align-self: center;
   max-width: 100%;
+  padding: 8px;
   overflow: hidden;
   line-height: 0;
   cursor: crosshair;
   touch-action: none;
   user-select: none;
+}
+
+.likhari-cropper-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .likhari-cropper-image {
@@ -312,8 +319,28 @@
   border: 2px solid #fff;
   outline: 1px solid rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  cursor: move;
 }
+
+.likhari-cropper-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
+  background: #fff;
+  /* 12px handles on small selections would overlap; keep them on the border. */
+  transform: translate(-50%, -50%);
+}
+
+.likhari-cropper-handle[data-handle='nw'] { left: 0; top: 0; cursor: nwse-resize; }
+.likhari-cropper-handle[data-handle='n'] { left: 50%; top: 0; cursor: ns-resize; }
+.likhari-cropper-handle[data-handle='ne'] { left: 100%; top: 0; cursor: nesw-resize; }
+.likhari-cropper-handle[data-handle='e'] { left: 100%; top: 50%; cursor: ew-resize; }
+.likhari-cropper-handle[data-handle='se'] { left: 100%; top: 100%; cursor: nwse-resize; }
+.likhari-cropper-handle[data-handle='s'] { left: 50%; top: 100%; cursor: ns-resize; }
+.likhari-cropper-handle[data-handle='sw'] { left: 0; top: 100%; cursor: nesw-resize; }
+.likhari-cropper-handle[data-handle='w'] { left: 0; top: 50%; cursor: ew-resize; }
 
 /* Link menu: the URL item shows one truncated line. */
 .likhari-link-menu-url {
