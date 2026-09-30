@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Menu } from '@mantine/core';
-import { IconPhotoDown, IconPhotoEdit, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
+import { IconCrop, IconPhotoDown, IconPhotoEdit, IconTextCaption, IconTrash, IconX } from '@tabler/icons-react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import {
@@ -14,6 +14,7 @@ import {
   type LexicalNode,
   type NodeKey,
 } from 'lexical';
+import { ImageCropDialog, type ImageCropDialogValue } from './ImageCropDialog';
 import { ImageDialog, type ImageDialogValue } from './ImageDialog';
 import { useImageOptions } from './ImageOptionsContext';
 import { dataUrlBytes, fetchImageAsDataUrl } from './imageEdit';
@@ -55,6 +56,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [dialog, setDialog] = useState<{ intent?: 'caption' | 'convert' } | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
 
   // Selecting must go through CLICK_COMMAND (returning true) rather than a
@@ -81,13 +83,13 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
 
   const onDelete = useCallback(
     (event: KeyboardEvent) => {
-      if (!isSelected || dialog || menu) return false;
+      if (!isSelected || dialog || cropDialogOpen || menu) return false;
       if (!$isNodeSelection($getSelection())) return false;
       event.preventDefault();
       $getNodeByKey(nodeKey)?.remove();
       return true;
     },
-    [isSelected, dialog, menu, nodeKey],
+    [isSelected, dialog, cropDialogOpen, menu, nodeKey],
   );
 
   useEffect(() => {
@@ -128,9 +130,20 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
       node.setSource(value.src, value.linkType);
       node.setAltText(value.altText);
       node.setCaption(value.caption);
-      node.setDimensions(value.width, value.height);
+      // A changed source has new pixels the current display size may no
+      // longer fit — reset to auto. Editing alt text/caption only keeps it.
+      if (value.sourceChanged) node.setDimensions(null, null);
     });
     setDialog(null);
+    editor.focus();
+  };
+
+  const applyCrop = (value: ImageCropDialogValue) => {
+    updateNode((node) => {
+      node.setSource(value.src, 'embedded');
+      node.setDimensions(value.width, value.height);
+    });
+    setCropDialogOpen(false);
     editor.focus();
   };
 
@@ -236,6 +249,11 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
               Convert to embedded image
             </Menu.Item>
           )}
+          {linkType === 'embedded' && (
+            <Menu.Item leftSection={<IconCrop size={16} stroke={1.75} />} onClick={() => setCropDialogOpen(true)}>
+              Crop &amp; resize…
+            </Menu.Item>
+          )}
           {options.allowCaption && (
             <Menu.Item leftSection={<IconTextCaption size={16} stroke={1.75} />} onClick={() => setDialog({ intent: 'caption' })}>
               {caption ? 'Edit caption…' : 'Add caption…'}
@@ -256,7 +274,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
       <ImageDialog
         mode="edit"
         opened={dialog !== null}
-        initial={{ src, altText, caption, linkType, width, height }}
+        initial={{ src, altText, caption, linkType }}
         intent={dialog?.intent}
         onSubmit={applyEdit}
         onClose={() => {
@@ -264,6 +282,18 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
           editor.focus();
         }}
       />
+
+      {linkType === 'embedded' && (
+        <ImageCropDialog
+          opened={cropDialogOpen}
+          initial={{ src, width, height }}
+          onSubmit={applyCrop}
+          onClose={() => {
+            setCropDialogOpen(false);
+            editor.focus();
+          }}
+        />
+      )}
     </figure>
   );
 }
