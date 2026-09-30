@@ -23,11 +23,14 @@
   align-items: center;
   gap: 8px;
   min-height: 46px;
-  padding: 0 8px;
+  padding: 4px 8px;
   background: var(--editor-paper-dim);
   border-bottom: 1px solid var(--editor-line);
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  /* Wrap instead of scroll: an overflow container would clip menus and grow
+     a scrollbar. Dropdowns (Select/Menu) portal out, so nothing needs to
+     escape this box. */
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 .likhari-toolbar-group {
@@ -35,11 +38,11 @@
   align-items: center;
   gap: 2px;
   padding: 0 6px;
-  border-right: 0.5px solid var(--editor-line);
+  border-inline-end: 0.5px solid var(--editor-line);
 }
 
 .likhari-toolbar-group:last-child {
-  border-right: none;
+  border-inline-end: none;
 }
 
 .likhari-toolbar-button {
@@ -79,86 +82,54 @@
   cursor: not-allowed;
 }
 
-.likhari-toolbar-select {
+/* Mantine Select inside the toolbar — sized to the 30px control height and
+   themed from the --editor-* tokens (the closed input only; the dropdown is
+   portaled to <body>, outside the token scope, so it uses Mantine's own
+   variables, which the editor's MantineProvider already maps to the accent). */
+.likhari-toolbar-select-input {
   height: 30px;
-  max-width: 116px;
+  min-height: 30px;
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid var(--editor-line-strong);
   background: var(--editor-paper);
   color: var(--editor-ink);
-  padding: 0 6px;
 }
 
-.likhari-toolbar-select:disabled {
+.likhari-toolbar-select-input:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Icon shown to the left of a <select> — native selects can't render an
-   icon per-option, so the control itself is labeled this way instead. */
-.likhari-toolbar-select-group {
-  gap: 4px;
-}
-
-.likhari-toolbar-select-icon {
-  display: inline-flex;
-  align-items: center;
-  color: var(--editor-ink-soft);
-}
-
-/* Overflow menu ("⋯") — houses less-frequent formatting (strikethrough,
-   super/subscript, case transforms, clear formatting, indent/outdent) so
-   the primary row stays compact on small/mobile viewports. */
-.likhari-toolbar-overflow {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.likhari-toolbar-overflow-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline-end: 0;
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  width: 168px;
-  padding: 6px;
-  background: var(--editor-paper);
-  border: 0.5px solid var(--editor-line);
-  border-radius: 8px;
+.likhari-overflow-item[data-active='true'] {
+  background: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-filled);
 }
 
 /* Responsive collapse — editor-ui-design-spec.md §3.3. These groups hold
    only not-yet-implemented placeholders, so hiding them below the tablet
    breakpoint costs nothing functional while keeping the primary row usable
-   on small screens; the toolbar's horizontal scroll (below) remains the
-   fallback if the still-visible controls alone overflow a narrow viewport. */
+   on small screens; the toolbar wraps onto a second row if the
+   still-visible controls alone overflow a narrow viewport. */
 @media (max-width: 900px) {
   .likhari-toolbar-group--collapse-tablet {
     display: none;
   }
 }
 
-.likhari-save-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 6px;
-  border: 1px solid var(--editor-accent);
+/* Save (icon-only ToolbarButton): filled accent while there are unsaved
+   changes, back to the plain outline once saved — editor-ui-design-spec.md §7. */
+.likhari-toolbar-button[data-dirty='true'] {
   background: var(--editor-accent);
   color: var(--editor-paper);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
 }
 
-.likhari-save-button[data-dirty='false'] {
-  background: transparent;
+.likhari-toolbar-button[data-dirty='true']:hover {
+  background: var(--editor-accent);
+  filter: brightness(1.1);
+}
+
+.likhari-toolbar-button[data-dirty='false'] {
   color: var(--editor-accent);
 }
 
