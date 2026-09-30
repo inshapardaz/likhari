@@ -5,6 +5,7 @@ import { ACCEPTED_IMAGE_TYPES, normalizeImageUrl, validateImageFile } from './im
 import { dataUrlBytes, dataUrlToFile, fetchImageAsDataUrl, mimeFromSrc } from './imageEdit';
 import { useImageOptions } from './ImageOptionsContext';
 import { useUiStrings } from '../i18n/useStrings';
+import { usePortalTarget } from '../PortalTargetContext';
 import type { ImageLinkType } from './ImageNode';
 
 export interface ImageDialogValue {
@@ -51,6 +52,7 @@ function readAsDataUrl(file: File): Promise<string> {
  */
 export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }: ImageDialogProps) {
   const strings = useUiStrings();
+  const portalTarget = usePortalTarget();
   const { allowLinked, allowEmbedded, allowCaption, maxSizeMB, onImageUpload, fetchImage } = useImageOptions();
   const editing = mode === 'edit' && initial !== undefined;
   const defaultSource: Source = editing ? 'keep' : allowLinked ? 'linked' : 'embedded';
@@ -209,7 +211,14 @@ export function ImageDialog({ mode, opened, initial, intent, onSubmit, onClose }
   );
 
   return (
-    <Modal opened={opened} onClose={onClose} title={editing ? strings.imageDialog.titleEdit : strings.imageDialog.titleInsert} centered size="sm">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={editing ? strings.imageDialog.titleEdit : strings.imageDialog.titleInsert}
+      centered
+      size="sm"
+      portalProps={{ target: portalTarget }}
+    >
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
           {(editing || (allowLinked && allowEmbedded)) && (

@@ -5,6 +5,7 @@ import { dataUrlBytes, dataUrlToFile, fitDimension, mimeFromSrc } from './imageE
 import { ImageCropper } from './ImageCropper';
 import { useImageOptions } from './ImageOptionsContext';
 import { useUiStrings } from '../i18n/useStrings';
+import { usePortalTarget } from '../PortalTargetContext';
 
 export interface ImageCropDialogValue {
   src: string;
@@ -45,6 +46,7 @@ function useNaturalSize(src: string | null) {
  * or stored through the host's `onImageUpload` when there is one. */
 export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCropDialogProps) {
   const strings = useUiStrings();
+  const portalTarget = usePortalTarget();
   const { maxSizeMB, onImageUpload } = useImageOptions();
 
   const [pixelSrc, setPixelSrc] = useState<string | null>(null);
@@ -120,7 +122,14 @@ export function ImageCropDialog({ opened, initial, onSubmit, onClose }: ImageCro
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={strings.imageCropDialog.title} centered size="lg">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={strings.imageCropDialog.title}
+      centered
+      size="lg"
+      portalProps={{ target: portalTarget }}
+    >
       <form onSubmit={handleSubmit}>
         <Stack gap="md">
           <ImageCropper

@@ -18,6 +18,7 @@ import { ImageCropDialog, type ImageCropDialogValue } from './ImageCropDialog';
 import { ImageDialog, type ImageDialogValue } from './ImageDialog';
 import { useImageOptions } from './ImageOptionsContext';
 import { useUiStrings } from '../i18n/useStrings';
+import { usePortalTarget } from '../PortalTargetContext';
 import { dataUrlBytes, fetchImageAsDataUrl } from './imageEdit';
 import type { ImageLinkType, ImageNode } from './ImageNode';
 
@@ -52,6 +53,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
   const [editor] = useLexicalComposerContext();
   const options = useImageOptions();
   const strings = useUiStrings();
+  const portalTarget = usePortalTarget();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const figureRef = useRef<HTMLElement | null>(null);
@@ -232,6 +234,7 @@ export function ImageComponent({ nodeKey, src, altText, caption, linkType, width
         }}
         position="bottom-start"
         withinPortal
+        portalProps={{ target: portalTarget }}
         shadow="sm"
         width={200}
       >

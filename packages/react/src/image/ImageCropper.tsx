@@ -29,6 +29,7 @@ import {
   resizeRect,
   type CropHandle,
 } from "./cropMath";
+import { usePortalTarget } from "../PortalTargetContext";
 
 const ASPECTS: Record<string, number | null> = {
   free: null,
@@ -65,6 +66,7 @@ export function ImageCropper({
   canReset,
   onReset,
 }: ImageCropperProps) {
+  const portalTarget = usePortalTarget();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const drag = useRef<Drag | null>(null);
   const [rect, setRect] = useState<CropRect | null>(null);
@@ -155,7 +157,7 @@ export function ImageCropper({
   return (
     <Stack gap="sm">
       <Group gap="xs">
-        <Tooltip label="Rotate left">
+        <Tooltip label="Rotate left" portalProps={{ target: portalTarget }}>
           <ActionIcon
             variant="default"
             aria-label="Rotate left"
@@ -165,7 +167,7 @@ export function ImageCropper({
             <IconRotate2 size={16} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Rotate right">
+        <Tooltip label="Rotate right" portalProps={{ target: portalTarget }}>
           <ActionIcon
             variant="default"
             aria-label="Rotate right"
@@ -175,7 +177,7 @@ export function ImageCropper({
             <IconRotateClockwise2 size={16} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Flip horizontally">
+        <Tooltip label="Flip horizontally" portalProps={{ target: portalTarget }}>
           <ActionIcon
             variant="default"
             aria-label="Flip horizontally"
@@ -185,7 +187,7 @@ export function ImageCropper({
             <IconFlipHorizontal size={16} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Flip vertically">
+        <Tooltip label="Flip vertically" portalProps={{ target: portalTarget }}>
           <ActionIcon
             variant="default"
             aria-label="Flip vertically"

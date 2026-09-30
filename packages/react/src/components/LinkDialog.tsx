@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Group, Modal, TextInput } from '@mantine/core';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import { useUiStrings } from '../i18n/useStrings';
+import { usePortalTarget } from '../PortalTargetContext';
 
 export interface LinkDialogProps {
   opened: boolean;
@@ -19,6 +20,7 @@ export interface LinkDialogProps {
  * trapping, Escape-to-close and the overlay. */
 export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemove, onClose }: LinkDialogProps) {
   const strings = useUiStrings();
+  const portalTarget = usePortalTarget();
   const [url, setUrl] = useState(initialUrl);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,14 @@ export function LinkDialog({ opened, initialUrl, showTextField, onSubmit, onRemo
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={onRemove ? strings.linkDialog.titleEdit : strings.linkDialog.titleInsert} centered size="sm">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={onRemove ? strings.linkDialog.titleEdit : strings.linkDialog.titleInsert}
+      centered
+      size="sm"
+      portalProps={{ target: portalTarget }}
+    >
       <form onSubmit={handleSubmit}>
         <TextInput
           label={strings.linkDialog.urlLabel}

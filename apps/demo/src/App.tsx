@@ -18,13 +18,17 @@ const LANGUAGE_NAMES: Record<Locale, string> = {
 
 /** UI strings for the demo's own chrome, localised to match the selected
  * language — separate from the editor's own (already-localised) toolbar. */
-const STRINGS: Record<Locale, { title: string; language: string; darkMode: string; collapse: string; expand: string }> = {
+const STRINGS: Record<
+  Locale,
+  { title: string; language: string; darkMode: string; collapse: string; expand: string; accentColor: string }
+> = {
   en: {
     title: 'Likhari demo',
     language: 'Language',
     darkMode: 'Dark mode',
     collapse: 'Collapse options',
     expand: 'Expand options',
+    accentColor: 'Accent color',
   },
   ur: {
     title: 'لکھاری ڈیمو',
@@ -32,6 +36,7 @@ const STRINGS: Record<Locale, { title: string; language: string; darkMode: strin
     darkMode: 'ڈارک موڈ',
     collapse: 'اختیارات چھپائیں',
     expand: 'اختیارات دکھائیں',
+    accentColor: 'نمایاں رنگ',
   },
   'pa-shahmukhi': {
     title: 'لکھاری ڈیمو',
@@ -39,8 +44,13 @@ const STRINGS: Record<Locale, { title: string; language: string; darkMode: strin
     darkMode: 'ڈارک موڈ',
     collapse: 'اختیاراں لکو',
     expand: 'اختیاراں وکھاؤ',
+    accentColor: 'نمایاں رنگ',
   },
 };
+
+/** Matches packages/core/src/theme/tokens.ts LIGHT_TOKENS.accent — the
+ * editor's built-in default, used as this control's initial value. */
+const DEFAULT_ACCENT_COLOR = '#2B6E6E';
 
 function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>): EditorFeatureConfig {
   // ResolvedEditorFeatureConfig has every field populated, so it's already a
@@ -161,6 +171,7 @@ export function App() {
   const [preset, setPreset] = useState<FeatureConfigPresetName>('standard');
   const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, 'standard')));
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
   const [showSave, setShowSave] = useState(true);
   const [locale, setLocale] = useState<Locale>('en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -261,6 +272,15 @@ export function App() {
             <input type="checkbox" checked={dark} onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')} />
             {t.darkMode}
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            {t.accentColor}
+            <input
+              type="color"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 28, height: 22, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            />
+          </label>
         </div>
       </header>
 
@@ -356,6 +376,7 @@ export function App() {
               documentId="demo-doc"
               featureConfig={config}
               colorScheme={colorScheme}
+              accentColor={accentColor}
               locale={locale}
               placeholder="Start writing…"
               height="100%"

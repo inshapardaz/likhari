@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { MantineThemeOverride } from '@mantine/core';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
@@ -19,6 +19,7 @@ import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
+import { PortalTargetContext } from './PortalTargetContext';
 import { UiStringsContext, getStrings, type Locale } from './i18n';
 
 export interface EditorInitialContent {
@@ -33,6 +34,14 @@ export interface EditorRootProps {
   featurePreset?: FeatureConfigPresetName;
   theme?: MantineThemeOverride;
   colorScheme?: 'light' | 'dark';
+  /**
+   * A CSS color (e.g. `'#2B6E6E'`) overriding the editor's default accent —
+   * both Mantine's own primary color (buttons, portaled dropdowns' active-item
+   * highlight, etc.) and the `--editor-accent` / `--editor-accent-soft` CSS
+   * variables the toolbar/canvas use directly. Omit to use the built-in
+   * default tokens (packages/core/src/theme/tokens.ts).
+   */
+  accentColor?: string;
   locale?: Locale;
   placeholder?: string;
   /**
@@ -104,6 +113,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     featurePreset,
     theme,
     colorScheme,
+    accentColor,
     locale = 'en',
     placeholder,
     height = '480px',
@@ -210,8 +220,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
 
   const dir = locale === 'en' ? 'ltr' : 'rtl';
 
+  // A stable per-instance id for the portal-anchor div below, so multiple
+  // EditorRoot instances on one page each get their own portal target
+  // rather than colliding on a shared one.
+  const portalTargetId = useId();
+  const portalTargetSelector = `#${CSS.escape(portalTargetId)}`;
+
   return (
-    <EditorThemeProvider theme={theme} colorScheme={colorScheme}>
+    <EditorThemeProvider theme={theme} colorScheme={colorScheme} accentColor={accentColor}>
       <div
         className="likhari-root"
         dir={dir}
@@ -219,6 +235,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         data-document-id={documentId}
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
+        {/* Empty portal-anchor: a genuine DOM descendant of both
+            .likhari-theme-scope (carries the --editor-* vars) and
+            .likhari-root (carries `dir`) for Mantine's portaled Menu/Modal/
+            Select-combobox/Tooltip content to render into, so that content
+            inherits the editor's theme and text direction instead of
+            escaping to <body> unstyled (see PortalTargetContext.tsx). */}
+        <div id={portalTargetId} className="likhari-portal-target" />
+        <PortalTargetContext.Provider value={portalTargetSelector}>
         <UiStringsContext.Provider value={strings}>
         <ImageOptionsContext.Provider value={imageOptions}>
         <LexicalComposer initialConfig={initialConfig}>
@@ -239,6 +263,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         </LexicalComposer>
         </ImageOptionsContext.Provider>
         </UiStringsContext.Provider>
+        </PortalTargetContext.Provider>
       </div>
     </EditorThemeProvider>
   );
