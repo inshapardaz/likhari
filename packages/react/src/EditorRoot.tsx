@@ -5,6 +5,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
@@ -227,6 +228,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           </div>
           {config.history && <HistoryPlugin />}
           {(config.lists.bullet || config.lists.numbered || config.lists.check) && <ListPlugin />}
+          {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
           <OnChangePlugin onChange={handleChange} />
