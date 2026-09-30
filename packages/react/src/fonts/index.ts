@@ -12,3 +12,13 @@ export const DEFAULT_FONT_OPTIONS: FontOption[] = [
 
 /** Sizes offered by the toolbar's font-size dropdown, in px. */
 export const FONT_SIZES_PX = [12, 13, 14, 15, 16, 18, 20, 24, 28, 32, 36, 48];
+
+/**
+ * What the canvas renders when text has no explicit font style — kept in sync
+ * with `.likhari-content-editable` in theme/editor.css. The toolbar's font
+ * dropdowns show these as the pre-selected values.
+ */
+export const CANVAS_FONT_DEFAULTS = {
+  ltr: { family: DEFAULT_FONT_OPTIONS[0].family, size: '15px' },
+  rtl: { family: `"Noto Nastaliq Urdu", serif`, size: '20px' },
+} as const;

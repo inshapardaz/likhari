@@ -185,7 +185,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} direction={dir} />
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}

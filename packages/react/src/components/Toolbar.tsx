@@ -34,7 +34,7 @@ import {
 } from '@lexical/list';
 import { $findMatchingParent } from '@lexical/utils';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
-import { DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
+import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
 import {
   IconAbc,
@@ -80,20 +80,27 @@ interface ToolbarState {
   activeFormats: Set<TextFormatType>;
   elementFormat: ElementFormatType;
   listType: ListType | null;
-  /** Inline font-family / font-size of the selection ('' when unset or mixed). */
+  /** Inline font-family / font-size at the selection (Lexical reports the first
+   * selected text node's): UNSET_STYLE when it has none, so the canvas default
+   * applies. */
   fontFamily: string;
   fontSize: string;
   canUndo: boolean;
   canRedo: boolean;
 }
 
+/** Sentinel for "no inline style": Lexical returns the default it is given when
+ * the selection has none, so this tells "unstyled" (show the canvas default)
+ * apart from "styled with a value the dropdown doesn't list" (show nothing). */
+const UNSET_STYLE = '__unset__';
+
 const INITIAL_STATE: ToolbarState = {
   blockType: 'paragraph',
   activeFormats: new Set(),
   elementFormat: 'start' as ElementFormatType,
   listType: null,
-  fontFamily: '',
-  fontSize: '',
+  fontFamily: UNSET_STYLE,
+  fontSize: UNSET_STYLE,
   canUndo: false,
   canRedo: false,
 };
@@ -224,9 +231,11 @@ export interface ToolbarProps {
   showSave?: boolean;
   /** Font-family dropdown entries; defaults to DEFAULT_FONT_OPTIONS. */
   fontOptions?: FontOption[];
+  /** Text direction of the canvas; picks which default font and size are pre-selected. */
+  direction?: 'ltr' | 'rtl';
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr' }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
 
@@ -248,8 +257,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         blockType = 'quote';
       }
 
-      const fontFamily = $getSelectionStyleValueForProperty(selection, 'font-family', '');
-      const fontSize = $getSelectionStyleValueForProperty(selection, 'font-size', '');
+      const fontFamily = $getSelectionStyleValueForProperty(selection, 'font-family', UNSET_STYLE);
+      const fontSize = $getSelectionStyleValueForProperty(selection, 'font-size', UNSET_STYLE);
 
       const activeFormats = new Set<TextFormatType>();
       (['bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript'] as TextFormatType[]).forEach(
@@ -458,6 +467,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     return data;
   })();
 
+  // Unstyled text shows the canvas default (pre-selected).
+  const canvasDefaults = CANVAS_FONT_DEFAULTS[direction];
+  const shownFontFamily = state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
+  const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
+
   const formattingOptions = [
     { value: 'paragraph', label: 'Paragraph' },
     ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
@@ -551,7 +565,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               icon={IconTypography}
               label="Font family"
               width={150}
-              value={fontOptions.some((f) => f.family === state.fontFamily) ? state.fontFamily : null}
+              value={fontOptions.some((f) => f.family === shownFontFamily) ? shownFontFamily : null}
               placeholder="Font"
               data={fontData}
               searchable
@@ -564,7 +578,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               icon={IconTextSize}
               label="Font size"
               width={84}
-              value={FONT_SIZES_PX.some((px) => `${px}px` === state.fontSize) ? state.fontSize : null}
+              value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
               placeholder="Size"
               data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
               onChange={withRefocus((v: string) => applyFont('font-size', v))}
