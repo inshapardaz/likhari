@@ -6,6 +6,42 @@ const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
 type Locale = 'en' | 'ur' | 'pa-shahmukhi';
 
+const LOCALE_DIR: Record<Locale, 'ltr' | 'rtl'> = { en: 'ltr', ur: 'rtl', 'pa-shahmukhi': 'rtl' };
+
+/** Each language's own name, in its own script — shown in the dropdown
+ * regardless of which locale is currently selected. */
+const LANGUAGE_NAMES: Record<Locale, string> = {
+  en: 'English',
+  ur: 'اردو',
+  'pa-shahmukhi': 'پنجابی (شاہ مکھی)',
+};
+
+/** UI strings for the demo's own chrome, localised to match the selected
+ * language — separate from the editor's own (already-localised) toolbar. */
+const STRINGS: Record<Locale, { title: string; language: string; darkMode: string; collapse: string; expand: string }> = {
+  en: {
+    title: 'Likhari demo',
+    language: 'Language',
+    darkMode: 'Dark mode',
+    collapse: 'Collapse options',
+    expand: 'Expand options',
+  },
+  ur: {
+    title: 'لکھاری ڈیمو',
+    language: 'زبان',
+    darkMode: 'ڈارک موڈ',
+    collapse: 'اختیارات چھپائیں',
+    expand: 'اختیارات دکھائیں',
+  },
+  'pa-shahmukhi': {
+    title: 'لکھاری ڈیمو',
+    language: 'زبان',
+    darkMode: 'ڈارک موڈ',
+    collapse: 'اختیاراں لکو',
+    expand: 'اختیاراں وکھاؤ',
+  },
+};
+
 function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>): EditorFeatureConfig {
   // ResolvedEditorFeatureConfig has every field populated, so it's already a
   // valid (fully-specified) EditorFeatureConfig — this just re-labels the type
@@ -131,6 +167,8 @@ export function App() {
   const [popup, setPopup] = useState<{ title: string; content: string } | null>(null);
 
   const dark = colorScheme === 'dark';
+  const t = STRINGS[locale];
+  const headerDir = LOCALE_DIR[locale];
 
   const applyPreset = (name: FeatureConfigPresetName) => {
     setPreset(name);
@@ -188,8 +226,8 @@ export function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => setSidebarOpen((v) => !v)}
-            title={sidebarOpen ? 'Collapse options' : 'Expand options'}
-            aria-label={sidebarOpen ? 'Collapse options' : 'Expand options'}
+            title={sidebarOpen ? t.collapse : t.expand}
+            aria-label={sidebarOpen ? t.collapse : t.expand}
             style={{
               border: `1px solid ${borderColor}`,
               background: 'transparent',
@@ -203,21 +241,25 @@ export function App() {
           >
             {sidebarOpen ? '⟨' : '⟩'}
           </button>
-          <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Likhari demo</h1>
+          <h1 dir={headerDir} style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+            {t.title}
+          </h1>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div dir={headerDir} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            Direction
+            {t.language}
             <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} style={{ fontSize: 12 }}>
-              <option value="en">LTR — English</option>
-              <option value="ur">RTL — Urdu</option>
-              <option value="pa-shahmukhi">RTL — Punjabi (Shahmukhi)</option>
+              {(Object.keys(LANGUAGE_NAMES) as Locale[]).map((l) => (
+                <option key={l} value={l}>
+                  {LANGUAGE_NAMES[l]}
+                </option>
+              ))}
             </select>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={dark} onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')} />
-            Dark mode
+            {t.darkMode}
           </label>
         </div>
       </header>
