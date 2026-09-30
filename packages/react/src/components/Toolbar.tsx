@@ -6,6 +6,7 @@ import {
   $isRangeSelection,
   $isElementNode,
   $setSelection,
+  $getNearestNodeFromDOMNode,
   $createTextNode,
   KEY_MODIFIER_COMMAND,
   COMMAND_PRIORITY_NORMAL,
@@ -218,6 +219,51 @@ function OverflowItem({
   );
 }
 
+/** The link menu's contents — shared by the toolbar button and the right-click
+ * menu: the URL (opens in a new tab), Edit link, Remove link. */
+function LinkMenuItems({ url, onEdit, onRemove }: { url: string; onEdit: () => void; onRemove: () => void }) {
+  // Only offer the link as clickable if it's a URL the editor would have accepted.
+  const safeUrl = normalizeLinkUrl(url);
+  return (
+    <>
+      <Menu.Label>Link</Menu.Label>
+      {safeUrl ? (
+        <Menu.Item
+          component="a"
+          href={safeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          leftSection={<IconExternalLink size={ICON_SIZE} stroke={ICON_STROKE} />}
+          title={url}
+          className="likhari-link-menu-url"
+        >
+          {url}
+        </Menu.Item>
+      ) : (
+        // Not a URL the editor would accept (e.g. loaded from a document): show it, don't make it clickable.
+        <Menu.Item disabled title={url} className="likhari-link-menu-url">
+          {url || '(no URL)'}
+        </Menu.Item>
+      )}
+      <Menu.Item
+        leftSection={<IconPencil size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onEdit}
+      >
+        Edit link
+      </Menu.Item>
+      <Menu.Item
+        color="red"
+        leftSection={<IconLinkOff size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onRemove}
+      >
+        Remove link
+      </Menu.Item>
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -361,6 +407,8 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       menuSelectionRef.current = selection ? selection.clone() : null;
     });
   };
+  const snapshotSelectionRef = useRef(snapshotSelection);
+  snapshotSelectionRef.current = snapshotSelection;
   const runOverflowAction = (action: () => void) => () => {
     const saved = menuSelectionRef.current;
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
@@ -415,6 +463,37 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
     closeLinkDialog();
   };
+
+  // Right-clicking a link in the text opens the same menu, at the pointer.
+  const [linkContext, setLinkContext] = useState<{ x: number; y: number; url: string } | null>(null);
+
+  useEffect(() => {
+    if (!config.links) return;
+    const onContextMenu = (event: MouseEvent) => {
+      const anchor = (event.target as HTMLElement | null)?.closest?.('a');
+      if (!anchor) return;
+      let url: string | null = null;
+      // Select the whole link first, so Edit / Remove act on it wherever the caret was.
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(anchor);
+          const link = node ? $findMatchingParent(node, $isLinkNode) : null;
+          if (!link || !$isLinkNode(link)) return;
+          url = link.getURL();
+          link.select(0, link.getChildrenSize());
+        },
+        { discrete: true },
+      );
+      if (url === null) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      setLinkContext({ x: event.clientX, y: event.clientY, url });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.links]);
 
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
@@ -486,9 +565,6 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
-
-  // Only offer the link as clickable if it's a URL the editor would have accepted.
-  const safeLinkUrl = normalizeLinkUrl(state.linkUrl);
 
   const formattingOptions = [
     { value: 'paragraph', label: 'Paragraph' },
@@ -624,49 +700,51 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
                 </button>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Label>Link</Menu.Label>
-                {safeLinkUrl ? (
-                  <Menu.Item
-                    component="a"
-                    href={safeLinkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    leftSection={<IconExternalLink size={ICON_SIZE} stroke={ICON_STROKE} />}
-                    title={state.linkUrl}
-                    className="likhari-link-menu-url"
-                  >
-                    {state.linkUrl}
-                  </Menu.Item>
-                ) : (
-                  // Not a URL the editor would accept (e.g. loaded from a document): show it, don't make it clickable.
-                  <Menu.Item disabled title={state.linkUrl} className="likhari-link-menu-url">
-                    {state.linkUrl || '(no URL)'}
-                  </Menu.Item>
-                )}
-                <Menu.Item
-                  leftSection={<IconPencil size={ICON_SIZE} stroke={ICON_STROKE} />}
-                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-                  onClick={() => {
+                <LinkMenuItems
+                  url={state.linkUrl}
+                  onEdit={() => {
                     restoreSelection();
                     openLinkDialog();
                   }}
-                >
-                  Edit link
-                </Menu.Item>
-                <Menu.Item
-                  color="red"
-                  leftSection={<IconLinkOff size={ICON_SIZE} stroke={ICON_STROKE} />}
-                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-                  onClick={removeLink}
-                >
-                  Remove link
-                </Menu.Item>
+                  onRemove={removeLink}
+                />
               </Menu.Dropdown>
             </Menu>
           ) : (
             <ToolbarButton icon={IconLink} title="Insert link (Ctrl+K)" onClick={openLinkDialog} />
           )}
         </div>
+      )}
+
+      {config.links && (
+        <Menu
+          opened={linkContext !== null}
+          onChange={(opened) => {
+            if (!opened) setLinkContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          shadow="sm"
+          width={240}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: linkContext?.x ?? -9999, top: linkContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <LinkMenuItems
+              url={linkContext?.url ?? ''}
+              onEdit={() => {
+                restoreSelection();
+                openLinkDialog();
+              }}
+              onRemove={removeLink}
+            />
+          </Menu.Dropdown>
+        </Menu>
       )}
 
       {/* Image, poetry blocks — stubs, gated by config, not implemented yet */}
