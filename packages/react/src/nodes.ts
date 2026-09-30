@@ -3,6 +3,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
+import { ImageNode } from './image/ImageNode';
 
 /**
  * Node types registered on the editor at construction time. Per
@@ -20,4 +21,5 @@ export const EDITOR_NODES: Klass<LexicalNode>[] = [
   ListItemNode,
   LinkNode,
   HorizontalRuleNode,
+  ImageNode,
 ];

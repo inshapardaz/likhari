@@ -1,8 +1,59 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { ColorInput, MantineProvider } from '@mantine/core';
+import '@mantine/core/styles.css';
 import { EditorRoot, type EditorRef } from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
+type Locale = 'en' | 'ur' | 'pa-shahmukhi';
+
+const LOCALE_DIR: Record<Locale, 'ltr' | 'rtl'> = { en: 'ltr', ur: 'rtl', 'pa-shahmukhi': 'rtl' };
+
+/** Each language's own name, in its own script — shown in the dropdown
+ * regardless of which locale is currently selected. */
+const LANGUAGE_NAMES: Record<Locale, string> = {
+  en: 'English',
+  ur: 'اردو',
+  'pa-shahmukhi': 'پنجابی (شاہ مکھی)',
+};
+
+/** UI strings for the demo's own chrome, localised to match the selected
+ * language — separate from the editor's own (already-localised) toolbar. */
+const STRINGS: Record<
+  Locale,
+  { title: string; language: string; darkMode: string; collapse: string; expand: string; accentColor: string }
+> = {
+  en: {
+    title: 'Likhari demo',
+    language: 'Language',
+    darkMode: 'Dark mode',
+    collapse: 'Collapse options',
+    expand: 'Expand options',
+    accentColor: 'Accent color',
+  },
+  ur: {
+    title: 'لکھاری ڈیمو',
+    language: 'زبان',
+    darkMode: 'ڈارک موڈ',
+    collapse: 'اختیارات چھپائیں',
+    expand: 'اختیارات دکھائیں',
+    accentColor: 'نمایاں رنگ',
+  },
+  'pa-shahmukhi': {
+    title: 'لکھاری ڈیمو',
+    language: 'زبان',
+    darkMode: 'ڈارک موڈ',
+    collapse: 'اختیاراں لکو',
+    expand: 'اختیاراں وکھاؤ',
+    accentColor: 'نمایاں رنگ',
+  },
+};
+
+/** Matches packages/core/src/theme/tokens.ts LIGHT_TOKENS.accent — the
+ * editor's built-in default, used as this control's initial value. */
+const DEFAULT_ACCENT_COLOR = '#2B6E6E';
+const ACCENT_SWATCHES = ['#2B6E6E', '#6741D9', '#E8590C', '#C2255C', '#2F9E44', '#1971C2', '#F08C00', '#495057'];
 
 function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>): EditorFeatureConfig {
   // ResolvedEditorFeatureConfig has every field populated, so it's already a
@@ -11,15 +62,17 @@ function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>
   return JSON.parse(JSON.stringify(resolved)) as EditorFeatureConfig;
 }
 
-function Checkbox({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
+/** Pretty-prints a Lexical JSON (or any JSON) string; returns it unchanged if
+ * it doesn't parse, so plain-text/markdown output isn't mangled. */
+function formatIfJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -28,22 +81,108 @@ function Checkbox({
   );
 }
 
-function ControlGroup({ title, children }: { title: string; children: ReactNode }) {
+function ControlGroup({ title, children, dark }: { title: string; children: ReactNode; dark: boolean }) {
   return (
-    <fieldset style={{ border: '1px solid #DAD7CE', borderRadius: 8, padding: '10px 12px', margin: 0 }}>
-      <legend style={{ fontSize: 12, fontWeight: 600, color: '#5C5A54', padding: '0 4px' }}>{title}</legend>
+    <fieldset
+      style={{
+        border: `1px solid ${dark ? '#3A3934' : '#DAD7CE'}`,
+        borderRadius: 8,
+        padding: '10px 12px',
+        margin: 0,
+      }}
+    >
+      <legend style={{ fontSize: 12, fontWeight: 600, color: dark ? '#A9A69C' : '#5C5A54', padding: '0 4px' }}>{title}</legend>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{children}</div>
     </fieldset>
   );
 }
 
+/** Shows a piece of output (saved content, an export, the feature config) as
+ * a modal, so the editor keeps the rest of the screen instead of competing
+ * with an ever-growing output panel below it. */
+function OutputPopup({ title, content, dark, onClose }: { title: string; content: string; dark: boolean; onClose: () => void }) {
+  return (
+    <div
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 24,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: dark ? '#1A1A18' : '#fff',
+          color: dark ? '#EDEBE4' : '#1E1E1C',
+          borderRadius: 8,
+          width: 'min(900px, 100%)',
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.35)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px',
+            borderBottom: `1px solid ${dark ? '#3A3934' : '#DAD7CE'}`,
+            flex: '0 0 auto',
+          }}
+        >
+          <strong style={{ fontSize: 14 }}>{title}</strong>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ border: 'none', background: 'transparent', color: 'inherit', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+        <pre
+          style={{
+            margin: 0,
+            padding: 16,
+            overflow: 'auto',
+            fontSize: 12,
+            fontFamily: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          <code>{content}</code>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const editorRef = useRef<EditorRef>(null);
-  const [output, setOutput] = useState('');
   const [preset, setPreset] = useState<FeatureConfigPresetName>('standard');
   const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, 'standard')));
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
+  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
   const [showSave, setShowSave] = useState(true);
+  const [locale, setLocale] = useState<Locale>('en');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [popup, setPopup] = useState<{ title: string; content: string } | null>(null);
+
+  const dark = colorScheme === 'dark';
+  const t = STRINGS[locale];
+  const headerDir = LOCALE_DIR[locale];
 
   const applyPreset = (name: FeatureConfigPresetName) => {
     setPreset(name);
@@ -71,28 +210,116 @@ export function App() {
 
   const updateTopLevel = (key: 'indent' | 'history', value: boolean) => setConfig((c) => ({ ...c, [key]: value }));
 
-  return (
-    <div style={{ fontFamily: "'IBM Plex Sans', system-ui, sans-serif", background: colorScheme === 'dark' ? '#111' : '#fff' }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 24px', color: colorScheme === 'dark' ? '#EDEBE4' : '#1E1E1C' }}>
-        <h1 style={{ marginBottom: 4 }}>Likhari — interactive demo</h1>
-        <p style={{ color: '#5C5A54', marginTop: 0 }}>
-          Toggle features below and watch the toolbar (and what it lets you do in the canvas) update live — this is the
-          <code> EditorFeatureConfig</code> from <code>docs/lexical-editor-spec.md</code> §5 in action.
-        </p>
+  const showOutput = (title: string, content: string) => setPopup({ title, content });
 
-        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24, alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ControlGroup title="Preset">
+  const borderColor = dark ? '#3A3934' : '#DAD7CE';
+
+  return (
+    // Separate from EditorRoot's own internal (per-instance-scoped)
+    // MantineProvider — this one is only for the demo chrome's own Mantine
+    // controls (the accent-color picker), forced to the same scheme as the
+    // rest of the page so its popover matches light/dark mode too.
+    <MantineProvider forceColorScheme={colorScheme}>
+      <div
+        style={{
+          fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+          background: dark ? '#111' : '#fff',
+          color: dark ? '#EDEBE4' : '#1E1E1C',
+          height: '100vh',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+      <header
+        style={{
+          flex: '0 0 auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '8px 16px',
+          borderBottom: `1px solid ${borderColor}`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            title={sidebarOpen ? t.collapse : t.expand}
+            aria-label={sidebarOpen ? t.collapse : t.expand}
+            style={{
+              border: `1px solid ${borderColor}`,
+              background: 'transparent',
+              color: 'inherit',
+              borderRadius: 6,
+              width: 28,
+              height: 28,
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            {sidebarOpen ? '⟨' : '⟩'}
+          </button>
+          <h1 dir={headerDir} style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+            {t.title}
+          </h1>
+        </div>
+
+        <div dir={headerDir} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            {t.language}
+            <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} style={{ fontSize: 12 }}>
+              {(Object.keys(LANGUAGE_NAMES) as Locale[]).map((l) => (
+                <option key={l} value={l}>
+                  {LANGUAGE_NAMES[l]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={dark} onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')} />
+            {t.darkMode}
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            {t.accentColor}
+            <ColorInput
+              size="xs"
+              value={accentColor}
+              onChange={setAccentColor}
+              format="hex"
+              swatches={ACCENT_SWATCHES}
+              popoverProps={{ withinPortal: true }}
+              styles={{ input: { width: 110 } }}
+            />
+          </label>
+        </div>
+      </header>
+
+      <div style={{ flex: '1 1 auto', display: 'flex', minHeight: 0 }}>
+        {sidebarOpen && (
+          <aside
+            style={{
+              flex: '0 0 260px',
+              width: 260,
+              overflowY: 'auto',
+              padding: 16,
+              borderRight: `1px solid ${borderColor}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <ControlGroup title="Preset" dark={dark}>
               <select value={preset} onChange={(e) => applyPreset(e.target.value as FeatureConfigPresetName)} style={{ fontSize: 13 }}>
                 <option value="minimal">minimal</option>
                 <option value="standard">standard</option>
                 <option value="full">full</option>
                 <option value="poetry">poetry</option>
               </select>
-              <span style={{ fontSize: 11, color: '#5C5A54' }}>Resets every toggle below to the preset's values.</span>
+              <span style={{ fontSize: 11, color: dark ? '#A9A69C' : '#5C5A54' }}>Resets every toggle below to the preset's values.</span>
             </ControlGroup>
 
-            <ControlGroup title="Formatting">
+            <ControlGroup title="Formatting" dark={dark}>
               <Checkbox label="Bold" checked={!!config.formatting?.bold} onChange={(v) => updateFormatting('bold', v)} />
               <Checkbox label="Italic" checked={!!config.formatting?.italic} onChange={(v) => updateFormatting('italic', v)} />
               <Checkbox label="Underline" checked={!!config.formatting?.underline} onChange={(v) => updateFormatting('underline', v)} />
@@ -119,14 +346,14 @@ export function App() {
               />
             </ControlGroup>
 
-            <ControlGroup title="Lists & quote">
+            <ControlGroup title="Lists & quote" dark={dark}>
               <Checkbox label="Bullet list" checked={!!config.lists?.bullet} onChange={(v) => updateLists('bullet', v)} />
               <Checkbox label="Numbered list" checked={!!config.lists?.numbered} onChange={(v) => updateLists('numbered', v)} />
               <Checkbox label="Check list" checked={!!config.lists?.check} onChange={(v) => updateLists('check', v)} />
               <Checkbox label="Quote" checked={!!config.blocks?.quote} onChange={(v) => updateBlocks('quote', v)} />
             </ControlGroup>
 
-            <ControlGroup title="Headings">
+            <ControlGroup title="Headings" dark={dark}>
               {HEADING_LEVELS.map((level) => (
                 <Checkbox
                   key={level}
@@ -137,7 +364,7 @@ export function App() {
               ))}
             </ControlGroup>
 
-            <ControlGroup title="Alignment & indent">
+            <ControlGroup title="Alignment & indent" dark={dark}>
               <Checkbox label="Start" checked={!!config.alignment?.start} onChange={(v) => updateAlignment('start', v)} />
               <Checkbox label="Center" checked={!!config.alignment?.center} onChange={(v) => updateAlignment('center', v)} />
               <Checkbox label="Justify" checked={!!config.alignment?.justify} onChange={(v) => updateAlignment('justify', v)} />
@@ -146,68 +373,42 @@ export function App() {
               <Checkbox label="Indent / outdent" checked={!!config.indent} onChange={(v) => updateTopLevel('indent', v)} />
             </ControlGroup>
 
-            <ControlGroup title="Other">
+            <ControlGroup title="Other" dark={dark}>
               <Checkbox label="Undo / redo" checked={!!config.history} onChange={(v) => updateTopLevel('history', v)} />
               <Checkbox label="Save button" checked={showSave} onChange={setShowSave} />
             </ControlGroup>
+          </aside>
+        )}
 
-            <ControlGroup title="Theme">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <input
-                  type="checkbox"
-                  checked={colorScheme === 'dark'}
-                  onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')}
-                />
-                Dark mode
-              </label>
-            </ControlGroup>
+        <main style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: 0, padding: 16, gap: 12 }}>
+          <div style={{ flex: '1 1 auto', minHeight: 0 }}>
+            <EditorRoot
+              ref={editorRef}
+              documentId="demo-doc"
+              featureConfig={config}
+              colorScheme={colorScheme}
+              accentColor={accentColor}
+              locale={locale}
+              placeholder="Start writing…"
+              height="100%"
+              showSave={showSave}
+              onSave={(content, format) => showOutput(`Saved (${format})`, format === 'lexical-json' ? formatIfJson(content) : content)}
+            />
           </div>
 
-          <div>
-            {/* This wrapper is given an explicit height so the editor below
-                (height="100%") fits it exactly and scrolls internally once
-                its content overflows, instead of growing and pushing the
-                rest of the page down. */}
-            <div style={{ height: '60vh' }}>
-              <EditorRoot
-                ref={editorRef}
-                documentId="demo-doc"
-                featureConfig={config}
-                colorScheme={colorScheme}
-                placeholder="Start writing…"
-                height="100%"
-                showSave={showSave}
-                onSave={(content, format) => setOutput(`[${format}]\n${content}`)}
-              />
-            </div>
-
-            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-              <button onClick={() => setOutput(editorRef.current?.getContent('plain-text') ?? '')}>Get plain text</button>
-              <button onClick={() => setOutput(editorRef.current?.getContent('lexical-json') ?? '')}>Get Lexical JSON</button>
-            </div>
-            <pre
-              style={{
-                background: colorScheme === 'dark' ? '#242422' : '#f4f4f4',
-                color: colorScheme === 'dark' ? '#EDEBE4' : '#1E1E1C',
-                padding: 12,
-                whiteSpace: 'pre-wrap',
-                marginTop: 12,
-                borderRadius: 6,
-                minHeight: 24,
-              }}
-            >
-              {output}
-            </pre>
-
-            <details style={{ marginTop: 16 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 13, color: '#5C5A54' }}>Current EditorFeatureConfig (JSON)</summary>
-              <pre style={{ background: '#f4f4f4', padding: 12, fontSize: 12, whiteSpace: 'pre-wrap', borderRadius: 6 }}>
-                {JSON.stringify(config, null, 2)}
-              </pre>
-            </details>
+          <div style={{ flex: '0 0 auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => showOutput('Plain text', editorRef.current?.getContent('plain-text') ?? '')}>Get plain text</button>
+            <button onClick={() => showOutput('Markdown', editorRef.current?.getContent('markdown') ?? '')}>Get Markdown</button>
+            <button onClick={() => showOutput('Lexical JSON', formatIfJson(editorRef.current?.getContent('lexical-json') ?? ''))}>
+              Get Lexical JSON
+            </button>
+            <button onClick={() => showOutput('EditorFeatureConfig (JSON)', JSON.stringify(config, null, 2))}>Feature config</button>
           </div>
-        </div>
+        </main>
       </div>
-    </div>
+
+      {popup && <OutputPopup title={popup.title} content={popup.content} dark={dark} onClose={() => setPopup(null)} />}
+      </div>
+    </MantineProvider>
   );
 }

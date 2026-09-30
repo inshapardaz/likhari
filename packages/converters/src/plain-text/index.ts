@@ -28,6 +28,13 @@ function nodeToText(node: SerializedLexicalNode, listItemIndex = 0): string {
     return (node as SerializedTextNodeLike).text ?? (node.type === 'linebreak' ? '\n' : '');
   }
 
+  // Images have no plain-text form; keep their alt text (or caption) so
+  // previews and search indexing still see what the image is about.
+  if (node.type === 'image') {
+    const image = node as SerializedLexicalNode & { altText?: string; caption?: string | null };
+    return image.altText || image.caption || '';
+  }
+
   if (node.type === 'list' && withChildren.children) {
     const listType = (node as { listType?: string }).listType ?? 'bullet';
     return withChildren.children

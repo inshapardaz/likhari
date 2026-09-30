@@ -42,6 +42,51 @@ comment and updated on each push. The preview is removed when the PR is merged
 or closed. `main` deploys to the site root. Requires Pages set to
 **Deploy from a branch: `gh-pages` / root** (one-time setting).
 
+## Images
+
+With `images.linked` / `images.embedded` enabled, the toolbar's image button opens
+a dialog to insert an image **from a URL** (`http(s)`, relative, or a base64 image
+data URI) or **upload a file** (PNG, JPEG, GIF, WebP or SVG, up to
+`images.maxSizeMB`, default 5), with alt text and, if `images.caption` is on, an
+optional caption. An image has no caption until you give it one.
+
+Working with an image in the document:
+
+- **Click** to select it; Delete or Backspace removes it.
+- **Right-click** for a menu: *Edit image…*, *Convert to embedded image…* (linked
+  images), *Add caption…* / *Edit caption…*, *Remove caption*, *Delete image*.
+  **Double-click** opens *Edit image…* directly.
+- **Edit image** has two tabs. *Details*: replace the image with a new URL or
+  upload, alt text, caption, and converting a linked image to an embedded one.
+  *Crop & size*: rotate, flip, crop, and set the size, all in one place. Drag on
+  the preview to draw a crop area (free, 1:1, 4:3 or 16:9), then drag its handles
+  to resize it or drag inside it to move it, and *Apply crop*. Below that, set the
+  width and height (proportions lockable, 25/50/75/100% presets, back to original).
+  *Undo edits* reverts the pixel changes.
+- **Drag the corner handle** of a selected embedded image to resize it
+  (proportions kept).
+
+**Only embedded images can be edited.** Cropping, rotating and resizing change the
+image's own pixels (or size), which a linked image doesn't have in the document. A
+linked image's *Crop & size* tab offers **Convert to embedded image**, which
+downloads a copy into the document (it needs the image's server to allow
+cross-origin downloads; otherwise the dialog says so and suggests uploading the
+file). When inserting from a URL you can tick *Embed a copy in the document* to do
+the same up front. Edited and converted pixels are embedded as a base64 data URI
+(GIF and SVG become PNG when edited), or stored through `onImageUpload` when you
+provide one.
+
+Uploads are embedded as base64 data URIs by default, which bloats the document. To
+store files yourself, pass `onImageUpload`; the image then references the URL you
+return:
+
+```tsx
+<EditorRoot onImageUpload={async (file) => (await uploadToMyStorage(file)).url} />
+```
+
+Images serialize to Lexical JSON as an `image` node (`src`, `altText`, `caption`,
+`linkType`, `width`, `height`) and export to plain text as their alt text.
+
 ## Fonts
 
 When `font.family` / `font.size` are enabled in the feature config, the toolbar
