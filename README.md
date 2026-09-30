@@ -42,6 +42,26 @@ comment and updated on each push. The preview is removed when the PR is merged
 or closed. `main` deploys to the site root. Requires Pages set to
 **Deploy from a branch: `gh-pages` / root** (one-time setting).
 
+## Images
+
+With `images.linked` / `images.embedded` enabled, the toolbar's image button opens
+a dialog to insert an image **from a URL** (`http(s)`, relative, or a base64 image
+data URI) or **upload a file** (PNG, JPEG, GIF, WebP or SVG, up to
+`images.maxSizeMB`, default 5). `images.caption` gives the image an editable
+caption under it. Click an image to select it, then press Delete or Backspace to
+remove it.
+
+Uploads are embedded in the document as base64 data URIs by default, which bloats
+it. To store files yourself, pass `onImageUpload`; the image then references the
+URL you return:
+
+```tsx
+<EditorRoot onImageUpload={async (file) => (await uploadToMyStorage(file)).url} />
+```
+
+Images serialize to Lexical JSON as an `image` node (`src`, `altText`, `caption`,
+`linkType`, `width`, `height`) and export to plain text as their alt text.
+
 ## Theming and customization (Mantine, headless)
 
 > **Status: planned.** Phase 1 uses Mantine internally with a default theme,

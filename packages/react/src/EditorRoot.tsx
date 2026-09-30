@@ -52,6 +52,12 @@ export interface EditorRootProps {
    * the unsaved-changes state) or to hide it while keeping `onSave`.
    */
   showSave?: boolean;
+  /**
+   * Stores an uploaded image and returns the URL to reference it by. Without
+   * it, uploaded images are embedded in the document as base64 data URIs —
+   * simple, but they bloat the document (see `images.maxSizeMB`).
+   */
+  onImageUpload?: (file: File) => Promise<string>;
 }
 
 export interface EditorRef {
@@ -82,6 +88,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     onChange,
     onSave,
     showSave = Boolean(onSave),
+    onImageUpload,
   },
   ref,
 ) {
@@ -169,7 +176,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} onImageUpload={onImageUpload} />
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}

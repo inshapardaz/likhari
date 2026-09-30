@@ -21,4 +21,21 @@ describe('plainTextConverter', () => {
     expect((state.root as { children: unknown[] }).children).toHaveLength(1);
     expect(plainTextConverter.serialize(state)).toBe('');
   });
+
+  it('keeps an image\'s alt text (or caption) and drops its data', () => {
+    const state = plainTextConverter.parse('Before');
+    const root = state.root as unknown as { children: unknown[] };
+    const image = (altText: string, caption: string | null) => ({
+      type: 'image',
+      version: 1,
+      src: 'data:image/png;base64,AAAA',
+      altText,
+      caption,
+      linkType: 'embedded',
+      width: null,
+      height: null,
+    });
+    root.children.push(image('A cat', 'ignored'), image('', 'Only a caption'), image('', null));
+    expect(plainTextConverter.serialize(state)).toBe('Before\n\nA cat\n\nOnly a caption\n\n');
+  });
 });

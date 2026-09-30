@@ -34,4 +34,5 @@ export const editorTheme: EditorThemeClasses = {
     superscript: 'likhari-text-superscript',
   },
   hr: 'likhari-hr',
+  image: 'likhari-image-block',
 };

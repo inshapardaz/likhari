@@ -31,7 +31,9 @@ import {
   REMOVE_LIST_COMMAND,
   ListNode,
 } from '@lexical/list';
-import { $findMatchingParent } from '@lexical/utils';
+import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { ImageDialog, type ImageDialogResult } from '../image/ImageDialog';
+import { $createImageNode } from '../image/ImageNode';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import {
   IconAbc,
@@ -209,9 +211,10 @@ export interface ToolbarProps {
   onSave?: () => void;
   isDirty?: boolean;
   showSave?: boolean;
+  onImageUpload?: (file: File) => Promise<string>;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, onImageUpload }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
 
@@ -340,6 +343,28 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
     action();
     editor.focus();
+  };
+
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+
+  const openImageDialog = () => {
+    // Snapshot first: the dialog's focus trap makes Lexical drop the selection.
+    snapshotSelection();
+    setImageDialogOpen(true);
+  };
+
+  const closeImageDialog = () => {
+    setImageDialogOpen(false);
+    editor.focus();
+  };
+
+  const insertImage = (image: ImageDialogResult) => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    editor.update(() => {
+      $insertNodeToNearestRoot($createImageNode(image));
+    });
+    closeImageDialog();
   };
 
   const withRefocus = <T,>(fn: (value: T) => void) => (value: T) => {
@@ -515,7 +540,9 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       {showInsertPoetryGroup && (
         <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
           {config.links && <StubButton icon={IconLink} title="Insert link" />}
-          {(config.images.linked || config.images.embedded) && <StubButton icon={IconPhoto} title="Insert image" />}
+          {(config.images.linked || config.images.embedded) && (
+            <ToolbarButton icon={IconPhoto} title="Insert image" onClick={openImageDialog} />
+          )}
           {config.poetry.enabled && <StubButton icon={IconFeather} title="Poetry blocks" />}
         </div>
       )}
@@ -572,6 +599,18 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
             )}
           </Menu.Dropdown>
         </Menu>
+      )}
+      {(config.images.linked || config.images.embedded) && (
+        <ImageDialog
+          opened={imageDialogOpen}
+          allowLinked={config.images.linked}
+          allowEmbedded={config.images.embedded}
+          allowCaption={config.images.caption}
+          maxSizeMB={config.images.maxSizeMB}
+          onImageUpload={onImageUpload}
+          onSubmit={insertImage}
+          onClose={closeImageDialog}
+        />
       )}
     </div>
   );
