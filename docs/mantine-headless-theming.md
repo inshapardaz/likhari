@@ -22,7 +22,7 @@ Phase 1 already depends on Mantine, but not in the way the specs describe:
 
 | Area | Spec says | Code today |
 |---|---|---|
-| Dependency | Peer-style, host controls version | `@mantine/core` and `@mantine/hooks` are hard `dependencies` of `packages/react` (`^7.13.5`) |
+| Dependency | Peer-style, host controls version | `@mantine/core` and `@mantine/hooks` are hard `dependencies` of `packages/react` (`^9.6.3`, which requires React 19.2+) |
 | Global CSS | Host controls load order | `EditorThemeProvider` imports `@mantine/core/styles.css` itself, a side-effect import inside the library |
 | Headless | Toolbar buttons are `UnstyledButton`, menus and modals are headless (UI spec §8) | Toolbar is hand-built; only `MantineProvider` and the theme object are used. No consumer-facing way to swap or restyle parts |
 | Theme override | `theme` prop deep-merges over the default | `theme ?? defaultMantineTheme` replaces the default instead of merging |
@@ -107,7 +107,7 @@ These apply to likhari as-is:
    shadow root.
 7. **Merge, don't replace.** `theme` deep-merges over the default theme.
 
-**Difference from qari:** qari supports Mantine 8 and 9; likhari is on 7.x
+**Difference from qari:** qari supports Mantine 8 and 9; likhari is on 9.x
 today. Decide the supported range as part of the migration (see §9).
 
 ## 5. Default theme
@@ -332,7 +332,7 @@ route.
 
 ## 9. Open questions
 
-- **Mantine version range.** Stay on 7, or adopt 8/9 (as qari does) at the same
+- **Mantine version range.** Now on 9.x (React 19.2+). Also support 8 (as qari does) at the same
   time as the peer-dependency move? A range wider than one major needs a test
   matrix.
 - **`toolbar` vs `components.Toolbar`.** Two ways to replace the toolbar (6.5

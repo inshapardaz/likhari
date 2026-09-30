@@ -39,13 +39,13 @@
     "@lexical/utils": "^0.20.0",
     "@inshapardaz/likhari-converters": "^0.1.0",
     "@inshapardaz/likhari-core": "^0.1.0",
-    "@mantine/core": "^7.13.5",
-    "@mantine/hooks": "^7.13.5",
+    "@mantine/core": "^9.6.3",
+    "@mantine/hooks": "^9.6.3",
     "@tabler/icons-react": "^3.46.0",
     "lexical": "^0.20.0"
   },
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }
