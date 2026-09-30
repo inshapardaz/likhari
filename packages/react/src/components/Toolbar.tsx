@@ -62,6 +62,12 @@ import {
   IconDots,
   IconExternalLink,
   IconFeather,
+  IconH1,
+  IconH2,
+  IconH3,
+  IconH4,
+  IconH5,
+  IconH6,
   IconIndentDecrease,
   IconIndentIncrease,
   IconItalic,
@@ -70,9 +76,13 @@ import {
   IconLetterCaseUpper,
   IconLink,
   IconLinkOff,
+  IconList,
+  IconListCheck,
+  IconListNumbers,
   IconPencil,
   IconPhoto,
   IconPilcrow,
+  IconQuote,
   IconSparkles,
   IconStrikethrough,
   IconSubscript,
@@ -136,6 +146,43 @@ const ALIGN_ICONS: Partial<Record<ElementFormatType, TablerIcon>> = {
   right: IconAlignRight,
   justify: IconAlignJustified,
 };
+
+const HEADING_ICONS: Record<number, TablerIcon> = {
+  1: IconH1,
+  2: IconH2,
+  3: IconH3,
+  4: IconH4,
+  5: IconH5,
+  6: IconH6,
+};
+
+const FORMATTING_ICONS: Record<string, TablerIcon> = {
+  paragraph: IconPilcrow,
+  h1: HEADING_ICONS[1],
+  h2: HEADING_ICONS[2],
+  h3: HEADING_ICONS[3],
+  h4: HEADING_ICONS[4],
+  h5: HEADING_ICONS[5],
+  h6: HEADING_ICONS[6],
+  number: IconListNumbers,
+  bullet: IconList,
+  check: IconListCheck,
+  quote: IconQuote,
+};
+
+/** Shared option renderer for the formatting/alignment dropdowns: an icon
+ * ahead of the label, looked up by the option's own value. */
+function iconOptionRenderer(icons: Record<string, TablerIcon>, fallback: TablerIcon) {
+  return ({ option }: { option: ComboboxItem }) => {
+    const Icon = icons[option.value] ?? fallback;
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon size={16} stroke={ICON_STROKE} />
+        {option.label}
+      </span>
+    );
+  };
+}
 
 function ToolbarButton({
   icon: Icon,
@@ -883,6 +930,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           value={formattingValue}
           data={formattingOptions}
           comingSoon={strings.toolbar.comingSoon}
+          renderOption={iconOptionRenderer(FORMATTING_ICONS, IconPilcrow)}
           onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
         />
       </div>
@@ -947,6 +995,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           width={138}
           value={state.elementFormat || 'start'}
           data={alignOptions}
+          renderOption={iconOptionRenderer(ALIGN_ICONS as Record<string, TablerIcon>, IconAlignLeft)}
           onChange={withRefocus((v) => formatElement(v as ElementFormatType))}
         />
       </div>
