@@ -1,0 +1,50 @@
+name: PR preview
+
+# Builds the demo for every pull request and publishes it to
+#   https://<owner>.github.io/likhari/pr-preview/pr-<number>/
+# and posts that link as a comment on the PR. When the PR is closed (merged
+# or not) the `closed` event removes the preview folder from gh-pages.
+#
+# Not run for PRs from forks: the token is read-only there and cannot push.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Shared with deploy-demo.yml so the two never push to gh-pages at once.
+# Not cancelled mid-run: a cancelled push could leave gh-pages inconsistent.
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build only when there is something to publish; on `closed` the action
+      # below just deletes the folder.
+      - uses: actions/setup-node@v4
+        if: github.event.action != 'closed'
+        with:
+          node-version: 20
+          cache: npm
+      - if: github.event.action != 'closed'
+        run: npm ci
+      - if: github.event.action != 'closed'
+        run: npm run build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
+
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: apps/demo/dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          action: auto

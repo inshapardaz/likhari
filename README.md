@@ -34,6 +34,14 @@ npm test         # vitest
 npm run typecheck
 ```
 
+### PR previews
+
+Every pull request from a branch in this repo gets its own copy of the demo at
+`https://inshapardaz.github.io/likhari/pr-preview/pr-<number>/`, linked in a PR
+comment and updated on each push. The preview is removed when the PR is merged
+or closed. `main` deploys to the site root. Requires Pages set to
+**Deploy from a branch: `gh-pages` / root** (one-time setting).
+
 ## Theming and customization (Mantine, headless)
 
 > **Status: planned.** Phase 1 uses Mantine internally with a default theme,
