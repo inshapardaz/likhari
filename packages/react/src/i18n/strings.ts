@@ -17,6 +17,8 @@ export interface Strings {
     contentLabel: string;
     /** window.confirm() prompt shown by EditorRef.confirmDiscard() when there are unsaved changes. */
     confirmDiscard: string;
+    /** window.confirm() prompt offering to restore a localStorage draft newer than the initial content (lexical-editor-spec.md §6.2). */
+    restoreDraftConfirm: string;
   };
   common: {
     cancel: string;
@@ -155,6 +157,7 @@ const en: Strings = {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
     confirmDiscard: 'You have unsaved changes. Discard them?',
+    restoreDraftConfirm: 'An unsaved draft of this document was found. Restore it?',
   },
   common: {
     cancel: 'Cancel',
@@ -293,6 +296,7 @@ const ur: Strings = {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
     confirmDiscard: 'آپ کی غیر محفوظ شدہ تبدیلیاں ہیں۔ کیا انہیں رد کر دیا جائے؟',
+    restoreDraftConfirm: 'اس دستاویز کا ایک غیر محفوظ شدہ مسودہ ملا ہے۔ کیا اسے بحال کیا جائے؟',
   },
   common: {
     cancel: 'منسوخ کریں',
@@ -431,6 +435,7 @@ const paShahmukhi: Strings = {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
     confirmDiscard: 'تہاڈیاں کجھ تبدیلیاں سنبھالیاں نئیں گئیاں۔ کی ایہناں نوں رد کر دیئے؟',
+    restoreDraftConfirm: 'ایس دستاویز دا اک غیر محفوظ سودھا لبھیا اے۔ کیہ ایہنوں بحال کيتا جاۓ؟',
   },
   common: {
     cancel: 'رد کرو',

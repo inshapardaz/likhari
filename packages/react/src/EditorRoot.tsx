@@ -18,9 +18,14 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
+import { AutosaveRestorePlugin } from './plugins/AutosaveRestorePlugin';
+import { clearDraft, writeDraft } from './persistence/draftStorage';
 import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
 import { PortalTargetContext } from './PortalTargetContext';
 import { UiStringsContext, getStrings, type Locale } from './i18n';
+
+const DEFAULT_AUTOSAVE_DELAY_MS = 750;
+const DEFAULT_AUTOSAVE_MAX_BYTES = 2_000_000;
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -89,6 +94,24 @@ export interface EditorRootProps {
    * `[...DEFAULT_FONT_OPTIONS, { name: 'Mine', family: '"Mine", serif' }]`.
    */
   fontOptions?: FontOption[];
+  /**
+   * Debounced autosave of the current content to `localStorage`, namespaced
+   * by `documentId` (lexical-editor-spec.md §6.1–§6.2) — a resilience net
+   * against an accidental tab close, independent of `onSave`/the Save
+   * button. Requires `documentId` to be set; a draft newer than the initial
+   * content prompts (via `window.confirm`) to restore it on mount, and is
+   * cleared on a successful explicit save. Defaults to `true`.
+   */
+  autosave?: boolean;
+  /** Debounce delay before writing an autosave draft, in ms. Default `750`. */
+  autosaveDelayMs?: number;
+  /**
+   * Skips (rather than throwing) an autosave write whose JSON would exceed
+   * this size — `localStorage` has a shared ~5-10MB per-origin ceiling, so a
+   * single document with embedded base64 images must not be allowed to
+   * autosave past a sane limit. Default `2_000_000` (~2MB).
+   */
+  autosaveMaxBytes?: number;
 }
 
 export interface EditorRef {
@@ -123,12 +146,16 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     onImageUpload,
     fetchImage,
     fontOptions,
+    autosave = true,
+    autosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
+    autosaveMaxBytes = DEFAULT_AUTOSAVE_MAX_BYTES,
   },
   ref,
 ) {
   const config = useMemo(() => resolveFeatureConfig(featureConfig, featurePreset), [featureConfig, featurePreset]);
   const strings = useMemo(() => getStrings(locale), [locale]);
   const resolvedPlaceholder = placeholder ?? strings.editor.placeholder;
+  const autosaveEnabled = autosave && Boolean(documentId);
   // The urdu-web-fonts stylesheets are needed for the font dropdown and for
   // RTL content, whose canvas font (editor.css) is one of those families.
   useEffect(() => {
@@ -150,18 +177,52 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const editorStateRef = useRef<EditorState | null>(null);
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Computed once, before the first autosave write could possibly run, so
+  // the restore-prompt plugin below can tell a stored draft that's merely
+  // identical to the initial content apart (no prompt needed) from one that
+  // actually represents newer, unsaved work.
+  const initialContentJsonRef = useRef<string | undefined>(undefined);
+  if (initialContentJsonRef.current === undefined) {
+    initialContentJsonRef.current = initialEditorStateJson(initialContent);
+  }
 
   const initialConfig = useMemo(
     () => ({
       namespace: `likhari-editor-${documentId ?? 'anonymous'}`,
       nodes: EDITOR_NODES,
       theme: editorTheme,
-      editorState: initialEditorStateJson(initialContent),
+      editorState: initialContentJsonRef.current,
       onError(error: Error) {
         throw error;
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // beforeunload (lexical-editor-spec.md §6.4): the automatic half of the
+  // navigation guard — hasUnsavedChanges()/confirmDiscard() below are the
+  // imperative half a host's own router guard calls for in-app navigation,
+  // which the editor can't intercept on its own.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    },
     [],
   );
 
@@ -206,6 +267,13 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     const json = JSON.stringify(state.toJSON());
     setIsDirty(json !== lastSavedJsonRef.current);
     onChange?.(state.toJSON());
+
+    if (autosaveEnabled && documentId) {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = setTimeout(() => {
+        writeDraft(documentId, json, autosaveMaxBytes);
+      }, autosaveDelayMs);
+    }
   };
 
   const handleSave = () => {
@@ -215,6 +283,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     const content = defaultFormatRegistry.serialize(format, json);
     lastSavedJsonRef.current = JSON.stringify(json);
     setIsDirty(false);
+    // A successful explicit save supersedes any in-progress/queued autosave
+    // draft — don't let a stale one linger and falsely prompt to "restore"
+    // older content next time this document is opened (§6.2).
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (documentId) clearDraft(documentId);
     onSave?.(content, format);
   };
 
@@ -260,6 +336,12 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
           <OnChangePlugin onChange={handleChange} />
+          <AutosaveRestorePlugin
+            documentId={documentId}
+            enabled={autosaveEnabled}
+            initialJson={initialContentJsonRef.current}
+            confirmMessage={strings.editor.restoreDraftConfirm}
+          />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
         </UiStringsContext.Provider>
