@@ -1,4 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { ColorInput, MantineProvider } from '@mantine/core';
+import '@mantine/core/styles.css';
 import { EditorRoot, type EditorRef } from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
@@ -51,6 +53,7 @@ const STRINGS: Record<
 /** Matches packages/core/src/theme/tokens.ts LIGHT_TOKENS.accent — the
  * editor's built-in default, used as this control's initial value. */
 const DEFAULT_ACCENT_COLOR = '#2B6E6E';
+const ACCENT_SWATCHES = ['#2B6E6E', '#6741D9', '#E8590C', '#C2255C', '#2F9E44', '#1971C2', '#F08C00', '#495057'];
 
 function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>): EditorFeatureConfig {
   // ResolvedEditorFeatureConfig has every field populated, so it's already a
@@ -212,17 +215,22 @@ export function App() {
   const borderColor = dark ? '#3A3934' : '#DAD7CE';
 
   return (
-    <div
-      style={{
-        fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
-        background: dark ? '#111' : '#fff',
-        color: dark ? '#EDEBE4' : '#1E1E1C',
-        height: '100vh',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    // Separate from EditorRoot's own internal (per-instance-scoped)
+    // MantineProvider — this one is only for the demo chrome's own Mantine
+    // controls (the accent-color picker), forced to the same scheme as the
+    // rest of the page so its popover matches light/dark mode too.
+    <MantineProvider forceColorScheme={colorScheme}>
+      <div
+        style={{
+          fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+          background: dark ? '#111' : '#fff',
+          color: dark ? '#EDEBE4' : '#1E1E1C',
+          height: '100vh',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
       <header
         style={{
           flex: '0 0 auto',
@@ -272,13 +280,16 @@ export function App() {
             <input type="checkbox" checked={dark} onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')} />
             {t.darkMode}
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
-            <input
-              type="color"
+            <ColorInput
+              size="xs"
               value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-              style={{ width: 28, height: 22, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+              onChange={setAccentColor}
+              format="hex"
+              swatches={ACCENT_SWATCHES}
+              popoverProps={{ withinPortal: true }}
+              styles={{ input: { width: 110 } }}
             />
           </label>
         </div>
@@ -397,6 +408,7 @@ export function App() {
       </div>
 
       {popup && <OutputPopup title={popup.title} content={popup.content} dark={dark} onClose={() => setPopup(null)} />}
-    </div>
+      </div>
+    </MantineProvider>
   );
 }
