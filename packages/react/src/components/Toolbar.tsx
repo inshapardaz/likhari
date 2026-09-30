@@ -37,6 +37,7 @@ import {
 import { $findMatchingParent } from '@lexical/utils';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
+import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import {
   IconAbc,
@@ -50,6 +51,7 @@ import {
   IconClearFormatting,
   IconDeviceFloppy,
   IconDots,
+  IconExternalLink,
   IconFeather,
   IconIndentDecrease,
   IconIndentIncrease,
@@ -58,6 +60,8 @@ import {
   IconLetterCaseLower,
   IconLetterCaseUpper,
   IconLink,
+  IconLinkOff,
+  IconPencil,
   IconPhoto,
   IconPilcrow,
   IconSparkles,
@@ -272,6 +276,12 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     });
   }, [editor]);
 
+  // Selection changes alone miss edits that change the toolbar's state without
+  // moving the caret (e.g. removing the link the caret is in).
+  useEffect(() => {
+    return editor.registerUpdateListener(() => updateToolbar());
+  }, [editor, updateToolbar]);
+
   useEffect(() => {
     return editor.registerCommand(
       SELECTION_CHANGE_COMMAND,
@@ -477,6 +487,9 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
 
+  // Only offer the link as clickable if it's a URL the editor would have accepted.
+  const safeLinkUrl = normalizeLinkUrl(state.linkUrl);
+
   const formattingOptions = [
     { value: 'paragraph', label: 'Paragraph' },
     ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
@@ -593,12 +606,66 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       {/* Link, image, poetry blocks — stubs, gated by config, not implemented yet */}
       {config.links && (
         <div className="likhari-toolbar-group">
-          <ToolbarButton
-            icon={IconLink}
-            title={state.isLink ? 'Edit link (Ctrl+K)' : 'Insert link (Ctrl+K)'}
-            active={state.isLink}
-            onClick={openLinkDialog}
-          />
+          {state.isLink ? (
+            // Caret is in a link: the button opens a menu to see, edit or remove it.
+            <Menu position="bottom-start" withinPortal shadow="sm" width={240} onOpen={snapshotSelection}>
+              <Menu.Target>
+                <button
+                  type="button"
+                  className="likhari-toolbar-button"
+                  data-active="true"
+                  aria-pressed="true"
+                  aria-haspopup="menu"
+                  aria-label="Link options"
+                  title="Link options"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <IconLink size={ICON_SIZE} stroke={ICON_STROKE} />
+                </button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>Link</Menu.Label>
+                {safeLinkUrl ? (
+                  <Menu.Item
+                    component="a"
+                    href={safeLinkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    leftSection={<IconExternalLink size={ICON_SIZE} stroke={ICON_STROKE} />}
+                    title={state.linkUrl}
+                    className="likhari-link-menu-url"
+                  >
+                    {state.linkUrl}
+                  </Menu.Item>
+                ) : (
+                  // Not a URL the editor would accept (e.g. loaded from a document): show it, don't make it clickable.
+                  <Menu.Item disabled title={state.linkUrl} className="likhari-link-menu-url">
+                    {state.linkUrl || '(no URL)'}
+                  </Menu.Item>
+                )}
+                <Menu.Item
+                  leftSection={<IconPencil size={ICON_SIZE} stroke={ICON_STROKE} />}
+                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                  onClick={() => {
+                    restoreSelection();
+                    openLinkDialog();
+                  }}
+                >
+                  Edit link
+                </Menu.Item>
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconLinkOff size={ICON_SIZE} stroke={ICON_STROKE} />}
+                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                  onClick={removeLink}
+                >
+                  Remove link
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          ) : (
+            <ToolbarButton icon={IconLink} title="Insert link (Ctrl+K)" onClick={openLinkDialog} />
+          )}
         </div>
       )}
 
