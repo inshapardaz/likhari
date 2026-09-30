@@ -1,39 +1,36 @@
 name: Deploy demo to GitHub Pages
 
+# Publishes the demo's production build to the root of the gh-pages branch.
+# Pages must be set to "Deploy from a branch" -> gh-pages (root). PR previews
+# live under pr-preview/ on the same branch (see pr-preview.yml), so the
+# clean step below must never delete that folder.
+
 on:
   push:
     branches: [main]
   workflow_dispatch: {}
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
+# Shared with pr-preview.yml so the two never push to gh-pages at once.
 concurrency:
-  group: pages
+  group: gh-pages-deploy
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: apps/demo/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          branch: gh-pages
+          folder: apps/demo/dist
+          clean-exclude: pr-preview/
