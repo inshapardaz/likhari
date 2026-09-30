@@ -1,15 +1,6 @@
-import { useCallback, useEffect, useRef, type ReactElement } from 'react';
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
+import type { ReactElement } from 'react';
 import {
-  $getNodeByKey,
-  $getSelection,
-  $isNodeSelection,
-  CLICK_COMMAND,
-  COMMAND_PRIORITY_LOW,
   DecoratorNode,
-  KEY_BACKSPACE_COMMAND,
-  KEY_DELETE_COMMAND,
   type DOMExportOutput,
   type EditorConfig,
   type LexicalNode,
@@ -17,6 +8,7 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from 'lexical';
+import { ImageComponent } from './ImageComponent';
 
 /** How the image's bytes are held: an external URL, or embedded in the
  * document (a base64 data URI, or a URL returned by the host's upload handler). */
@@ -47,9 +39,9 @@ export type SerializedImageNode = Spread<
 
 /**
  * Block-level image (editor-architecture-design.md §3.5). The caption is a
- * plain string edited through an input under the image — not the nested
- * sub-editor the architecture doc leaves open — which keeps caption edits in
- * the parent editor's undo history.
+ * plain string (null = no caption) edited through the image's right-click menu
+ * / edit dialog — not the nested sub-editor the architecture doc leaves open —
+ * which keeps every edit in the parent editor's undo history.
  */
 export class ImageNode extends DecoratorNode<ReactElement> {
   __src: string;
@@ -153,9 +145,43 @@ export class ImageNode extends DecoratorNode<ReactElement> {
     return this.__caption;
   }
 
+  getLinkType(): ImageLinkType {
+    return this.__linkType;
+  }
+
+  getWidth(): number | null {
+    return this.__width;
+  }
+
+  getHeight(): number | null {
+    return this.__height;
+  }
+
   setCaption(caption: string | null): this {
     const writable = this.getWritable();
-    writable.__caption = caption;
+    writable.__caption = caption || null;
+    return writable;
+  }
+
+  setAltText(altText: string): this {
+    const writable = this.getWritable();
+    writable.__altText = altText;
+    return writable;
+  }
+
+  /** Points the node at new image data (a replaced URL/upload, or edited pixels). */
+  setSource(src: string, linkType: ImageLinkType): this {
+    const writable = this.getWritable();
+    writable.__src = src;
+    writable.__linkType = linkType;
+    return writable;
+  }
+
+  /** Display size in px; null = the image's natural size. */
+  setDimensions(width: number | null, height: number | null): this {
+    const writable = this.getWritable();
+    writable.__width = width;
+    writable.__height = height;
     return writable;
   }
 
@@ -170,6 +196,7 @@ export class ImageNode extends DecoratorNode<ReactElement> {
         src={this.__src}
         altText={this.__altText}
         caption={this.__caption}
+        linkType={this.__linkType}
         width={this.__width}
         height={this.__height}
       />
@@ -183,92 +210,4 @@ export function $createImageNode({ src, altText, caption, linkType, width, heigh
 
 export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
   return node instanceof ImageNode;
-}
-
-interface ImageComponentProps {
-  nodeKey: NodeKey;
-  src: string;
-  altText: string;
-  caption: string | null;
-  width: number | null;
-  height: number | null;
-}
-
-function ImageComponent({ nodeKey, src, altText, caption, width, height }: ImageComponentProps) {
-  const [editor] = useLexicalComposerContext();
-  const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-
-  // Selecting must go through CLICK_COMMAND (returning true) rather than a
-  // React onClick: otherwise Lexical's own click handling turns the DOM
-  // selection into a range selection right after, undoing the node selection.
-  useEffect(() => {
-    return editor.registerCommand(
-      CLICK_COMMAND,
-      (event: MouseEvent) => {
-        if (event.target !== imageRef.current) return false;
-        clearSelection();
-        setSelected(true);
-        return true;
-      },
-      COMMAND_PRIORITY_LOW,
-    );
-  }, [editor, clearSelection, setSelected]);
-
-  // Delete/Backspace removes the selected image — but not while typing in the
-  // caption input, whose keystrokes also reach the editor's root listener.
-  const onDelete = useCallback(
-    (event: KeyboardEvent) => {
-      if (!isSelected || event.target instanceof HTMLInputElement) return false;
-      if (!$isNodeSelection($getSelection())) return false;
-      event.preventDefault();
-      $getNodeByKey(nodeKey)?.remove();
-      return true;
-    },
-    [isSelected, nodeKey],
-  );
-
-  useEffect(() => {
-    const unregisterDelete = editor.registerCommand(KEY_DELETE_COMMAND, onDelete, COMMAND_PRIORITY_LOW);
-    const unregisterBackspace = editor.registerCommand(KEY_BACKSPACE_COMMAND, onDelete, COMMAND_PRIORITY_LOW);
-    return () => {
-      unregisterDelete();
-      unregisterBackspace();
-    };
-  }, [editor, onDelete]);
-
-  const setCaption = (value: string) => {
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if ($isImageNode(node)) node.setCaption(value);
-    });
-  };
-
-  return (
-    <figure
-      className="likhari-image-figure"
-      data-selected={isSelected ? 'true' : 'false'}
-      contentEditable={false}
-    >
-      <img
-        ref={imageRef}
-        className="likhari-image"
-        src={src}
-        alt={altText}
-        width={width ?? undefined}
-        height={height ?? undefined}
-        draggable={false}
-      />
-      {caption !== null && (
-        <input
-          className="likhari-image-caption"
-          type="text"
-          aria-label="Image caption"
-          placeholder="Add a caption…"
-          value={caption}
-          onChange={(e) => setCaption(e.currentTarget.value)}
-        />
-      )}
-    </figure>
-  );
 }

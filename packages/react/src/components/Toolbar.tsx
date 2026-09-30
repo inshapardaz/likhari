@@ -37,7 +37,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
-import { ImageDialog, type ImageDialogResult } from '../image/ImageDialog';
+import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
@@ -295,10 +295,9 @@ export interface ToolbarProps {
   fontOptions?: FontOption[];
   /** Text direction of the canvas; picks which default font and size are pre-selected. */
   direction?: 'ltr' | 'rtl';
-  onImageUpload?: (file: File) => Promise<string>;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, onImageUpload, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr' }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr' }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
 
@@ -460,7 +459,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, onImageUpload, font
     editor.focus();
   };
 
-  const insertImage = (image: ImageDialogResult) => {
+  const insertImage = (image: ImageDialogValue) => {
     const saved = menuSelectionRef.current;
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
     editor.update(() => {
@@ -924,16 +923,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, onImageUpload, font
         </Menu>
       )}
       {(config.images.linked || config.images.embedded) && (
-        <ImageDialog
-          opened={imageDialogOpen}
-          allowLinked={config.images.linked}
-          allowEmbedded={config.images.embedded}
-          allowCaption={config.images.caption}
-          maxSizeMB={config.images.maxSizeMB}
-          onImageUpload={onImageUpload}
-          onSubmit={insertImage}
-          onClose={closeImageDialog}
-        />
+        <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
       {config.links && (
         <LinkDialog

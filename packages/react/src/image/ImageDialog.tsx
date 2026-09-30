@@ -1,30 +1,48 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Alert, Button, FileInput, Group, Modal, SegmentedControl, Stack, TextInput } from '@mantine/core';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  FileInput,
+  Group,
+  Modal,
+  NumberInput,
+  SegmentedControl,
+  Stack,
+  Tabs,
+  Text,
+  TextInput,
+} from '@mantine/core';
 import { ACCEPTED_IMAGE_TYPES, normalizeImageUrl, validateImageFile } from './imageUrl';
+import { dataUrlBytes, dataUrlToFile, fitDimension, mimeFromSrc } from './imageEdit';
+import { ImageCropper } from './ImageCropper';
+import { useImageOptions } from './ImageOptionsContext';
 import type { ImageLinkType } from './ImageNode';
 
-export interface ImageDialogResult {
+export interface ImageDialogValue {
   src: string;
   altText: string;
+  /** null = no caption */
   caption: string | null;
   linkType: ImageLinkType;
+  /** Display size in px; null = natural size */
+  width: number | null;
+  height: number | null;
 }
 
 export interface ImageDialogProps {
+  /** `insert`: pick an image. `edit`: also change its source, size, crop and rotation. */
+  mode: 'insert' | 'edit';
   opened: boolean;
-  /** `images.linked` — allow an external URL. */
-  allowLinked: boolean;
-  /** `images.embedded` — allow uploading a file. */
-  allowEmbedded: boolean;
-  /** `images.caption` — image gets an (initially empty) caption. */
-  allowCaption: boolean;
-  /** `images.maxSizeMB` */
-  maxSizeMB: number;
-  /** Host upload handler; when absent, uploads are embedded as base64 data URIs. */
-  onImageUpload?: (file: File) => Promise<string>;
-  onSubmit: (image: ImageDialogResult) => void;
+  /** The image being edited (edit mode). */
+  initial?: ImageDialogValue;
+  /** Focus the caption field when the dialog opens. */
+  initialFocus?: 'caption';
+  onSubmit: (image: ImageDialogValue) => void;
   onClose: () => void;
 }
+
+type Source = 'keep' | ImageLinkType;
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,114 +53,314 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-/** Insert-image dialog (UI spec §6): an external URL and/or an uploaded file. */
-export function ImageDialog({
-  opened,
-  allowLinked,
-  allowEmbedded,
-  allowCaption,
-  maxSizeMB,
-  onImageUpload,
-  onSubmit,
-  onClose,
-}: ImageDialogProps) {
-  const defaultSource: ImageLinkType = allowLinked ? 'linked' : 'embedded';
-  const [source, setSource] = useState<ImageLinkType>(defaultSource);
+/** Natural pixel size of an image URL (for the aspect ratio and size presets). */
+function useNaturalSize(src: string | null) {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    setSize(null);
+    if (!src) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled && img.naturalWidth) setSize({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+  return size;
+}
+
+/**
+ * Insert-image dialog (UI spec §6) and, in edit mode, the image editor: change
+ * the source (URL or upload), alt text, caption, display size, and crop/rotate.
+ * Edits that change pixels (crop, rotate, flip) are embedded as a data URI, or
+ * stored through the host's `onImageUpload` when there is one.
+ */
+export function ImageDialog({ mode, opened, initial, initialFocus, onSubmit, onClose }: ImageDialogProps) {
+  const { allowLinked, allowEmbedded, allowCaption, maxSizeMB, onImageUpload } = useImageOptions();
+  const editing = mode === 'edit' && initial !== undefined;
+  const defaultSource: Source = editing ? 'keep' : allowLinked ? 'linked' : 'embedded';
+
+  const [tab, setTab] = useState('details');
+  const [source, setSource] = useState<Source>(defaultSource);
   const [url, setUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [fileSrc, setFileSrc] = useState<string | null>(null);
   const [altText, setAltText] = useState('');
+  const [caption, setCaption] = useState('');
+  const [width, setWidth] = useState<number | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  const [lockAspect, setLockAspect] = useState(true);
+  const [pixelSrc, setPixelSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (opened) {
-      setSource(defaultSource);
-      setUrl('');
-      setFile(null);
-      setAltText('');
-      setError(null);
-      setBusy(false);
+    if (!opened) return;
+    setTab('details');
+    setSource(defaultSource);
+    setUrl('');
+    setFile(null);
+    setFileSrc(null);
+    setAltText(initial?.altText ?? '');
+    setCaption(initial?.caption ?? '');
+    setWidth(initial?.width ?? null);
+    setHeight(initial?.height ?? null);
+    setLockAspect(true);
+    setPixelSrc(null);
+    setError(null);
+    setBusy(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
+
+  // The image before any crop/rotate: the current one, the typed URL, or the chosen file.
+  const baseSrc = source === 'keep' ? (initial?.src ?? null) : source === 'linked' ? normalizeImageUrl(url) : fileSrc;
+  const effectiveSrc = pixelSrc ?? baseSrc;
+  const natural = useNaturalSize(effectiveSrc);
+
+  /** A new source or new pixels invalidate any custom size. */
+  const resetSize = (toInitial = false) => {
+    setWidth(toInitial ? (initial?.width ?? null) : null);
+    setHeight(toInitial ? (initial?.height ?? null) : null);
+  };
+
+  const changeSource = (next: Source) => {
+    setSource(next);
+    setPixelSrc(null);
+    resetSize(next === 'keep');
+    setError(null);
+  };
+
+  const changeFile = async (next: File | null) => {
+    setFile(next);
+    setFileSrc(null);
+    setPixelSrc(null);
+    resetSize();
+    setError(null);
+    if (!next) return;
+    const problem = validateImageFile(next, maxSizeMB);
+    if (problem) {
+      setError(problem);
+      return;
     }
-  }, [opened, defaultSource]);
+    try {
+      setFileSrc(await readAsDataUrl(next));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read the file');
+    }
+  };
+
+  const onSizeChange = (changed: 'width' | 'height', value: number | string) => {
+    const n = typeof value === 'number' ? value : null;
+    if (n === null) {
+      changed === 'width' ? setWidth(null) : setHeight(null);
+      return;
+    }
+    if (lockAspect && natural) {
+      const fitted = fitDimension(changed, n, natural.width, natural.height);
+      setWidth(fitted.width);
+      setHeight(fitted.height);
+    } else {
+      changed === 'width' ? setWidth(n) : setHeight(n);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!effectiveSrc) {
+      setError(source === 'linked' ? 'Enter an http(s) or relative image URL' : source === 'embedded' ? 'Choose an image file' : 'No image');
+      return;
+    }
+
     try {
-      let src: string | null;
-      if (source === 'linked') {
-        src = normalizeImageUrl(url);
-        if (!src) {
-          setError('Enter an http(s) or relative image URL');
+      let src = effectiveSrc;
+      let linkType: ImageLinkType = source === 'keep' ? (initial?.linkType ?? 'linked') : source;
+
+      // Pixels the document doesn't reference yet (an upload, or an edit) are
+      // stored: through the host's handler, or embedded as a data URI.
+      const newPixels = pixelSrc ?? (source === 'embedded' ? fileSrc : null);
+      if (newPixels) {
+        if (dataUrlBytes(newPixels) > maxSizeMB * 1024 * 1024) {
+          setError(`Image is larger than ${maxSizeMB} MB`);
           return;
         }
-      } else {
-        if (!file) {
-          setError('Choose an image file');
-          return;
-        }
-        const problem = validateImageFile(file, maxSizeMB);
-        if (problem) {
-          setError(problem);
-          return;
-        }
-        setBusy(true);
-        src = onImageUpload ? await onImageUpload(file) : await readAsDataUrl(file);
-        if (!normalizeImageUrl(src)) {
-          setError('The upload handler returned an unusable image URL');
-          setBusy(false);
-          return;
+        linkType = 'embedded';
+        if (onImageUpload) {
+          setBusy(true);
+          const ext = mimeFromSrc(newPixels).split('/')[1];
+          const upload = pixelSrc || !file ? dataUrlToFile(newPixels, `image.${ext}`) : file;
+          src = await onImageUpload(upload);
+          if (!normalizeImageUrl(src)) {
+            setError('The upload handler returned an unusable image URL');
+            setBusy(false);
+            return;
+          }
+        } else {
+          src = newPixels;
         }
       }
-      onSubmit({ src, altText: altText.trim(), caption: allowCaption ? '' : null, linkType: source });
+
+      onSubmit({
+        src,
+        altText: altText.trim(),
+        caption: allowCaption ? caption.trim() || null : (initial?.caption ?? null),
+        linkType,
+        width,
+        height,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add the image');
+      setError(err instanceof Error ? err.message : 'Could not save the image');
+    } finally {
       setBusy(false);
     }
   };
 
+  const sourceFields = (
+    <Stack gap="sm">
+      {(editing || (allowLinked && allowEmbedded)) && (
+        <SegmentedControl
+          fullWidth
+          value={source}
+          onChange={(v) => changeSource(v as Source)}
+          data={[
+            ...(editing ? [{ value: 'keep', label: 'Current image' }] : []),
+            ...(allowLinked ? [{ value: 'linked', label: 'From URL' }] : []),
+            ...(allowEmbedded ? [{ value: 'embedded', label: 'Upload' }] : []),
+          ]}
+        />
+      )}
+      {source === 'keep' && (
+        <Text size="sm" c="dimmed" lineClamp={2} style={{ wordBreak: 'break-all' }}>
+          {initial?.src.startsWith('data:') ? 'Embedded in the document' : initial?.src}
+        </Text>
+      )}
+      {source === 'linked' && (
+        <TextInput
+          label="Image URL"
+          placeholder="https://example.com/photo.jpg"
+          value={url}
+          onChange={(e) => {
+            setUrl(e.currentTarget.value);
+            setPixelSrc(null);
+            resetSize();
+          }}
+          data-autofocus={!editing || initialFocus !== 'caption' ? true : undefined}
+        />
+      )}
+      {source === 'embedded' && (
+        <FileInput
+          label="Image file"
+          placeholder="Choose an image"
+          accept={ACCEPTED_IMAGE_TYPES.join(',')}
+          value={file}
+          onChange={changeFile}
+          description={`Up to ${maxSizeMB} MB${onImageUpload ? '' : '; stored inside the document'}`}
+        />
+      )}
+      <TextInput
+        label="Alt text"
+        description="Describes the image for screen readers"
+        value={altText}
+        onChange={(e) => setAltText(e.currentTarget.value)}
+      />
+      {allowCaption && (
+        <TextInput
+          label="Caption"
+          description="Shown under the image. Leave empty for none."
+          value={caption}
+          onChange={(e) => setCaption(e.currentTarget.value)}
+          data-autofocus={initialFocus === 'caption' ? true : undefined}
+        />
+      )}
+    </Stack>
+  );
+
+  const sizeFields = (
+    <Stack gap="sm">
+      <Group grow align="flex-end">
+        <NumberInput
+          label="Width (px)"
+          min={1}
+          max={10000}
+          hideControls
+          placeholder={natural ? String(natural.width) : 'Auto'}
+          value={width ?? ''}
+          onChange={(v) => onSizeChange('width', v)}
+        />
+        <NumberInput
+          label="Height (px)"
+          min={1}
+          max={10000}
+          hideControls
+          placeholder={natural ? String(natural.height) : 'Auto'}
+          value={height ?? ''}
+          onChange={(v) => onSizeChange('height', v)}
+        />
+      </Group>
+      <Checkbox label="Keep proportions" checked={lockAspect} onChange={(e) => setLockAspect(e.currentTarget.checked)} />
+      <Group gap="xs">
+        {[25, 50, 75, 100].map((pct) => (
+          <Button
+            key={pct}
+            size="xs"
+            variant="default"
+            disabled={!natural}
+            onClick={() => natural && (setWidth(Math.round((natural.width * pct) / 100)), setHeight(Math.round((natural.height * pct) / 100)))}
+          >
+            {pct}%
+          </Button>
+        ))}
+        <Button size="xs" variant="subtle" onClick={() => resetSize()}>
+          Original size
+        </Button>
+      </Group>
+      <Text size="xs" c="dimmed">
+        You can also drag the corner handle on a selected image. {natural ? `Original: ${natural.width} × ${natural.height} px.` : ''}
+      </Text>
+    </Stack>
+  );
+
   return (
-    <Modal opened={opened} onClose={onClose} title="Insert image" centered size="sm">
+    <Modal opened={opened} onClose={onClose} title={editing ? 'Edit image' : 'Insert image'} centered size={editing ? 'lg' : 'sm'}>
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
-          {allowLinked && allowEmbedded && (
-            <SegmentedControl
-              fullWidth
-              value={source}
-              onChange={(v) => {
-                setSource(v as ImageLinkType);
-                setError(null);
-              }}
-              data={[
-                { value: 'linked', label: 'From URL' },
-                { value: 'embedded', label: 'Upload' },
-              ]}
-            />
-          )}
-          {source === 'linked' ? (
-            <TextInput
-              label="Image URL"
-              placeholder="https://example.com/photo.jpg"
-              value={url}
-              onChange={(e) => setUrl(e.currentTarget.value)}
-              data-autofocus
-            />
+          {editing ? (
+            <Tabs value={tab} onChange={(v) => setTab(v ?? 'details')} keepMounted={false}>
+              <Tabs.List mb="sm">
+                <Tabs.Tab value="details">Details</Tabs.Tab>
+                <Tabs.Tab value="size" disabled={!effectiveSrc}>
+                  Size
+                </Tabs.Tab>
+                <Tabs.Tab value="crop" disabled={!effectiveSrc}>
+                  Crop &amp; rotate
+                </Tabs.Tab>
+              </Tabs.List>
+              <Tabs.Panel value="details">{sourceFields}</Tabs.Panel>
+              <Tabs.Panel value="size">{sizeFields}</Tabs.Panel>
+              <Tabs.Panel value="crop">
+                {effectiveSrc && (
+                  <ImageCropper
+                    src={effectiveSrc}
+                    canReset={pixelSrc !== null}
+                    onApply={(edited) => {
+                      setPixelSrc(edited);
+                      resetSize();
+                    }}
+                    onReset={() => {
+                      setPixelSrc(null);
+                      resetSize(source === 'keep');
+                    }}
+                  />
+                )}
+              </Tabs.Panel>
+            </Tabs>
           ) : (
-            <FileInput
-              label="Image file"
-              placeholder="Choose an image"
-              accept={ACCEPTED_IMAGE_TYPES.join(',')}
-              value={file}
-              onChange={setFile}
-              description={`Up to ${maxSizeMB} MB${onImageUpload ? '' : '; stored inside the document'}`}
-            />
+            sourceFields
           )}
-          <TextInput
-            label="Alt text"
-            description="Describes the image for screen readers"
-            value={altText}
-            onChange={(e) => setAltText(e.currentTarget.value)}
-          />
           {error && (
             <Alert color="red" variant="light" p="xs">
               {error}
@@ -153,7 +371,7 @@ export function ImageDialog({
               Cancel
             </Button>
             <Button type="submit" loading={busy}>
-              Insert
+              {editing ? 'Save' : 'Insert'}
             </Button>
           </Group>
         </Stack>

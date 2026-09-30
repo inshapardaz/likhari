@@ -17,6 +17,7 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
+import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -110,6 +111,17 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     if (config.font.family || locale !== 'en') injectUrduWebFontsCss();
   }, [config.font.family, locale]);
 
+  const imageOptions = useMemo<ImageOptions>(
+    () => ({
+      allowLinked: config.images.linked,
+      allowEmbedded: config.images.embedded,
+      allowCaption: config.images.caption,
+      maxSizeMB: config.images.maxSizeMB,
+      onImageUpload,
+    }),
+    [config.images.linked, config.images.embedded, config.images.caption, config.images.maxSizeMB, onImageUpload],
+  );
+
   const editorStateRef = useRef<EditorState | null>(null);
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -192,8 +204,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         data-document-id={documentId}
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
+        <ImageOptionsContext.Provider value={imageOptions}>
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} onImageUpload={onImageUpload} direction={dir} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} direction={dir} />
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}
@@ -207,6 +220,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
+        </ImageOptionsContext.Provider>
       </div>
     </EditorThemeProvider>
   );

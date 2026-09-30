@@ -235,7 +235,8 @@
   margin: 1.5em 0;
 }
 
-/* Images — block-level figure with an optional caption input. */
+/* Images — block-level figure; the caption is static text (edited in the
+   image's dialog), and a selected image gets a corner resize handle. */
 .likhari-image-block {
   margin: 0 0 1em 0;
 }
@@ -246,8 +247,15 @@
   text-align: center;
 }
 
-.likhari-image {
+.likhari-image-wrap {
+  position: relative;
   display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.likhari-image {
+  display: block;
   max-width: 100%;
   height: auto;
   border-radius: 4px;
@@ -259,24 +267,52 @@
   outline-offset: 2px;
 }
 
+.likhari-image-resize-handle {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--editor-paper);
+  border-radius: 3px;
+  background: var(--editor-accent);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
 .likhari-image-caption {
-  display: block;
-  width: 100%;
   margin-top: 6px;
-  padding: 2px 4px;
-  border: none;
-  border-bottom: 1px dashed transparent;
-  background: transparent;
   color: var(--editor-ink-soft);
-  font: inherit;
   font-size: 0.85em;
+  line-height: 1.4;
   text-align: center;
 }
 
-.likhari-image-caption:hover,
-.likhari-image-caption:focus {
-  border-bottom-color: var(--editor-line-strong);
-  outline: none;
+/* Image dialog — crop stage. The selection dims everything outside it. */
+.likhari-cropper-stage {
+  position: relative;
+  display: inline-block;
+  align-self: center;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.likhari-cropper-image {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+}
+
+.likhari-cropper-selection {
+  position: absolute;
+  border: 2px solid #fff;
+  outline: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
 /* Link menu: the URL item shows one truncated line. */

@@ -47,13 +47,29 @@ or closed. `main` deploys to the site root. Requires Pages set to
 With `images.linked` / `images.embedded` enabled, the toolbar's image button opens
 a dialog to insert an image **from a URL** (`http(s)`, relative, or a base64 image
 data URI) or **upload a file** (PNG, JPEG, GIF, WebP or SVG, up to
-`images.maxSizeMB`, default 5). `images.caption` gives the image an editable
-caption under it. Click an image to select it, then press Delete or Backspace to
-remove it.
+`images.maxSizeMB`, default 5), with alt text and, if `images.caption` is on, an
+optional caption. An image has no caption until you give it one.
 
-Uploads are embedded in the document as base64 data URIs by default, which bloats
-it. To store files yourself, pass `onImageUpload`; the image then references the
-URL you return:
+Working with an image in the document:
+
+- **Click** to select it; Delete or Backspace removes it.
+- **Drag the corner handle** of a selected image to resize it (proportions kept).
+- **Right-click** for a menu: *Edit image…*, *Add caption…* / *Edit caption…*,
+  *Remove caption*, *Delete image*. **Double-click** opens *Edit image…* directly.
+- **Edit image** has three tabs: *Details* (replace the image with a new URL or
+  upload, alt text, caption), *Size* (width and height with proportions locked,
+  25/50/75/100% presets, back to original), and *Crop & rotate* (drag to choose a
+  crop area, free or 1:1 / 4:3 / 16:9; rotate; flip; undo edits).
+
+Cropping and rotating re-render the pixels, so they need an image the browser may
+read: uploaded files and images from servers that allow it (CORS). For other
+external images the dialog says so; upload the file instead. Edited pixels are
+embedded in the document as a base64 data URI (GIF and SVG become PNG), or stored
+through `onImageUpload` when you provide one.
+
+Uploads are embedded as base64 data URIs by default, which bloats the document. To
+store files yourself, pass `onImageUpload`; the image then references the URL you
+return:
 
 ```tsx
 <EditorRoot onImageUpload={async (file) => (await uploadToMyStorage(file)).url} />

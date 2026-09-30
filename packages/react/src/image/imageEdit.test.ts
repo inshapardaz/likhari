@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { dataUrlBytes, dataUrlToFile, fitDimension, mimeFromSrc, toPixelRect } from './imageEdit';
+
+describe('toPixelRect', () => {
+  it('converts fractions to whole pixels', () => {
+    expect(toPixelRect({ x: 0.25, y: 0.5, w: 0.5, h: 0.25 }, 200, 100)).toEqual({ sx: 50, sy: 50, sw: 100, sh: 25 });
+  });
+
+  it('clamps a rectangle that runs past the image', () => {
+    expect(toPixelRect({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }, 100, 100)).toEqual({ sx: 90, sy: 90, sw: 10, sh: 10 });
+  });
+
+  it('never returns an empty rectangle', () => {
+    const r = toPixelRect({ x: 0.5, y: 0.5, w: 0, h: 0 }, 100, 100);
+    expect(r.sw).toBeGreaterThanOrEqual(1);
+    expect(r.sh).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('fitDimension', () => {
+  it('derives height from width', () => {
+    expect(fitDimension('width', 100, 400, 200)).toEqual({ width: 100, height: 50 });
+  });
+
+  it('derives width from height', () => {
+    expect(fitDimension('height', 100, 400, 200)).toEqual({ width: 200, height: 100 });
+  });
+
+  it('never returns zero', () => {
+    expect(fitDimension('width', 0, 1000, 10)).toEqual({ width: 1, height: 1 });
+  });
+});
+
+describe('mimeFromSrc', () => {
+  it('keeps JPEG and WebP, and falls back to PNG for everything else', () => {
+    expect(mimeFromSrc('data:image/jpeg;base64,AAAA')).toBe('image/jpeg');
+    expect(mimeFromSrc('data:image/webp;base64,AAAA')).toBe('image/webp');
+    expect(mimeFromSrc('data:image/gif;base64,AAAA')).toBe('image/png');
+    expect(mimeFromSrc('https://a.com/x.JPG?v=2')).toBe('image/jpeg');
+    expect(mimeFromSrc('https://a.com/x')).toBe('image/png');
+  });
+});
+
+describe('data URL helpers', () => {
+  it('measures decoded size', () => {
+    expect(dataUrlBytes('data:image/png;base64,QUJD')).toBe(3);
+    expect(dataUrlBytes('data:image/png;base64,QUI=')).toBe(2);
+  });
+
+  it('round-trips into a File with its MIME type', () => {
+    const file = dataUrlToFile('data:image/png;base64,QUJD', 'a.png');
+    expect(file.type).toBe('image/png');
+    expect(file.size).toBe(3);
+    expect(file.name).toBe('a.png');
+  });
+});
