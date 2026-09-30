@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { resolveFeatureConfig } from './featureConfig';
 
 describe('resolveFeatureConfig', () => {
+  it('keeps a usable image size limit for presets that enable images without naming one', () => {
+    for (const preset of ['standard', 'poetry', 'full'] as const) {
+      const config = resolveFeatureConfig(undefined, preset);
+      expect(config.images.embedded).toBe(true);
+      expect(config.images.maxSizeMB).toBe(5);
+    }
+  });
+
+  it('lets a caller override the image size limit', () => {
+    expect(resolveFeatureConfig({ images: { maxSizeMB: 2 } }, 'standard').images.maxSizeMB).toBe(2);
+  });
+
   it('defaults to the full preset with every feature on', () => {
     const config = resolveFeatureConfig();
     expect(config.formatting.bold).toBe(true);

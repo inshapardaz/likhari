@@ -213,7 +213,9 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   color: { foreground: false, background: false, palette: [] },
   history: false,
   links: false,
-  images: { linked: false, embedded: false, caption: false, maxSizeMB: 0 },
+  // maxSizeMB is a limit, not an on/off flag: it stays at the full preset's 5
+  // so a preset that enables images without naming a size doesn't get 0 MB.
+  images: { linked: false, embedded: false, caption: false, maxSizeMB: 5 },
   tables: false,
   columns: false,
   footnotes: false,
