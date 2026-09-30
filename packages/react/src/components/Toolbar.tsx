@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import { Menu, Select } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
   $isRangeSelection,
   $isElementNode,
+  $setSelection,
+  type BaseSelection,
   FORMAT_TEXT_COMMAND,
   FORMAT_ELEMENT_COMMAND,
   INDENT_CONTENT_COMMAND,
@@ -103,12 +106,15 @@ function ToolbarButton({
   icon: Icon,
   title,
   active,
+  dirty,
   disabled,
   onClick,
 }: {
   icon: TablerIcon;
   title: string;
   active?: boolean;
+  /** Save button only: filled while there are unsaved changes (UI spec §7). */
+  dirty?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 }) {
@@ -117,6 +123,7 @@ function ToolbarButton({
       type="button"
       className="likhari-toolbar-button"
       data-active={active ? 'true' : 'false'}
+      data-dirty={dirty === undefined ? undefined : dirty ? 'true' : 'false'}
       disabled={disabled}
       aria-pressed={active}
       aria-label={title}
@@ -137,13 +144,63 @@ function StubButton({ icon, title }: { icon: TablerIcon; title: string }) {
   return <ToolbarButton icon={icon} title={`${title} (coming soon)`} disabled onClick={undefined} />;
 }
 
-/** Icon shown to the left of a <select> — native selects can't render icons
- * per-option, so this labels the control itself instead. */
-function SelectIcon({ icon: Icon }: { icon: TablerIcon }) {
+interface ToolbarSelectProps {
+  icon: TablerIcon;
+  label: string;
+  value: string | null;
+  data: { value: string; label: string }[];
+  width: number;
+  disabled?: boolean;
+  placeholder?: string;
+  onChange?: (value: string) => void;
+}
+
+/** Mantine Select (combobox) for the toolbar's dropdown controls. The icon
+ * labels the control itself, since a dropdown can't show one per option in
+ * its closed state. The dropdown portals to <body>, so it is not clipped by
+ * the editor's `overflow: hidden` frame. */
+function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, onChange }: ToolbarSelectProps) {
   return (
-    <span className="likhari-toolbar-select-icon" aria-hidden="true">
-      <Icon size={15} stroke={ICON_STROKE} />
-    </span>
+    <Select
+      size="xs"
+      w={width}
+      aria-label={label}
+      title={disabled ? `${label} (coming soon)` : label}
+      data={data}
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      allowDeselect={false}
+      leftSection={<Icon size={15} stroke={ICON_STROKE} />}
+      comboboxProps={{ withinPortal: true, position: 'bottom-start', middlewares: { flip: true, shift: true } }}
+      classNames={{ input: 'likhari-toolbar-select-input', dropdown: 'likhari-toolbar-select-dropdown' }}
+      onChange={(v) => v && onChange?.(v)}
+    />
+  );
+}
+
+function OverflowItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: TablerIcon;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Menu.Item
+      leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+      data-active={active ? 'true' : 'false'}
+      className="likhari-overflow-item"
+      // Keep the editor's selection: a mousedown here would blur the canvas.
+      onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+      onClick={onClick}
+    >
+      {label}
+    </Menu.Item>
   );
 }
 
@@ -157,8 +214,6 @@ export interface ToolbarProps {
 export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const overflowRef = useRef<HTMLDivElement | null>(null);
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -234,23 +289,6 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
     );
   }, [editor]);
 
-  // Close the overflow panel on outside click or Escape.
-  useEffect(() => {
-    if (!overflowOpen) return;
-    const handlePointerDown = (e: MouseEvent) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) setOverflowOpen(false);
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOverflowOpen(false);
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [overflowOpen]);
-
   const setBlockType = (type: BlockType) => {
     editor.update(() => {
       const selection = $getSelection();
@@ -283,6 +321,30 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
       editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
     }
     setBlockType(value);
+  };
+
+  /** Runs a toolbar-select action, then returns focus to the canvas — the
+   * combobox otherwise keeps it, so typing after picking would go nowhere. */
+  // Opening the overflow Menu moves focus into its dropdown, which makes
+  // Lexical drop the canvas selection — so snapshot it on open and restore it
+  // before an item's action runs.
+  const menuSelectionRef = useRef<BaseSelection | null>(null);
+  const snapshotSelection = () => {
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      menuSelectionRef.current = selection ? selection.clone() : null;
+    });
+  };
+  const runOverflowAction = (action: () => void) => () => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    action();
+    editor.focus();
+  };
+
+  const withRefocus = <T,>(fn: (value: T) => void) => (value: T) => {
+    fn(value);
+    editor.focus();
   };
 
   const formatText = (format: TextFormatType) => editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
@@ -336,17 +398,32 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
   const showOverflowMenu =
     fmt.strikethrough || fmt.superscript || fmt.subscript || fmt.caseTransforms || fmt.clearFormatting || config.indent;
 
+  const formattingOptions = [
+    { value: 'paragraph', label: 'Paragraph' },
+    ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
+    ...(config.lists.numbered ? [{ value: 'number', label: 'Numbered list' }] : []),
+    ...(config.lists.bullet ? [{ value: 'bullet', label: 'Bullet list' }] : []),
+    ...(config.lists.check ? [{ value: 'check', label: 'Task list' }] : []),
+    ...(config.blocks.quote ? [{ value: 'quote', label: 'Quote' }] : []),
+  ];
+  const alignOptions = [
+    ...(config.alignment.start ? [{ value: 'start', label: 'Align start' }] : []),
+    ...(config.alignment.center ? [{ value: 'center', label: 'Align center' }] : []),
+    ...(config.alignment.start ? [{ value: 'end', label: 'Align end' }] : []),
+    ...(config.alignment.justify ? [{ value: 'justify', label: 'Justify' }] : []),
+    ...(config.alignment.left ? [{ value: 'left', label: 'Align left' }] : []),
+    ...(config.alignment.right ? [{ value: 'right', label: 'Align right' }] : []),
+  ];
   const formattingValue: FormattingValue = state.listType ?? state.blockType;
   const AlignIcon = ALIGN_ICONS[state.elementFormat] ?? IconAlignLeft;
 
   return (
     <div className="likhari-toolbar" role="toolbar" aria-label="Formatting">
-      {/* Save */}
+      {/* Save — icon only; filled while dirty, outline once saved */}
       {showSave && (
-        <button type="button" className="likhari-save-button" data-dirty={isDirty ? 'true' : 'false'} onClick={onSave}>
-          <IconDeviceFloppy size={16} stroke={ICON_STROKE} />
-          Save
-        </button>
+        <div className="likhari-toolbar-group">
+          <ToolbarButton icon={IconDeviceFloppy} title="Save" dirty={Boolean(isDirty)} onClick={onSave} />
+        </div>
       )}
 
       {/* Undo / redo */}
@@ -369,25 +446,15 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
 
       {/* Formatting: block type + list type + quote, unified into one dropdown */}
       {showFormattingGroup && (
-        <div className="likhari-toolbar-group likhari-toolbar-select-group">
-          <SelectIcon icon={IconPilcrow} />
-          <select
-            className="likhari-toolbar-select"
-            aria-label="Formatting"
+        <div className="likhari-toolbar-group">
+          <ToolbarSelect
+            icon={IconPilcrow}
+            label="Formatting"
+            width={148}
             value={formattingValue}
-            onChange={(e) => applyFormatting(e.target.value as FormattingValue)}
-          >
-            <option value="paragraph">Paragraph</option>
-            {headingLevels.map((level) => (
-              <option key={level} value={`h${level}`}>
-                Heading {level}
-              </option>
-            ))}
-            {config.lists.numbered && <option value="number">Numbered list</option>}
-            {config.lists.bullet && <option value="bullet">Bullet list</option>}
-            {config.lists.check && <option value="check">Task list</option>}
-            {config.blocks.quote && <option value="quote">Quote</option>}
-          </select>
+            data={formattingOptions}
+            onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
+          />
         </div>
       )}
 
@@ -421,42 +488,26 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
           here so it (not alignment, which actually works) is what collapses
           on small viewports — see the collapse-tablet comment below. */}
       {(config.font.family || config.font.size) && (
-        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet likhari-toolbar-select-group">
+        <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet">
           {config.font.family && (
-            <>
-              <SelectIcon icon={IconTypography} />
-              <select className="likhari-toolbar-select" aria-label="Font family" disabled title="Font family (coming soon)">
-                <option>Font</option>
-              </select>
-            </>
+            <ToolbarSelect icon={IconTypography} label="Font family" width={110} value={null} placeholder="Font" data={[]} disabled />
           )}
           {config.font.size && (
-            <>
-              <SelectIcon icon={IconTextSize} />
-              <select className="likhari-toolbar-select" aria-label="Font size" disabled title="Font size (coming soon)">
-                <option>Size</option>
-              </select>
-            </>
+            <ToolbarSelect icon={IconTextSize} label="Font size" width={90} value={null} placeholder="Size" data={[]} disabled />
           )}
         </div>
       )}
 
       {showAlignGroup && (
-        <div className="likhari-toolbar-group likhari-toolbar-select-group">
-          <SelectIcon icon={AlignIcon} />
-          <select
-            className="likhari-toolbar-select"
-            aria-label="Alignment"
+        <div className="likhari-toolbar-group">
+          <ToolbarSelect
+            icon={AlignIcon}
+            label="Alignment"
+            width={138}
             value={state.elementFormat || 'start'}
-            onChange={(e) => formatElement(e.target.value as ElementFormatType)}
-          >
-            {config.alignment.start && <option value="start">Align start</option>}
-            {config.alignment.center && <option value="center">Align center</option>}
-            {config.alignment.start && <option value="end">Align end</option>}
-            {config.alignment.justify && <option value="justify">Justify</option>}
-            {config.alignment.left && <option value="left">Align left</option>}
-            {config.alignment.right && <option value="right">Align right</option>}
-          </select>
+            data={alignOptions}
+            onChange={withRefocus((v) => formatElement(v as ElementFormatType))}
+          />
         </div>
       )}
 
@@ -480,61 +531,47 @@ export function Toolbar({ config, onSave, isDirty, showSave }: ToolbarProps) {
 
       {/* Overflow: less-frequent formatting (strikethrough, superscript/
           subscript, case transforms, clear formatting, indent/outdent) —
-          keeps the primary row compact for small/mobile viewports. */}
+          keeps the primary row compact. A Mantine Menu portals its dropdown
+          out of the toolbar, so it can't be clipped or add a scrollbar. */}
       {showOverflowMenu && (
-        <div className="likhari-toolbar-overflow" ref={overflowRef}>
-          <ToolbarButton icon={IconDots} title="More formatting" active={overflowOpen} onClick={() => setOverflowOpen((o) => !o)} />
-          {overflowOpen && (
-            <div className="likhari-toolbar-overflow-panel" role="menu">
-              {fmt.strikethrough && (
-                <ToolbarButton
-                  icon={IconStrikethrough}
-                  title="Strikethrough"
-                  active={state.activeFormats.has('strikethrough')}
-                  onClick={() => formatText('strikethrough')}
-                />
-              )}
-              {fmt.superscript && (
-                <ToolbarButton
-                  icon={IconSuperscript}
-                  title="Superscript"
-                  active={state.activeFormats.has('superscript')}
-                  onClick={() => formatText('superscript')}
-                />
-              )}
-              {fmt.subscript && (
-                <ToolbarButton
-                  icon={IconSubscript}
-                  title="Subscript"
-                  active={state.activeFormats.has('subscript')}
-                  onClick={() => formatText('subscript')}
-                />
-              )}
-              {fmt.caseTransforms && (
-                <>
-                  <ToolbarButton icon={IconLetterCaseUpper} title="UPPERCASE" onClick={() => applyCaseTransform('upper')} />
-                  <ToolbarButton icon={IconLetterCaseLower} title="lowercase" onClick={() => applyCaseTransform('lower')} />
-                  <ToolbarButton icon={IconLetterCase} title="Capitalize" onClick={() => applyCaseTransform('capitalize')} />
-                </>
-              )}
-              {fmt.clearFormatting && <ToolbarButton icon={IconClearFormatting} title="Clear formatting" onClick={clearFormatting} />}
-              {config.indent && (
-                <>
-                  <ToolbarButton
-                    icon={IconIndentDecrease}
-                    title="Outdent"
-                    onClick={() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined)}
-                  />
-                  <ToolbarButton
-                    icon={IconIndentIncrease}
-                    title="Indent"
-                    onClick={() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined)}
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <Menu position="bottom-end" withinPortal shadow="sm" width={210} closeOnItemClick onOpen={snapshotSelection}>
+          <Menu.Target>
+            <button
+              type="button"
+              className="likhari-toolbar-button"
+              aria-label="More formatting"
+              title="More formatting"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <IconDots size={ICON_SIZE} stroke={ICON_STROKE} />
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {fmt.strikethrough && (
+              <OverflowItem icon={IconStrikethrough} label="Strikethrough" active={state.activeFormats.has('strikethrough')} onClick={runOverflowAction(() => formatText('strikethrough'))} />
+            )}
+            {fmt.superscript && (
+              <OverflowItem icon={IconSuperscript} label="Superscript" active={state.activeFormats.has('superscript')} onClick={runOverflowAction(() => formatText('superscript'))} />
+            )}
+            {fmt.subscript && (
+              <OverflowItem icon={IconSubscript} label="Subscript" active={state.activeFormats.has('subscript')} onClick={runOverflowAction(() => formatText('subscript'))} />
+            )}
+            {fmt.caseTransforms && (
+              <>
+                <OverflowItem icon={IconLetterCaseUpper} label="UPPERCASE" onClick={runOverflowAction(() => applyCaseTransform('upper'))} />
+                <OverflowItem icon={IconLetterCaseLower} label="lowercase" onClick={runOverflowAction(() => applyCaseTransform('lower'))} />
+                <OverflowItem icon={IconLetterCase} label="Capitalize" onClick={runOverflowAction(() => applyCaseTransform('capitalize'))} />
+              </>
+            )}
+            {fmt.clearFormatting && <OverflowItem icon={IconClearFormatting} label="Clear formatting" onClick={runOverflowAction(clearFormatting)} />}
+            {config.indent && (
+              <>
+                <OverflowItem icon={IconIndentDecrease} label="Outdent" onClick={runOverflowAction(() => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined))} />
+                <OverflowItem icon={IconIndentIncrease} label="Indent" onClick={runOverflowAction(() => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined))} />
+              </>
+            )}
+          </Menu.Dropdown>
+        </Menu>
       )}
     </div>
   );

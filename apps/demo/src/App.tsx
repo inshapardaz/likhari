@@ -176,7 +176,8 @@ export function App() {
                 colorScheme={colorScheme}
                 placeholder="Start writing…"
                 height="100%"
-                onSave={showSave ? (content, format) => setOutput(`[${format}]\n${content}`) : undefined}
+                showSave={showSave}
+                onSave={(content, format) => setOutput(`[${format}]\n${content}`)}
               />
             </div>
 

@@ -40,7 +40,18 @@ export interface EditorRootProps {
    */
   height?: string | number;
   onChange?: (state: SerializedEditorState) => void;
+  /**
+   * Handler for the toolbar's Save button. Receives the serialized content
+   * (plain text when that format is enabled, otherwise Lexical JSON).
+   */
   onSave?: (content: string, format: FormatId) => void;
+  /**
+   * Whether the Save button (icon-only) is shown. Defaults to `true` when
+   * `onSave` is provided and `false` otherwise, i.e. the previous behavior.
+   * Set explicitly to show the button without a handler (saving still clears
+   * the unsaved-changes state) or to hide it while keeping `onSave`.
+   */
+  showSave?: boolean;
 }
 
 export interface EditorRef {
@@ -70,6 +81,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     height = '480px',
     onChange,
     onSave,
+    showSave = Boolean(onSave),
   },
   ref,
 ) {
@@ -157,7 +169,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={onSave ? handleSave : undefined} isDirty={isDirty} showSave={Boolean(onSave)} />
+          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} />
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label="Editor content" />}
