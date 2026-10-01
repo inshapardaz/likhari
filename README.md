@@ -112,33 +112,51 @@ import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
 />
 ```
 
-## Autosave drafts
+## Drafts and leaving with unsaved changes
 
-While you type, the editor saves a draft to the browser's `localStorage` (debounced,
-`autosaveDelayMs`, default 750 ms), so an accidental tab close doesn't lose work.
-It is independent of `onSave`, and a successful save clears the draft. Set
-`autosave={false}` to turn it off.
+Three props control how unsaved work is protected. The defaults are shown.
 
-- **Draft key.** The draft is stored under your `documentId` when you give one.
-  Without one, the editor generates a unique id for itself, so editors without a
-  `documentId` never overwrite each other's drafts.
-- **Restore banner.** If a draft of *this* document newer than the initial content
-  exists, a banner appears with **Restore**, **Ignore** and **Remove draft**.
-  Ignoring keeps the draft in the drafts list (new edits would otherwise overwrite
-  it), so nothing is discarded unless you remove it.
-- **Drafts list.** The toolbar's clock button lists every draft in the browser
-  (all documents, plus the earlier versions kept by *Ignore*), newest first, with
-  **Restore** and **Delete**. Restoring over different content asks first, and
-  keeps the content it replaces as a draft of its own. Without a `documentId`, a
-  restored draft becomes this editor's draft, so later edits update it.
-- **Limits.** A draft over `autosaveMaxBytes` (default ~2 MB, since embedded images
-  make documents large) isn't written, a blank document isn't stored, and only the
-  newest `autosaveMaxDrafts` (default 20) are kept.
-- **Navigation guard.** The browser warns before closing or refreshing the tab
-  while there are unsaved changes. For in-app navigation, use `hasUnsavedChanges()`
-  and `confirmDiscard()` from the editor's ref.
+| Prop | Values | What it controls |
+|---|---|---|
+| `autosave` | `true` / `false` | **Save drafts.** While you type, a draft is saved to the browser's `localStorage` (debounced by `autosaveDelayMs`, default 750 ms). A successful save clears it. |
+| `restoreDraft` | `'prompt'` / `'auto'` / `'off'` | **Load a saved draft** of this `documentId` that is newer than the initial content, on mount. `'prompt'` shows a banner (Restore / Ignore / Remove draft); `'auto'` loads it straight away (see `onDraftRestored`); `'off'` keeps the initial content and moves the draft aside into the drafts list. |
+| `navigationGuard` | `'confirm'` / `'save-draft'` / `'off'` | **What happens when the user leaves with unsaved changes.** `'confirm'` asks; `'save-draft'` silently saves a draft and lets them go; `'off'` never asks. |
 
-Drafts live in this browser only, so they don't follow a user to another device.
+```tsx
+// Silently keep a draft and never interrupt the user
+<EditorRoot documentId="chapter-3" restoreDraft="auto" navigationGuard="save-draft" />
+
+// Never store anything in the browser, but still ask before leaving
+<EditorRoot autosave={false} restoreDraft="off" navigationGuard="confirm" />
+```
+
+**Leaving.** In-app navigation is yours to intercept (the editor can't know your
+router), so call `await ref.current.confirmDiscard()` from your route guard: it
+resolves `true` if leaving is fine and `false` if the user chose to stay. With
+`navigationGuard="confirm"` it opens an in-editor popup, **Save** (when you pass
+`onSave`), **Save draft**, **Discard changes** or **Stay**, instead of the browser's
+`window.confirm()`. With `'save-draft'` it saves a draft and resolves `true` with no
+popup (this works even when `autosave` is `false`). If a draft can't be stored, for
+example because the document is over `autosaveMaxBytes`, it falls back to the popup,
+so work is never lost silently. `hasUnsavedChanges()` tells you whether there is
+anything to ask about. Closing or refreshing the tab is handled the same way: the
+browser's own prompt appears with `'confirm'` (browsers don't allow customising it),
+and with `'save-draft'` a draft is written and nothing is shown.
+
+**Draft key.** The draft is stored under your `documentId` when you give one. Without
+one, the editor generates a unique id for itself, so editors without a `documentId`
+never overwrite each other's drafts (`restoreDraft` needs a `documentId`, since there
+is no stable key to look up).
+
+**Drafts list.** The toolbar's clock button lists every draft in the browser (all
+documents, plus the earlier versions kept by *Ignore*, `restoreDraft="off"` and
+restores), newest first, with **Restore** and **Delete**. Restoring over different
+content asks first, and keeps the content it replaces as a draft of its own. Without
+a `documentId`, a restored draft becomes this editor's draft, so later edits update it.
+
+**Limits.** A draft over `autosaveMaxBytes` (default ~2 MB, since embedded images make
+documents large) isn't written, a blank document isn't stored, and only the newest
+`autosaveMaxDrafts` (default 20) are kept. Drafts live in this browser only.
 
 ## Theming and customization (Mantine, headless)
 

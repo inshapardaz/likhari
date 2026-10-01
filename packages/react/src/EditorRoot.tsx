@@ -18,7 +18,8 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
-import { DraftBanner } from './components/DraftBanner';
+import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
+import { LeaveDialog } from './components/LeaveDialog';
 import {
   clearDraft,
   createDraftId,
@@ -34,6 +35,9 @@ import { UiStringsContext, getStrings, type Locale } from './i18n';
 const DEFAULT_AUTOSAVE_DELAY_MS = 750;
 const DEFAULT_AUTOSAVE_MAX_BYTES = 2_000_000;
 const DEFAULT_AUTOSAVE_MAX_DRAFTS = 20;
+
+/** What happens when the user is about to leave with unsaved changes. */
+export type NavigationGuardMode = 'confirm' | 'save-draft' | 'off';
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -103,17 +107,41 @@ export interface EditorRootProps {
    */
   fontOptions?: FontOption[];
   /**
-   * Debounced autosave of the current content to `localStorage`
-   * (lexical-editor-spec.md §6.2) — a resilience net against an accidental tab
-   * close, independent of `onSave`/the Save button. The draft is stored under
-   * `documentId` when you give one (§6.1); without one, a unique id is
-   * generated for this editor, so editors never overwrite each other's drafts.
-   * A draft of this document newer than the initial content shows a banner
-   * (Restore / Ignore / Remove) on mount, and the toolbar's Drafts button lists
-   * every draft in the browser to restore or delete. A draft is cleared on a
-   * successful explicit save. Defaults to `true`.
+   * Saves drafts: a debounced autosave of the current content to
+   * `localStorage` (lexical-editor-spec.md §6.2), a resilience net against an
+   * accidental tab close that is independent of `onSave`/the Save button. The
+   * draft is stored under `documentId` when you give one (§6.1); without one, a
+   * unique id is generated for this editor, so editors never overwrite each
+   * other's drafts. The toolbar's Drafts button lists every draft in the browser
+   * to restore or delete. A draft is cleared on a successful explicit save.
+   * Defaults to `true`.
    */
   autosave?: boolean;
+  /**
+   * What to do on mount when a draft of this `documentId` newer than the initial
+   * content exists (needs `documentId`):
+   * - `'prompt'` (default): a banner with Restore / Ignore / Remove draft;
+   * - `'auto'`: load the draft straight away, no questions (see `onDraftRestored`);
+   * - `'off'`: keep the initial content; the draft is moved aside into the drafts
+   *   list so new edits don't overwrite it unseen.
+   */
+  restoreDraft?: DraftRestoreMode;
+  /**
+   * What happens when the user is about to leave with unsaved changes, for both
+   * `EditorRef.confirmDiscard()` (in-app navigation, which your router guard
+   * calls) and closing or refreshing the tab:
+   * - `'confirm'` (default): `confirmDiscard()` opens an in-editor popup (Save /
+   *   Save draft / Discard changes / Stay); closing the tab shows the browser's
+   *   own prompt, which can't be customised;
+   * - `'save-draft'`: silently saves a draft and lets the user go — no popup, no
+   *   browser prompt. Works even with `autosave={false}`. If the draft can't be
+   *   stored (e.g. the document is over `autosaveMaxBytes`) it falls back to
+   *   `'confirm'`, so work is never lost silently;
+   * - `'off'`: no guard; the user is never asked.
+   */
+  navigationGuard?: NavigationGuardMode;
+  /** Called when a saved draft was loaded into the editor (banner Restore, or `restoreDraft="auto"`). */
+  onDraftRestored?: (draft: { documentId: string; savedAt: number }) => void;
   /** Debounce delay before writing an autosave draft, in ms. Default `750`. */
   autosaveDelayMs?: number;
   /**
@@ -164,6 +192,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     fetchImage,
     fontOptions,
     autosave = true,
+    restoreDraft = 'prompt',
+    navigationGuard = 'confirm',
+    onDraftRestored,
     autosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
     autosaveMaxBytes = DEFAULT_AUTOSAVE_MAX_BYTES,
     autosaveMaxDrafts = DEFAULT_AUTOSAVE_MAX_DRAFTS,
@@ -225,6 +256,58 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const flushDraftRef = useRef(flushDraft);
   flushDraftRef.current = flushDraft;
 
+  /** Writes the latest content as a draft now, without waiting out the debounce.
+   * Returns whether it is safely stored (or there was nothing worth storing). */
+  const saveDraftNow = (): boolean => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    const latest = editorStateRef.current ? JSON.stringify(editorStateRef.current.toJSON()) : pendingDraftRef.current?.json;
+    pendingDraftRef.current = null;
+    if (!latest) return true;
+    // A blank document isn't worth a draft.
+    if (!hasDraftContent(latest)) {
+      clearDraft(draftId);
+      return true;
+    }
+    const stored = writeDraft(draftId, latest, autosaveMaxBytes);
+    if (stored) pruneDrafts(autosaveMaxDrafts, [draftId]);
+    return stored;
+  };
+  const saveDraftNowRef = useRef(saveDraftNow);
+  saveDraftNowRef.current = saveDraftNow;
+  const navigationGuardRef = useRef(navigationGuard);
+  navigationGuardRef.current = navigationGuard;
+
+  // The in-editor "leave?" popup behind confirmDiscard().
+  const [leavePrompt, setLeavePrompt] = useState<{ draftFailed: boolean } | null>(null);
+  const leaveResolveRef = useRef<((canLeave: boolean) => void) | null>(null);
+  const settleLeave = (canLeave: boolean) => {
+    const resolve = leaveResolveRef.current;
+    leaveResolveRef.current = null;
+    setLeavePrompt(null);
+    resolve?.(canLeave);
+  };
+  const askToLeave = (draftFailed = false) =>
+    new Promise<boolean>((resolve) => {
+      leaveResolveRef.current?.(false); // a second call supersedes an unanswered one
+      leaveResolveRef.current = resolve;
+      setLeavePrompt({ draftFailed });
+    });
+  const confirmDiscardImpl = async (): Promise<boolean> => {
+    if (!isDirtyRef.current || navigationGuard === 'off') return true;
+    if (navigationGuard === 'save-draft') {
+      if (saveDraftNow()) return true;
+      return askToLeave(true);
+    }
+    return askToLeave();
+  };
+  const confirmDiscardRef = useRef(confirmDiscardImpl);
+  confirmDiscardRef.current = confirmDiscardImpl;
+  // An unanswered popup must not leave a caller's promise hanging if the editor goes away.
+  useEffect(() => () => leaveResolveRef.current?.(false), []);
+
   // Computed once, before the first autosave write could possibly run, so
   // the restore-prompt plugin below can tell a stored draft that's merely
   // identical to the initial content apart (no prompt needed) from one that
@@ -258,6 +341,10 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       // Write any edit still waiting out the debounce before the page goes.
       flushDraftRef.current();
       if (!isDirtyRef.current) return;
+      const guard = navigationGuardRef.current;
+      if (guard === 'off') return;
+      // Saved a draft instead: nothing is lost, so don't interrupt the user.
+      if (guard === 'save-draft' && saveDraftNowRef.current()) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -290,16 +377,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       hasUnsavedChanges() {
         return isDirty;
       },
-      async confirmDiscard() {
-        if (!isDirty) return true;
-        if (typeof window === 'undefined') return true;
-        return window.confirm(strings.editor.confirmDiscard);
+      confirmDiscard() {
+        return confirmDiscardRef.current();
       },
       focus() {
         rootElementRef.current?.focus();
       },
     }),
-    [isDirty, strings],
+    [isDirty],
   );
 
   const rootElementRef = useRef<HTMLDivElement | null>(null);
@@ -320,6 +405,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   /** A draft was restored into the editor: that content is unsaved work. */
   const handleDraftRestored = (entry: DraftEntry) => {
     setIsDirty(true);
+    if (documentId && entry.id === documentId) onDraftRestored?.({ documentId, savedAt: entry.draft.savedAt });
     // Without a documentId the restored draft becomes this editor's own, so
     // later edits update it instead of piling up copies.
     if (!documentId) setAdoptedDraftId(entry.id);
@@ -386,8 +472,14 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
                 : undefined
             }
           />
-          {autosave && documentId && (
-            <DraftBanner draftId={documentId} initialJson={initialContentJsonRef.current} locale={locale} onRestored={handleDraftRestored} />
+          {documentId && (
+            <DraftRestore
+              draftId={documentId}
+              mode={restoreDraft}
+              initialJson={initialContentJsonRef.current}
+              locale={locale}
+              onRestored={handleDraftRestored}
+            />
           )}
           <div className="likhari-canvas">
             <RichTextPlugin
@@ -404,6 +496,31 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
+        <LeaveDialog
+          opened={leavePrompt !== null}
+          canSave={Boolean(onSave)}
+          canSaveDraft={autosave || navigationGuard === 'save-draft'}
+          draftFailed={leavePrompt?.draftFailed ?? false}
+          onSave={() => {
+            handleSave();
+            settleLeave(true);
+          }}
+          onSaveDraft={() => {
+            if (saveDraftNow()) settleLeave(true);
+            else setLeavePrompt({ draftFailed: true });
+          }}
+          onDiscard={() => {
+            // The user chose to drop this work, so no draft of it should linger either.
+            if (autosaveTimerRef.current) {
+              clearTimeout(autosaveTimerRef.current);
+              autosaveTimerRef.current = null;
+            }
+            pendingDraftRef.current = null;
+            clearDraft(draftId);
+            settleLeave(true);
+          }}
+          onStay={() => settleLeave(false)}
+        />
         </UiStringsContext.Provider>
         </PortalTargetContext.Provider>
       </div>

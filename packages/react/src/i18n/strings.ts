@@ -15,8 +15,6 @@ export interface Strings {
     placeholder: string;
     /** aria-label on the contenteditable itself. */
     contentLabel: string;
-    /** window.confirm() prompt shown by EditorRef.confirmDiscard() when there are unsaved changes. */
-    confirmDiscard: string;
   };
   common: {
     cancel: string;
@@ -75,6 +73,17 @@ export interface Strings {
       left: string;
       right: string;
     };
+  };
+  /** The popup `EditorRef.confirmDiscard()` shows when the user is about to leave with unsaved changes (lexical-editor-spec.md §6.4). */
+  leaveDialog: {
+    title: string;
+    message: string;
+    save: string;
+    saveDraft: string;
+    discard: string;
+    stay: string;
+    /** Shown when a draft could not be stored (document too large, or storage unavailable). */
+    saveDraftFailed: string;
   };
   /** Autosave drafts (lexical-editor-spec.md §6.2): the restore banner and the drafts list dialog. */
   drafts: {
@@ -181,7 +190,6 @@ const en: Strings = {
   editor: {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
-    confirmDiscard: 'You have unsaved changes. Discard them?',
   },
   common: {
     cancel: 'Cancel',
@@ -238,6 +246,15 @@ const en: Strings = {
       left: 'Align left',
       right: 'Align right',
     },
+  },
+  leaveDialog: {
+    title: 'Unsaved changes',
+    message: 'You have unsaved changes. What would you like to do before leaving?',
+    save: 'Save',
+    saveDraft: 'Save draft',
+    discard: 'Discard changes',
+    stay: 'Stay',
+    saveDraftFailed: "The draft couldn't be saved (the document may be too large, or browser storage is unavailable).",
   },
   drafts: {
     bannerMessage: (when) => `An unsaved draft of this document from ${when} was found.`,
@@ -342,7 +359,6 @@ const ur: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
-    confirmDiscard: 'آپ کی غیر محفوظ شدہ تبدیلیاں ہیں۔ کیا انہیں رد کر دیا جائے؟',
   },
   common: {
     cancel: 'منسوخ کریں',
@@ -399,6 +415,15 @@ const ur: Strings = {
       left: 'بائیں سیدھ',
       right: 'دائیں سیدھ',
     },
+  },
+  leaveDialog: {
+    title: 'غیر محفوظ شدہ تبدیلیاں',
+    message: 'آپ کی تبدیلیاں محفوظ نہیں ہوئیں۔ جانے سے پہلے آپ کیا کرنا چاہیں گے؟',
+    save: 'محفوظ کریں',
+    saveDraft: 'مسودہ محفوظ کریں',
+    discard: 'تبدیلیاں رد کریں',
+    stay: 'یہیں رہیں',
+    saveDraftFailed: 'مسودہ محفوظ نہیں ہو سکا (دستاویز بہت بڑی ہو سکتی ہے، یا براؤزر کا اسٹوریج دستیاب نہیں)۔',
   },
   drafts: {
     bannerMessage: (when) => `اس دستاویز کا ایک غیر محفوظ شدہ مسودہ (${when}) ملا ہے۔`,
@@ -503,7 +528,6 @@ const paShahmukhi: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
-    confirmDiscard: 'تہاڈیاں کجھ تبدیلیاں سنبھالیاں نئیں گئیاں۔ کی ایہناں نوں رد کر دیئے؟',
   },
   common: {
     cancel: 'رد کرو',
@@ -560,6 +584,15 @@ const paShahmukhi: Strings = {
       left: 'بائیں سیدھ',
       right: 'سجے سیدھ',
     },
+  },
+  leaveDialog: {
+    title: 'غیر محفوظ تبدیلیاں',
+    message: 'تہاڈیاں تبدیلیاں سنبھالیاں نئیں گئیاں۔ جان توں پہلاں تسی کی کرنا چاہو گے؟',
+    save: 'سنبھالو',
+    saveDraft: 'سودھا سنبھالو',
+    discard: 'تبدیلیاں رد کرو',
+    stay: 'ایتھے ای رہو',
+    saveDraftFailed: 'سودھا سنبھالیا نئیں جا سکیا (دستاویز بہت وڈی ہو سکدی اے، یا براؤزر دی سٹوریج نئیں اے)۔',
   },
   drafts: {
     bannerMessage: (when) => `ایس دستاویز دا اک غیر محفوظ سودھا (${when}) لبھیا اے۔`,

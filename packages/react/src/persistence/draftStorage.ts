@@ -125,25 +125,28 @@ export function readDraft(id: string): StoredDraft | null {
 }
 
 /**
- * Best-effort write. Silently skips (rather than throwing) when `json` exceeds
+ * Best-effort write; returns whether the draft was actually stored (callers that
+ * promise the user a saved draft must check). Skips (rather than throwing) when `json` exceeds
  * `maxBytes` — localStorage has a shared ~5-10MB per-origin ceiling (§6.2), so a
  * single large document (e.g. embedded base64 images) must not be allowed to
  * autosave past a caller-configured limit — or when the write itself fails
  * (quota exceeded, privacy mode).
  */
-export function writeDraft(id: string, json: string, maxBytes: number, sourceId?: string): void {
+export function writeDraft(id: string, json: string, maxBytes: number, sourceId?: string): boolean {
   const storage = getLocalStorage();
-  if (!storage) return;
+  if (!storage) return false;
   // .length (UTF-16 code units) over-estimates UTF-8 byte size for any
   // non-Latin text, which only makes this check more conservative — fine
   // for a soft cap that doesn't need to be exact.
-  if (json.length > maxBytes) return;
+  if (json.length > maxBytes) return false;
   const draft: StoredDraft = { json, savedAt: Date.now(), version: 1, preview: extractPreview(json) };
   if (sourceId) draft.sourceId = sourceId;
   try {
     storage.setItem(draftKey(id), JSON.stringify(draft));
+    return true;
   } catch {
     // Quota exceeded or similar — autosave is best-effort.
+    return false;
   }
 }
 

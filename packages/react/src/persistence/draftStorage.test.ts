@@ -13,7 +13,7 @@ describe('draftKey', () => {
 
 describe('writeDraft / readDraft', () => {
   it('round-trips a draft with a timestamp and version marker', () => {
-    writeDraft('doc-1', '{"root":{}}', 1_000_000);
+    expect(writeDraft('doc-1', '{"root":{}}', 1_000_000)).toBe(true);
     const draft = readDraft('doc-1');
     expect(draft?.json).toBe('{"root":{}}');
     expect(draft?.version).toBe(1);
@@ -25,7 +25,7 @@ describe('writeDraft / readDraft', () => {
   });
 
   it('does not write a draft larger than maxBytes', () => {
-    writeDraft('doc-1', 'x'.repeat(100), 10);
+    expect(writeDraft('doc-1', 'x'.repeat(100), 10)).toBe(false);
     expect(readDraft('doc-1')).toBeNull();
   });
 
