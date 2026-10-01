@@ -444,6 +444,17 @@ export function App() {
 
           <div style={{ flex: '0 0 auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => showOutput('Plain text', editorRef.current?.getContent('plain-text') ?? '')}>Get plain text</button>
+            <button onClick={() => showOutput('HTML', editorRef.current?.getContent('html') ?? '')}>Get HTML</button>
+            <button
+              onClick={() =>
+                editorRef.current?.setContent(
+                  '<h1>Imported from HTML</h1><p>Plain, <strong>bold</strong>, <em>italic</em> and a <a href="https://example.com">link</a>.</p><p dir="rtl" style="text-align: start">یہ اردو کا ایک پیراگراف ہے۔</p><ul><li>One</li><li>Two</li></ul>',
+                  'html',
+                )
+              }
+            >
+              Load HTML sample
+            </button>
             <button onClick={() => showOutput('Markdown', editorRef.current?.getContent('markdown') ?? '')}>Get Markdown</button>
             <button onClick={() => showOutput('Lexical JSON', formatIfJson(editorRef.current?.getContent('lexical-json') ?? ''))}>
               Get Lexical JSON

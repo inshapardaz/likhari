@@ -1,16 +1,14 @@
 import type { FormatConverter } from '../types';
+import { serializeHtml } from './serialize';
+import { parseHtml } from './parse';
 
 /**
- * Placeholder — HTML import/export is Phase 2 work (lexical-editor-spec.md
- * §13). Registered now so FormatRegistry's shape is stable and callers get a
- * clear error instead of a missing format.
+ * HTML export/import (lexical-editor-spec.md §2.2). Export is pure string
+ * generation over the serialized tree; import needs a DOM parser, which the
+ * browser (and jsdom in tests) provides.
  */
 export const htmlConverter: FormatConverter = {
   id: 'html',
-  serialize() {
-    throw new Error('@inshapardaz/likhari-converters: HTML export is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
-  },
-  parse() {
-    throw new Error('@inshapardaz/likhari-converters: HTML import is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §13).');
-  },
+  serialize: (state, ctx) => serializeHtml(state, ctx),
+  parse: (input, ctx) => parseHtml(input, ctx),
 };
