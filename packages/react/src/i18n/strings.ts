@@ -40,6 +40,8 @@ export interface Strings {
     noMatch: string;
     alignment: string;
     linkOptions: string;
+    /** Toolbar button (shown while the caret is in a table) that opens the table actions menu. */
+    tableOptions: string;
     insertLink: string;
     insertImage: string;
     insertTable: string;
@@ -110,6 +112,24 @@ export interface Strings {
     deletePrompt: string;
     delete: string;
     close: string;
+  };
+  /** The table actions menu (toolbar button and right-click on a cell). */
+  tableMenu: {
+    menuLabel: string;
+    insertRowBefore: string;
+    insertRowAfter: string;
+    insertColumnBefore: string;
+    insertColumnAfter: string;
+    deleteRow: string;
+    deleteColumn: string;
+    deleteTable: string;
+    /** Plural forms, used when the selection spans several rows or columns. */
+    insertRowsBefore: string;
+    insertRowsAfter: string;
+    insertColumnsBefore: string;
+    insertColumnsAfter: string;
+    deleteRows: string;
+    deleteColumns: string;
   };
   link: {
     menuLabel: string;
@@ -220,6 +240,7 @@ const en: Strings = {
     noMatch: 'No match',
     alignment: 'Alignment',
     linkOptions: 'Link options',
+    tableOptions: 'Table options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
     insertTable: 'Insert table',
@@ -285,6 +306,22 @@ const en: Strings = {
     deletePrompt: 'Delete this draft?',
     delete: 'Delete',
     close: 'Close',
+  },
+  tableMenu: {
+    menuLabel: 'Table',
+    insertRowBefore: 'Insert row before',
+    insertRowAfter: 'Insert row after',
+    insertColumnBefore: 'Insert column before',
+    insertColumnAfter: 'Insert column after',
+    deleteRow: 'Delete row',
+    deleteColumn: 'Delete column',
+    deleteTable: 'Delete table',
+    insertRowsBefore: 'Insert rows before',
+    insertRowsAfter: 'Insert rows after',
+    insertColumnsBefore: 'Insert columns before',
+    insertColumnsAfter: 'Insert columns after',
+    deleteRows: 'Delete rows',
+    deleteColumns: 'Delete columns',
   },
   link: {
     menuLabel: 'Link',
@@ -396,6 +433,7 @@ const ur: Strings = {
     noMatch: 'کوئی مماثلت نہیں',
     alignment: 'سیدھ',
     linkOptions: 'لنک کے اختیارات',
+    tableOptions: 'جدول کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
     insertTable: 'جدول شامل کریں',
@@ -461,6 +499,22 @@ const ur: Strings = {
     deletePrompt: 'یہ مسودہ حذف کریں؟',
     delete: 'حذف کریں',
     close: 'بند کریں',
+  },
+  tableMenu: {
+    menuLabel: 'جدول',
+    insertRowBefore: 'پہلے قطار شامل کریں',
+    insertRowAfter: 'بعد میں قطار شامل کریں',
+    insertColumnBefore: 'پہلے کالم شامل کریں',
+    insertColumnAfter: 'بعد میں کالم شامل کریں',
+    deleteRow: 'قطار حذف کریں',
+    deleteColumn: 'کالم حذف کریں',
+    deleteTable: 'جدول حذف کریں',
+    insertRowsBefore: 'پہلے قطاریں شامل کریں',
+    insertRowsAfter: 'بعد میں قطاریں شامل کریں',
+    insertColumnsBefore: 'پہلے کالمز شامل کریں',
+    insertColumnsAfter: 'بعد میں کالمز شامل کریں',
+    deleteRows: 'قطاریں حذف کریں',
+    deleteColumns: 'کالمز حذف کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -572,6 +626,7 @@ const paShahmukhi: Strings = {
     noMatch: 'کوئی نئیں ملیا',
     alignment: 'سیدھ',
     linkOptions: 'لنک دے اختیار',
+    tableOptions: 'ٹیبل دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
     insertTable: 'ٹیبل پاؤ',
@@ -637,6 +692,22 @@ const paShahmukhi: Strings = {
     deletePrompt: 'ایہ سودھا مٹا دیئے؟',
     delete: 'مٹاؤ',
     close: 'بند کرو',
+  },
+  tableMenu: {
+    menuLabel: 'ٹیبل',
+    insertRowBefore: 'پہلاں قطار پاؤ',
+    insertRowAfter: 'بعد وچ قطار پاؤ',
+    insertColumnBefore: 'پہلاں کالم پاؤ',
+    insertColumnAfter: 'بعد وچ کالم پاؤ',
+    deleteRow: 'قطار مٹاؤ',
+    deleteColumn: 'کالم مٹاؤ',
+    deleteTable: 'ٹیبل مٹاؤ',
+    insertRowsBefore: 'پہلاں قطاراں پاؤ',
+    insertRowsAfter: 'بعد وچ قطاراں پاؤ',
+    insertColumnsBefore: 'پہلاں کالماں پاؤ',
+    insertColumnsAfter: 'بعد وچ کالماں پاؤ',
+    deleteRows: 'قطاراں مٹاؤ',
+    deleteColumns: 'کالماں مٹاؤ',
   },
   link: {
     menuLabel: 'لنک',

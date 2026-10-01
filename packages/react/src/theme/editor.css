@@ -51,6 +51,12 @@
   pointer-events: none;
 }
 
+/* pointer-events is inherited, so without this every menu, dropdown and dialog
+   portaled into the (pointer-transparent) anchor would be unclickable. */
+.likhari-portal-target > * {
+  pointer-events: auto;
+}
+
 .likhari-toolbar-group {
   display: flex;
   align-items: center;

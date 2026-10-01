@@ -41,7 +41,15 @@ import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontal
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
-import { INSERT_TABLE_COMMAND } from '@lexical/table';
+import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
+import {
+  $deleteTable,
+  $deleteTableColumns,
+  $deleteTableRows,
+  $getTableSelectionSize,
+  $insertTableColumns,
+  $insertTableRows,
+} from '../table/tableActions';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
 import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
@@ -93,7 +101,15 @@ import {
   IconStrikethrough,
   IconSubscript,
   IconSuperscript,
+  IconColumnInsertLeft,
+  IconColumnInsertRight,
+  IconColumnRemove,
+  IconRowInsertBottom,
+  IconRowInsertTop,
+  IconRowRemove,
   IconTable,
+  IconTableMinus,
+  IconTableOptions,
   IconTextSize,
   IconTypography,
   IconUnderline,
@@ -120,6 +136,11 @@ interface ToolbarState {
   /** Selection is inside a link; `linkUrl` is that link's URL. */
   isLink: boolean;
   linkUrl: string;
+  /** The caret (or a multi-cell selection) is inside a table. */
+  inTable: boolean;
+  /** Rows / columns the selection spans, for the table menu's plural labels. */
+  tableRows: number;
+  tableColumns: number;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -138,6 +159,9 @@ const INITIAL_STATE: ToolbarState = {
   fontSize: UNSET_STYLE,
   isLink: false,
   linkUrl: '',
+  inTable: false,
+  tableRows: 1,
+  tableColumns: 1,
   canUndo: false,
   canRedo: false,
 };
@@ -379,6 +403,60 @@ function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit
   );
 }
 
+/** The table actions menu's contents — shared by the toolbar button and the
+ * right-click menu. Each acts on the selected cell, or on every row/column a
+ * multi-cell selection covers. */
+function TableMenuItems({
+  strings,
+  direction,
+  rows,
+  columns,
+  onAction,
+}: {
+  strings: Strings;
+  direction: 'ltr' | 'rtl';
+  /** Rows / columns the selection spans: more than one switches to the plural labels. */
+  rows: number;
+  columns: number;
+  onAction: (action: () => void) => () => void;
+}) {
+  const t = strings.tableMenu;
+  // "Before" is the start side, which is on the right in an RTL table.
+  const rtl = direction === 'rtl';
+  const manyRows = rows > 1;
+  const manyColumns = columns > 1;
+  const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => {
+    const Icon = icon;
+    return (
+      <Menu.Item
+        color={color}
+        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onAction(action)}
+      >
+        {label}
+      </Menu.Item>
+    );
+  };
+  return (
+    <>
+      <Menu.Label>{t.menuLabel}</Menu.Label>
+      {item(IconRowInsertTop, manyRows ? t.insertRowsBefore : t.insertRowBefore, () => $insertTableRows(false))}
+      {item(IconRowInsertBottom, manyRows ? t.insertRowsAfter : t.insertRowAfter, () => $insertTableRows(true))}
+      {item(rtl ? IconColumnInsertRight : IconColumnInsertLeft, manyColumns ? t.insertColumnsBefore : t.insertColumnBefore, () =>
+        $insertTableColumns(false),
+      )}
+      {item(rtl ? IconColumnInsertLeft : IconColumnInsertRight, manyColumns ? t.insertColumnsAfter : t.insertColumnAfter, () =>
+        $insertTableColumns(true),
+      )}
+      <Menu.Divider />
+      {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
+      {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
+      {item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -414,9 +492,17 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
       const selection = $getSelection();
+      // A selection of several table cells isn't a range selection.
+      if ($isTableSelection(selection)) {
+        const { rows, columns } = $getTableSelectionSize();
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns }));
+        return;
+      }
       if (!$isRangeSelection(selection)) return;
 
       const anchorNode = selection.anchor.getNode();
+      const inTable = $getTableCellNodeFromLexicalNode(anchorNode) !== null;
+      const tableSize = inTable ? $getTableSelectionSize() : { rows: 1, columns: 1 };
       const element = anchorNode.getKey() === 'root' ? anchorNode : (anchorNode.getTopLevelElement() ?? anchorNode);
 
       const listParent = $findMatchingParent(anchorNode, $isListNode);
@@ -458,6 +544,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         fontSize,
         isLink,
         linkUrl,
+        inTable,
+        tableRows: tableSize.rows,
+        tableColumns: tableSize.columns,
       }));
     });
   }, [editor]);
@@ -698,6 +787,51 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       root?.addEventListener('contextmenu', onContextMenu);
     });
   }, [editor, config.links]);
+
+  // Table actions. The menu takes focus, so the selection is snapshotted when it
+  // opens and restored before an action runs.
+  const runTableAction = (action: () => void) => () => {
+    restoreSelection();
+    editor.update(action);
+    editor.focus();
+  };
+
+  // Right-clicking a table cell opens the same actions at the pointer.
+  const [tableContext, setTableContext] = useState<{ x: number; y: number; rows: number; columns: number } | null>(null);
+
+  useEffect(() => {
+    if (!config.tables) return;
+    const onContextMenu = (event: MouseEvent) => {
+      if (event.defaultPrevented) return; // a link inside the cell already took it
+      const cellElement = (event.target as HTMLElement | null)?.closest?.('td, th');
+      if (!cellElement) return;
+      let handled = false;
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(cellElement);
+          const cell = node ? $getTableCellNodeFromLexicalNode(node) : null;
+          if (!cell) return;
+          handled = true;
+          const selection = $getSelection();
+          // Keep a multi-cell selection that includes this cell, so "insert
+          // rows" / "delete columns" act on everything selected.
+          const insideSelection =
+            $isTableSelection(selection) && selection.getNodes().some((n) => n.getKey() === cell.getKey());
+          if (!insideSelection) cell.selectEnd();
+        },
+        { discrete: true },
+      );
+      if (!handled) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      const size = editor.getEditorState().read($getTableSelectionSize);
+      setTableContext({ x: event.clientX, y: event.clientY, rows: size.rows, columns: size.columns });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.tables]);
 
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
@@ -1091,6 +1225,29 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
       </div>
     ),
+    config.tables && state.inTable && (
+      <div className="likhari-toolbar-group" key="tableActions">
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
+          <Menu.Target>
+            <button
+              type="button"
+              className="likhari-toolbar-button"
+              data-active="true"
+              aria-pressed="true"
+              aria-haspopup="menu"
+              aria-label={strings.toolbar.tableOptions}
+              title={strings.toolbar.tableOptions}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <IconTableOptions size={ICON_SIZE} stroke={ICON_STROKE} />
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <TableMenuItems strings={strings} direction={direction} rows={state.tableRows} columns={state.tableColumns} onAction={runTableAction} />
+          </Menu.Dropdown>
+        </Menu>
+      </div>
+    ),
     showLanguageGroup && (
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
         {config.language.autocorrect && <StubButton icon={IconWand} title={strings.toolbar.autocorrect} comingSoon={strings.toolbar.comingSoon} />}
@@ -1171,6 +1328,37 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               }}
               onRemove={removeLink}
               strings={strings}
+            />
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
+      {config.tables && (
+        <Menu
+          opened={tableContext !== null}
+          onChange={(opened) => {
+            if (!opened) setTableContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          portalProps={{ target: portalTarget }}
+          shadow="sm"
+          width={240}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: tableContext?.x ?? -9999, top: tableContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <TableMenuItems
+              strings={strings}
+              direction={direction}
+              rows={tableContext?.rows ?? 1}
+              columns={tableContext?.columns ?? 1}
+              onAction={runTableAction}
             />
           </Menu.Dropdown>
         </Menu>
