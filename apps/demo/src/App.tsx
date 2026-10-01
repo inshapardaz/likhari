@@ -176,6 +176,8 @@ export function App() {
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
   const [showSave, setShowSave] = useState(true);
+  // Without a documentId the editor generates a unique draft id (see `autosave`).
+  const [useDocumentId, setUseDocumentId] = useState(true);
   const [locale, setLocale] = useState<Locale>('en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [popup, setPopup] = useState<{ title: string; content: string } | null>(null);
@@ -376,6 +378,7 @@ export function App() {
             <ControlGroup title="Other" dark={dark}>
               <Checkbox label="Undo / redo" checked={!!config.history} onChange={(v) => updateTopLevel('history', v)} />
               <Checkbox label="Save button" checked={showSave} onChange={setShowSave} />
+              <Checkbox label="Give the editor a documentId" checked={useDocumentId} onChange={setUseDocumentId} />
             </ControlGroup>
           </aside>
         )}
@@ -383,8 +386,9 @@ export function App() {
         <main style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: 0, padding: 16, gap: 12 }}>
           <div style={{ flex: '1 1 auto', minHeight: 0 }}>
             <EditorRoot
+              key={useDocumentId ? 'named' : 'anonymous'}
               ref={editorRef}
-              documentId="demo-doc"
+              documentId={useDocumentId ? 'demo-doc' : undefined}
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}

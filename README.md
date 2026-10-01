@@ -112,6 +112,34 @@ import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
 />
 ```
 
+## Autosave drafts
+
+While you type, the editor saves a draft to the browser's `localStorage` (debounced,
+`autosaveDelayMs`, default 750 ms), so an accidental tab close doesn't lose work.
+It is independent of `onSave`, and a successful save clears the draft. Set
+`autosave={false}` to turn it off.
+
+- **Draft key.** The draft is stored under your `documentId` when you give one.
+  Without one, the editor generates a unique id for itself, so editors without a
+  `documentId` never overwrite each other's drafts.
+- **Restore banner.** If a draft of *this* document newer than the initial content
+  exists, a banner appears with **Restore**, **Ignore** and **Remove draft**.
+  Ignoring keeps the draft in the drafts list (new edits would otherwise overwrite
+  it), so nothing is discarded unless you remove it.
+- **Drafts list.** The toolbar's clock button lists every draft in the browser
+  (all documents, plus the earlier versions kept by *Ignore*), newest first, with
+  **Restore** and **Delete**. Restoring over different content asks first, and
+  keeps the content it replaces as a draft of its own. Without a `documentId`, a
+  restored draft becomes this editor's draft, so later edits update it.
+- **Limits.** A draft over `autosaveMaxBytes` (default ~2 MB, since embedded images
+  make documents large) isn't written, a blank document isn't stored, and only the
+  newest `autosaveMaxDrafts` (default 20) are kept.
+- **Navigation guard.** The browser warns before closing or refreshing the tab
+  while there are unsaved changes. For in-app navigation, use `hasUnsavedChanges()`
+  and `confirmDiscard()` from the editor's ref.
+
+Drafts live in this browser only, so they don't follow a user to another device.
+
 ## Theming and customization (Mantine, headless)
 
 > **Status: planned.** Phase 1 uses Mantine internally with a default theme,

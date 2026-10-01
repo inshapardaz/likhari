@@ -18,14 +18,22 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
-import { AutosaveRestorePlugin } from './plugins/AutosaveRestorePlugin';
-import { clearDraft, writeDraft } from './persistence/draftStorage';
+import { DraftBanner } from './components/DraftBanner';
+import {
+  clearDraft,
+  createDraftId,
+  hasDraftContent,
+  pruneDrafts,
+  writeDraft,
+  type DraftEntry,
+} from './persistence/draftStorage';
 import { ImageOptionsContext, type ImageOptions } from './image/ImageOptionsContext';
 import { PortalTargetContext } from './PortalTargetContext';
 import { UiStringsContext, getStrings, type Locale } from './i18n';
 
 const DEFAULT_AUTOSAVE_DELAY_MS = 750;
 const DEFAULT_AUTOSAVE_MAX_BYTES = 2_000_000;
+const DEFAULT_AUTOSAVE_MAX_DRAFTS = 20;
 
 export interface EditorInitialContent {
   format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
@@ -95,12 +103,15 @@ export interface EditorRootProps {
    */
   fontOptions?: FontOption[];
   /**
-   * Debounced autosave of the current content to `localStorage`, namespaced
-   * by `documentId` (lexical-editor-spec.md §6.1–§6.2) — a resilience net
-   * against an accidental tab close, independent of `onSave`/the Save
-   * button. Requires `documentId` to be set; a draft newer than the initial
-   * content prompts (via `window.confirm`) to restore it on mount, and is
-   * cleared on a successful explicit save. Defaults to `true`.
+   * Debounced autosave of the current content to `localStorage`
+   * (lexical-editor-spec.md §6.2) — a resilience net against an accidental tab
+   * close, independent of `onSave`/the Save button. The draft is stored under
+   * `documentId` when you give one (§6.1); without one, a unique id is
+   * generated for this editor, so editors never overwrite each other's drafts.
+   * A draft of this document newer than the initial content shows a banner
+   * (Restore / Ignore / Remove) on mount, and the toolbar's Drafts button lists
+   * every draft in the browser to restore or delete. A draft is cleared on a
+   * successful explicit save. Defaults to `true`.
    */
   autosave?: boolean;
   /** Debounce delay before writing an autosave draft, in ms. Default `750`. */
@@ -112,6 +123,12 @@ export interface EditorRootProps {
    * autosave past a sane limit. Default `2_000_000` (~2MB).
    */
   autosaveMaxBytes?: number;
+  /**
+   * How many drafts to keep in the browser, across all documents; the oldest
+   * beyond this are deleted as new ones are written (this editor's own draft
+   * is never pruned). Default `20`.
+   */
+  autosaveMaxDrafts?: number;
 }
 
 export interface EditorRef {
@@ -149,13 +166,19 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     autosave = true,
     autosaveDelayMs = DEFAULT_AUTOSAVE_DELAY_MS,
     autosaveMaxBytes = DEFAULT_AUTOSAVE_MAX_BYTES,
+    autosaveMaxDrafts = DEFAULT_AUTOSAVE_MAX_DRAFTS,
   },
   ref,
 ) {
   const config = useMemo(() => resolveFeatureConfig(featureConfig, featurePreset), [featureConfig, featurePreset]);
   const strings = useMemo(() => getStrings(locale), [locale]);
   const resolvedPlaceholder = placeholder ?? strings.editor.placeholder;
-  const autosaveEnabled = autosave && Boolean(documentId);
+  // The draft's storage key: the host's documentId, else — so editors without
+  // one never overwrite each other — a unique id generated for this editor (or
+  // the id of an anonymous draft the user restored into it).
+  const [generatedDraftId] = useState(createDraftId);
+  const [adoptedDraftId, setAdoptedDraftId] = useState<string | null>(null);
+  const draftId = documentId ?? adoptedDraftId ?? generatedDraftId;
   // The urdu-web-fonts stylesheets are needed for the font dropdown and for
   // RTL content, whose canvas font (editor.css) is one of those families.
   useEffect(() => {
@@ -180,6 +203,27 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest change not yet written, so unload / unmount can flush it.
+  const pendingDraftRef = useRef<{ id: string; json: string } | null>(null);
+
+  const flushDraft = () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    const pending = pendingDraftRef.current;
+    pendingDraftRef.current = null;
+    if (!pending) return;
+    // A document that is blank again isn't worth a draft.
+    if (hasDraftContent(pending.json)) {
+      writeDraft(pending.id, pending.json, autosaveMaxBytes);
+      pruneDrafts(autosaveMaxDrafts, [pending.id]);
+    } else {
+      clearDraft(pending.id);
+    }
+  };
+  const flushDraftRef = useRef(flushDraft);
+  flushDraftRef.current = flushDraft;
 
   // Computed once, before the first autosave write could possibly run, so
   // the restore-prompt plugin below can tell a stored draft that's merely
@@ -211,6 +255,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Write any edit still waiting out the debounce before the page goes.
+      flushDraftRef.current();
       if (!isDirtyRef.current) return;
       event.preventDefault();
       event.returnValue = '';
@@ -219,12 +265,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    },
-    [],
-  );
+  // Unmounting (e.g. in-app navigation) also writes what is still pending.
+  useEffect(() => () => flushDraftRef.current(), []);
 
   useImperativeHandle(
     ref,
@@ -268,12 +310,19 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     setIsDirty(json !== lastSavedJsonRef.current);
     onChange?.(state.toJSON());
 
-    if (autosaveEnabled && documentId) {
+    if (autosave) {
+      pendingDraftRef.current = { id: draftId, json };
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = setTimeout(() => {
-        writeDraft(documentId, json, autosaveMaxBytes);
-      }, autosaveDelayMs);
+      autosaveTimerRef.current = setTimeout(flushDraft, autosaveDelayMs);
     }
+  };
+
+  /** A draft was restored into the editor: that content is unsaved work. */
+  const handleDraftRestored = (entry: DraftEntry) => {
+    setIsDirty(true);
+    // Without a documentId the restored draft becomes this editor's own, so
+    // later edits update it instead of piling up copies.
+    if (!documentId) setAdoptedDraftId(entry.id);
   };
 
   const handleSave = () => {
@@ -290,7 +339,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
-    if (documentId) clearDraft(documentId);
+    pendingDraftRef.current = null;
+    clearDraft(draftId);
     onSave?.(content, format);
   };
 
@@ -322,7 +372,23 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         <UiStringsContext.Provider value={strings}>
         <ImageOptionsContext.Provider value={imageOptions}>
         <LexicalComposer initialConfig={initialConfig}>
-          <Toolbar config={config} onSave={handleSave} isDirty={isDirty} showSave={showSave} fontOptions={fontOptions} direction={dir} locale={locale} />
+          <Toolbar
+            config={config}
+            onSave={handleSave}
+            isDirty={isDirty}
+            showSave={showSave}
+            fontOptions={fontOptions}
+            direction={dir}
+            locale={locale}
+            drafts={
+              autosave
+                ? { currentId: draftId, maxBytes: autosaveMaxBytes, adoptOnRestore: !documentId, onRestored: handleDraftRestored }
+                : undefined
+            }
+          />
+          {autosave && documentId && (
+            <DraftBanner draftId={documentId} initialJson={initialContentJsonRef.current} locale={locale} onRestored={handleDraftRestored} />
+          )}
           <div className="likhari-canvas">
             <RichTextPlugin
               contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label={strings.editor.contentLabel} />}
@@ -336,12 +402,6 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
           <OnChangePlugin onChange={handleChange} />
-          <AutosaveRestorePlugin
-            documentId={documentId}
-            enabled={autosaveEnabled}
-            initialJson={initialContentJsonRef.current}
-            confirmMessage={strings.editor.restoreDraftConfirm}
-          />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
         </UiStringsContext.Provider>

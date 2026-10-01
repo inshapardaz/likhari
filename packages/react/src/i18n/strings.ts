@@ -17,8 +17,6 @@ export interface Strings {
     contentLabel: string;
     /** window.confirm() prompt shown by EditorRef.confirmDiscard() when there are unsaved changes. */
     confirmDiscard: string;
-    /** window.confirm() prompt offering to restore a localStorage draft newer than the initial content (lexical-editor-spec.md §6.2). */
-    restoreDraftConfirm: string;
   };
   common: {
     cancel: string;
@@ -29,6 +27,8 @@ export interface Strings {
     /** aria-label on the toolbar's own role="toolbar" container. */
     ariaLabel: string;
     save: string;
+    /** Opens the list of autosaved drafts. */
+    drafts: string;
     undo: string;
     redo: string;
     formattingLabel: string;
@@ -75,6 +75,31 @@ export interface Strings {
       left: string;
       right: string;
     };
+  };
+  /** Autosave drafts (lexical-editor-spec.md §6.2): the restore banner and the drafts list dialog. */
+  drafts: {
+    /** Banner shown when a newer unsaved draft of this document is found; `when` is a formatted date/time. */
+    bannerMessage: (when: string) => string;
+    restore: string;
+    ignore: string;
+    remove: string;
+    dialogTitle: string;
+    intro: string;
+    empty: string;
+    /** Shown for a draft with no text (e.g. only an image). */
+    noText: string;
+    thisDocument: string;
+    untitled: string;
+    documentLabel: (id: string) => string;
+    earlierUntitled: string;
+    earlierVersionOf: (id: string) => string;
+    savedAt: (when: string) => string;
+    size: (kb: number) => string;
+    replacePrompt: string;
+    replace: string;
+    deletePrompt: string;
+    delete: string;
+    close: string;
   };
   link: {
     menuLabel: string;
@@ -157,7 +182,6 @@ const en: Strings = {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
     confirmDiscard: 'You have unsaved changes. Discard them?',
-    restoreDraftConfirm: 'An unsaved draft of this document was found. Restore it?',
   },
   common: {
     cancel: 'Cancel',
@@ -167,6 +191,7 @@ const en: Strings = {
   toolbar: {
     ariaLabel: 'Formatting',
     save: 'Save',
+    drafts: 'Drafts',
     undo: 'Undo',
     redo: 'Redo',
     formattingLabel: 'Formatting',
@@ -213,6 +238,28 @@ const en: Strings = {
       left: 'Align left',
       right: 'Align right',
     },
+  },
+  drafts: {
+    bannerMessage: (when) => `An unsaved draft of this document from ${when} was found.`,
+    restore: 'Restore',
+    ignore: 'Ignore',
+    remove: 'Remove draft',
+    dialogTitle: 'Saved drafts',
+    intro: 'Drafts are saved in this browser as you type, and removed when you save.',
+    empty: 'No drafts yet.',
+    noText: '(no text)',
+    thisDocument: 'Current document',
+    untitled: 'Untitled draft',
+    documentLabel: (id) => `Document “${id}”`,
+    earlierUntitled: 'Earlier version of an untitled draft',
+    earlierVersionOf: (id) => `Earlier version of “${id}”`,
+    savedAt: (when) => `Saved ${when}`,
+    size: (kb) => `${kb} KB`,
+    replacePrompt: 'Replace the current content with this draft?',
+    replace: 'Replace',
+    deletePrompt: 'Delete this draft?',
+    delete: 'Delete',
+    close: 'Close',
   },
   link: {
     menuLabel: 'Link',
@@ -296,7 +343,6 @@ const ur: Strings = {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
     confirmDiscard: 'آپ کی غیر محفوظ شدہ تبدیلیاں ہیں۔ کیا انہیں رد کر دیا جائے؟',
-    restoreDraftConfirm: 'اس دستاویز کا ایک غیر محفوظ شدہ مسودہ ملا ہے۔ کیا اسے بحال کیا جائے؟',
   },
   common: {
     cancel: 'منسوخ کریں',
@@ -306,6 +352,7 @@ const ur: Strings = {
   toolbar: {
     ariaLabel: 'فارمیٹنگ',
     save: 'محفوظ کریں',
+    drafts: 'مسودے',
     undo: 'کالعدم کریں',
     redo: 'دوبارہ کریں',
     formattingLabel: 'فارمیٹنگ',
@@ -352,6 +399,28 @@ const ur: Strings = {
       left: 'بائیں سیدھ',
       right: 'دائیں سیدھ',
     },
+  },
+  drafts: {
+    bannerMessage: (when) => `اس دستاویز کا ایک غیر محفوظ شدہ مسودہ (${when}) ملا ہے۔`,
+    restore: 'بحال کریں',
+    ignore: 'نظر انداز کریں',
+    remove: 'مسودہ ہٹائیں',
+    dialogTitle: 'محفوظ شدہ مسودے',
+    intro: 'لکھتے وقت مسودے اس براؤزر میں خود بخود محفوظ ہوتے ہیں اور محفوظ کرنے پر ہٹا دیے جاتے ہیں۔',
+    empty: 'ابھی کوئی مسودہ نہیں۔',
+    noText: '(کوئی متن نہیں)',
+    thisDocument: 'موجودہ دستاویز',
+    untitled: 'بلا عنوان مسودہ',
+    documentLabel: (id) => `دستاویز «${id}»`,
+    earlierUntitled: 'ایک بلا عنوان مسودے کا پرانا ورژن',
+    earlierVersionOf: (id) => `«${id}» کا پرانا ورژن`,
+    savedAt: (when) => `محفوظ شدہ: ${when}`,
+    size: (kb) => `${kb} کے بی`,
+    replacePrompt: 'موجودہ مواد کو اس مسودے سے بدل دیں؟',
+    replace: 'بدل دیں',
+    deletePrompt: 'یہ مسودہ حذف کریں؟',
+    delete: 'حذف کریں',
+    close: 'بند کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -435,7 +504,6 @@ const paShahmukhi: Strings = {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
     confirmDiscard: 'تہاڈیاں کجھ تبدیلیاں سنبھالیاں نئیں گئیاں۔ کی ایہناں نوں رد کر دیئے؟',
-    restoreDraftConfirm: 'ایس دستاویز دا اک غیر محفوظ سودھا لبھیا اے۔ کیہ ایہنوں بحال کيتا جاۓ؟',
   },
   common: {
     cancel: 'رد کرو',
@@ -445,6 +513,7 @@ const paShahmukhi: Strings = {
   toolbar: {
     ariaLabel: 'فارمیٹنگ',
     save: 'سنبھالو',
+    drafts: 'سودھے',
     undo: 'پہلاں جیہا کرو',
     redo: 'مُڑ کرو',
     formattingLabel: 'فارمیٹنگ',
@@ -491,6 +560,28 @@ const paShahmukhi: Strings = {
       left: 'بائیں سیدھ',
       right: 'سجے سیدھ',
     },
+  },
+  drafts: {
+    bannerMessage: (when) => `ایس دستاویز دا اک غیر محفوظ سودھا (${when}) لبھیا اے۔`,
+    restore: 'بحال کرو',
+    ignore: 'نظر انداز کرو',
+    remove: 'سودھا ہٹاؤ',
+    dialogTitle: 'سنبھالے ہوئے سودھے',
+    intro: 'لکھدیاں ہویاں سودھے ایس براؤزر وچ آپ سنبھلدے نیں تے سنبھالن تے ہٹ جاندے نیں۔',
+    empty: 'ہلے کوئی سودھا نئیں۔',
+    noText: '(کوئی متن نئیں)',
+    thisDocument: 'موجودہ دستاویز',
+    untitled: 'بنا ناں دا سودھا',
+    documentLabel: (id) => `دستاویز «${id}»`,
+    earlierUntitled: 'اک بنا ناں دے سودھے دا پرانا ورژن',
+    earlierVersionOf: (id) => `«${id}» دا پرانا ورژن`,
+    savedAt: (when) => `سنبھالیا: ${when}`,
+    size: (kb) => `${kb} کے بی`,
+    replacePrompt: 'موجودہ مواد نوں ایس سودھے نال بدل دیئے؟',
+    replace: 'بدل دیو',
+    deletePrompt: 'ایہ سودھا مٹا دیئے؟',
+    delete: 'مٹاؤ',
+    close: 'بند کرو',
   },
   link: {
     menuLabel: 'لنک',
