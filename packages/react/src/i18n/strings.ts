@@ -15,6 +15,8 @@ export interface Strings {
     placeholder: string;
     /** aria-label on the contenteditable itself. */
     contentLabel: string;
+    /** Label shown on a page-break marker's dashed line while editing. */
+    pageBreakLabel: string;
   };
   common: {
     cancel: string;
@@ -44,6 +46,7 @@ export interface Strings {
     tableOptions: string;
     insertLink: string;
     insertImage: string;
+    insertPageBreak: string;
     insertTable: string;
     insertHorizontalRule: string;
     poetryBlocks: string;
@@ -217,6 +220,7 @@ const en: Strings = {
   editor: {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
+    pageBreakLabel: 'Page break',
   },
   common: {
     cancel: 'Cancel',
@@ -243,6 +247,7 @@ const en: Strings = {
     tableOptions: 'Table options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
+    insertPageBreak: 'Insert page break',
     insertTable: 'Insert table',
     insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
@@ -410,6 +415,7 @@ const ur: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
+    pageBreakLabel: 'صفحے کی تقسیم',
   },
   common: {
     cancel: 'منسوخ کریں',
@@ -436,6 +442,7 @@ const ur: Strings = {
     tableOptions: 'جدول کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
+    insertPageBreak: 'صفحے کی تقسیم شامل کریں',
     insertTable: 'جدول شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
@@ -603,6 +610,7 @@ const paShahmukhi: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
+    pageBreakLabel: 'صفحے دی ونڈ',
   },
   common: {
     cancel: 'رد کرو',
@@ -629,6 +637,7 @@ const paShahmukhi: Strings = {
     tableOptions: 'ٹیبل دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
+    insertPageBreak: 'صفحے دی ونڈ پاؤ',
     insertTable: 'ٹیبل پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',

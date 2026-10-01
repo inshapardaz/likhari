@@ -357,6 +357,7 @@ export function App() {
               <Checkbox label="Numbered list" checked={!!config.lists?.numbered} onChange={(v) => updateLists('numbered', v)} />
               <Checkbox label="Check list" checked={!!config.lists?.check} onChange={(v) => updateLists('check', v)} />
               <Checkbox label="Quote" checked={!!config.blocks?.quote} onChange={(v) => updateBlocks('quote', v)} />
+              <Checkbox label="Page break" checked={!!config.blocks?.pageBreak} onChange={(v) => updateBlocks('pageBreak', v)} />
               <Checkbox label="Table" checked={!!config.tables} onChange={(v) => setConfig((c) => ({ ...c, tables: v }))} />
             </ControlGroup>
 

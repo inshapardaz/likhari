@@ -40,6 +40,7 @@ import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
+import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
 import {
@@ -92,6 +93,7 @@ import {
   IconList,
   IconListCheck,
   IconListNumbers,
+  IconPageBreak,
   IconPencil,
   IconPhoto,
   IconPilcrow,
@@ -900,7 +902,12 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
   const showStubInsertGroup =
-    config.images.linked || config.images.embedded || config.tables || config.blocks.horizontalRule || config.poetry.enabled;
+    config.images.linked ||
+    config.images.embedded ||
+    config.tables ||
+    config.blocks.horizontalRule ||
+    config.blocks.pageBreak ||
+    config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
@@ -1213,6 +1220,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="stubInsert">
         {(config.images.linked || config.images.embedded) && (
           <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
+        )}
+        {config.blocks.pageBreak && (
+          <ToolbarButton
+            icon={IconPageBreak}
+            title={strings.toolbar.insertPageBreak}
+            onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
+          />
         )}
         {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
         {config.blocks.horizontalRule && (

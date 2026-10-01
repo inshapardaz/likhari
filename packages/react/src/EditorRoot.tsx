@@ -20,6 +20,7 @@ import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
+import { PageBreakPlugin } from './plugins/PageBreakPlugin';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
@@ -505,6 +506,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
+          {config.blocks.pageBreak && <PageBreakPlugin />}
           {/* hasCellMerge disabled: cell merge/split is an explicitly
               flagged open risk (lexical-editor-spec.md §12 item 3) needing
               its own scope decision — every table stays a plain grid until
