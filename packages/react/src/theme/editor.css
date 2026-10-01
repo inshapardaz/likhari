@@ -186,6 +186,25 @@
   line-height: 2.3;
 }
 
+/* Per-block direction (requirements doc §3.2, "mixed-direction documents"):
+   Lexical detects each block's own direction from its first strong-direction
+   character and tags it with one of these theme classes independently of
+   the document's overall locale — an Urdu paragraph inside an English essay,
+   or an English heading inside an Urdu document, gets its own script-correct
+   font rather than inheriting the canvas-wide default. Set directly on the
+   block, so it wins over the inherited rule above regardless of specificity. */
+.likhari-rtl {
+  font-family: 'Noto Nastaliq Urdu', serif;
+  font-size: 20px;
+  line-height: 2.3;
+}
+
+.likhari-ltr {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
 .likhari-placeholder {
   position: absolute;
   top: 20px;
@@ -298,10 +317,6 @@
   }
 }
 
-/* Tables — cell merge/split is deliberately out of scope for now (a flagged
-   open risk, lexical-editor-spec.md §12 item 3, needing its own scope
-   decision); TablePlugin is configured with hasCellMerge={false} to keep
-   every table a plain grid until that's resolved. */
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;

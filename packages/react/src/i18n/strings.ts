@@ -133,6 +133,8 @@ export interface Strings {
     insertColumnsAfter: string;
     deleteRows: string;
     deleteColumns: string;
+    mergeCells: string;
+    unmergeCell: string;
   };
   link: {
     menuLabel: string;
@@ -327,6 +329,8 @@ const en: Strings = {
     insertColumnsAfter: 'Insert columns after',
     deleteRows: 'Delete rows',
     deleteColumns: 'Delete columns',
+    mergeCells: 'Merge cells',
+    unmergeCell: 'Unmerge cell',
   },
   link: {
     menuLabel: 'Link',
@@ -522,6 +526,8 @@ const ur: Strings = {
     insertColumnsAfter: 'بعد میں کالمز شامل کریں',
     deleteRows: 'قطاریں حذف کریں',
     deleteColumns: 'کالمز حذف کریں',
+    mergeCells: 'خانے ضم کریں',
+    unmergeCell: 'خانہ الگ کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -717,6 +723,8 @@ const paShahmukhi: Strings = {
     insertColumnsAfter: 'بعد وچ کالماں پاؤ',
     deleteRows: 'قطاراں مٹاؤ',
     deleteColumns: 'کالماں مٹاؤ',
+    mergeCells: 'خانے رلاؤ',
+    unmergeCell: 'خانہ الگ کرو',
   },
   link: {
     menuLabel: 'لنک',

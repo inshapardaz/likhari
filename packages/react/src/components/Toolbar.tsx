@@ -44,12 +44,16 @@ import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
 import {
+  $canMergeSelectedCells,
+  $canUnmergeSelectedCell,
   $deleteTable,
   $deleteTableColumns,
   $deleteTableRows,
   $getTableSelectionSize,
   $insertTableColumns,
   $insertTableRows,
+  $mergeTableCells,
+  $unmergeTableCell,
 } from '../table/tableActions';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
@@ -103,6 +107,8 @@ import {
   IconStrikethrough,
   IconSubscript,
   IconSuperscript,
+  IconArrowMergeBoth,
+  IconArrowsSplit2,
   IconColumnInsertLeft,
   IconColumnInsertRight,
   IconColumnRemove,
@@ -143,6 +149,10 @@ interface ToolbarState {
   /** Rows / columns the selection spans, for the table menu's plural labels. */
   tableRows: number;
   tableColumns: number;
+  /** A multi-cell table selection that can be collapsed into one cell. */
+  canMergeCells: boolean;
+  /** A caret in a single table cell that already spans more than one row/column. */
+  canUnmergeCell: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -164,6 +174,8 @@ const INITIAL_STATE: ToolbarState = {
   inTable: false,
   tableRows: 1,
   tableColumns: 1,
+  canMergeCells: false,
+  canUnmergeCell: false,
   canUndo: false,
   canRedo: false,
 };
@@ -422,6 +434,8 @@ function TableMenuItems({
   direction,
   rows,
   columns,
+  canMergeCells,
+  canUnmergeCell,
   onAction,
 }: {
   strings: Strings;
@@ -429,6 +443,10 @@ function TableMenuItems({
   /** Rows / columns the selection spans: more than one switches to the plural labels. */
   rows: number;
   columns: number;
+  /** A multi-cell selection that can be collapsed into one cell. */
+  canMergeCells: boolean;
+  /** A caret in a single cell that already spans more than one row/column. */
+  canUnmergeCell: boolean;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.tableMenu;
@@ -460,6 +478,9 @@ function TableMenuItems({
       {item(rtl ? IconColumnInsertLeft : IconColumnInsertRight, manyColumns ? t.insertColumnsAfter : t.insertColumnAfter, () =>
         $insertTableColumns(true),
       )}
+      {(canMergeCells || canUnmergeCell) && <Menu.Divider />}
+      {canMergeCells && item(IconArrowMergeBoth, t.mergeCells, $mergeTableCells)}
+      {canUnmergeCell && item(IconArrowsSplit2, t.unmergeCell, $unmergeTableCell)}
       <Menu.Divider />
       {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
       {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
@@ -508,7 +529,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // A selection of several table cells isn't a range selection.
       if ($isTableSelection(selection)) {
         const { rows, columns } = $getTableSelectionSize();
-        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns }));
+        const canMergeCells = $canMergeSelectedCells();
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false }));
         return;
       }
       if (!$isRangeSelection(selection)) return;
@@ -516,6 +538,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       const anchorNode = selection.anchor.getNode();
       const inTable = $getTableCellNodeFromLexicalNode(anchorNode) !== null;
       const tableSize = inTable ? $getTableSelectionSize() : { rows: 1, columns: 1 };
+      const canUnmergeCell = inTable && $canUnmergeSelectedCell();
       const element = anchorNode.getKey() === 'root' ? anchorNode : (anchorNode.getTopLevelElement() ?? anchorNode);
 
       const listParent = $findMatchingParent(anchorNode, $isListNode);
@@ -560,6 +583,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         inTable,
         tableRows: tableSize.rows,
         tableColumns: tableSize.columns,
+        canMergeCells: false,
+        canUnmergeCell,
       }));
     });
   }, [editor]);
@@ -1270,7 +1295,15 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             </button>
           </Menu.Target>
           <Menu.Dropdown>
-            <TableMenuItems strings={strings} direction={direction} rows={state.tableRows} columns={state.tableColumns} onAction={runTableAction} />
+            <TableMenuItems
+              strings={strings}
+              direction={direction}
+              rows={state.tableRows}
+              columns={state.tableColumns}
+              canMergeCells={state.canMergeCells}
+              canUnmergeCell={state.canUnmergeCell}
+              onAction={runTableAction}
+            />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1385,6 +1418,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               direction={direction}
               rows={tableContext?.rows ?? 1}
               columns={tableContext?.columns ?? 1}
+              canMergeCells={state.canMergeCells}
+              canUnmergeCell={state.canUnmergeCell}
               onAction={runTableAction}
             />
           </Menu.Dropdown>

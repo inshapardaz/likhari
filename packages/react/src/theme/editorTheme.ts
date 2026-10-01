@@ -6,6 +6,12 @@ import type { EditorThemeClasses } from 'lexical';
  * (the "headless + default theme" requirement, UI spec §10).
  */
 export const editorTheme: EditorThemeClasses = {
+  // Applied by Lexical's reconciler to each top-level block based on that
+  // block's own detected direction — see the comment in editor.css. This is
+  // the per-block half of mixed-direction document support (requirements
+  // doc §3.2); the EditorRoot `dir` prop handles the whole-document default.
+  ltr: 'likhari-ltr',
+  rtl: 'likhari-rtl',
   paragraph: 'likhari-paragraph',
   quote: 'likhari-quote',
   heading: {
