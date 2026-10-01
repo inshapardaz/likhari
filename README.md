@@ -87,6 +87,24 @@ return:
 Images serialize to Lexical JSON as an `image` node (`src`, `altText`, `caption`,
 `linkType`, `width`, `height`) and export to plain text as their alt text.
 
+## Tables
+
+With `tables` enabled in the feature config, the toolbar's table button inserts a
+table (rows, columns, optional header row). Cells can't be merged or split yet (see
+the open risk in `docs/lexical-editor-spec.md` §12), so every table is a plain grid.
+
+**Table actions.** While the caret is in a table the toolbar shows a *Table options*
+button, and right-clicking a cell opens the same menu at the pointer:
+
+- *Insert row before / after*, *Insert column before / after*
+- *Delete row*, *Delete column*, *Delete table*
+
+Select several cells (drag across them) and the actions apply to the whole selection:
+the menu switches to *Insert rows / columns before / after* and inserts as many as are
+selected, on the outside edge of the selection; *Delete rows / columns* removes every
+row or column the selection touches. In a right-to-left table "before" is the right-hand
+side. Deleting the last remaining row or column removes the table.
+
 ## Fonts
 
 When `font.family` / `font.size` are enabled in the feature config, the toolbar

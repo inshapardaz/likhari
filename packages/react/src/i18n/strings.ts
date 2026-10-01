@@ -40,8 +40,11 @@ export interface Strings {
     noMatch: string;
     alignment: string;
     linkOptions: string;
+    /** Toolbar button (shown while the caret is in a table) that opens the table actions menu. */
+    tableOptions: string;
     insertLink: string;
     insertImage: string;
+    insertTable: string;
     insertHorizontalRule: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
@@ -110,6 +113,24 @@ export interface Strings {
     delete: string;
     close: string;
   };
+  /** The table actions menu (toolbar button and right-click on a cell). */
+  tableMenu: {
+    menuLabel: string;
+    insertRowBefore: string;
+    insertRowAfter: string;
+    insertColumnBefore: string;
+    insertColumnAfter: string;
+    deleteRow: string;
+    deleteColumn: string;
+    deleteTable: string;
+    /** Plural forms, used when the selection spans several rows or columns. */
+    insertRowsBefore: string;
+    insertRowsAfter: string;
+    insertColumnsBefore: string;
+    insertColumnsAfter: string;
+    deleteRows: string;
+    deleteColumns: string;
+  };
   link: {
     menuLabel: string;
     noUrl: string;
@@ -125,6 +146,12 @@ export interface Strings {
     textPlaceholder: string;
     invalidUrl: string;
     apply: string;
+  };
+  tableDialog: {
+    title: string;
+    rows: string;
+    columns: string;
+    headerRow: string;
   };
   imageDialog: {
     titleInsert: string;
@@ -213,8 +240,10 @@ const en: Strings = {
     noMatch: 'No match',
     alignment: 'Alignment',
     linkOptions: 'Link options',
+    tableOptions: 'Table options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
+    insertTable: 'Insert table',
     insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
@@ -278,6 +307,22 @@ const en: Strings = {
     delete: 'Delete',
     close: 'Close',
   },
+  tableMenu: {
+    menuLabel: 'Table',
+    insertRowBefore: 'Insert row before',
+    insertRowAfter: 'Insert row after',
+    insertColumnBefore: 'Insert column before',
+    insertColumnAfter: 'Insert column after',
+    deleteRow: 'Delete row',
+    deleteColumn: 'Delete column',
+    deleteTable: 'Delete table',
+    insertRowsBefore: 'Insert rows before',
+    insertRowsAfter: 'Insert rows after',
+    insertColumnsBefore: 'Insert columns before',
+    insertColumnsAfter: 'Insert columns after',
+    deleteRows: 'Delete rows',
+    deleteColumns: 'Delete columns',
+  },
   link: {
     menuLabel: 'Link',
     noUrl: '(no URL)',
@@ -293,6 +338,12 @@ const en: Strings = {
     textPlaceholder: 'Link text (defaults to the URL)',
     invalidUrl: 'Enter a valid http(s), mailto, tel or relative URL',
     apply: 'Apply',
+  },
+  tableDialog: {
+    title: 'Insert table',
+    rows: 'Rows',
+    columns: 'Columns',
+    headerRow: 'Header row',
   },
   imageDialog: {
     titleInsert: 'Insert image',
@@ -382,8 +433,10 @@ const ur: Strings = {
     noMatch: 'کوئی مماثلت نہیں',
     alignment: 'سیدھ',
     linkOptions: 'لنک کے اختیارات',
+    tableOptions: 'جدول کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
+    insertTable: 'جدول شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
@@ -447,6 +500,22 @@ const ur: Strings = {
     delete: 'حذف کریں',
     close: 'بند کریں',
   },
+  tableMenu: {
+    menuLabel: 'جدول',
+    insertRowBefore: 'پہلے قطار شامل کریں',
+    insertRowAfter: 'بعد میں قطار شامل کریں',
+    insertColumnBefore: 'پہلے کالم شامل کریں',
+    insertColumnAfter: 'بعد میں کالم شامل کریں',
+    deleteRow: 'قطار حذف کریں',
+    deleteColumn: 'کالم حذف کریں',
+    deleteTable: 'جدول حذف کریں',
+    insertRowsBefore: 'پہلے قطاریں شامل کریں',
+    insertRowsAfter: 'بعد میں قطاریں شامل کریں',
+    insertColumnsBefore: 'پہلے کالمز شامل کریں',
+    insertColumnsAfter: 'بعد میں کالمز شامل کریں',
+    deleteRows: 'قطاریں حذف کریں',
+    deleteColumns: 'کالمز حذف کریں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -462,6 +531,12 @@ const ur: Strings = {
     textPlaceholder: 'لنک کی عبارت (نہ دینے پر یو آر ایل ہی استعمال ہوگا)',
     invalidUrl: 'براہِ کرم ایک درست http(s)، mailto، tel یا رشتہ دار یو آر ایل درج کریں',
     apply: 'لاگو کریں',
+  },
+  tableDialog: {
+    title: 'جدول شامل کریں',
+    rows: 'قطاریں',
+    columns: 'کالم',
+    headerRow: 'سرِ فہرست قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر شامل کریں',
@@ -551,8 +626,10 @@ const paShahmukhi: Strings = {
     noMatch: 'کوئی نئیں ملیا',
     alignment: 'سیدھ',
     linkOptions: 'لنک دے اختیار',
+    tableOptions: 'ٹیبل دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
+    insertTable: 'ٹیبل پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
@@ -616,6 +693,22 @@ const paShahmukhi: Strings = {
     delete: 'مٹاؤ',
     close: 'بند کرو',
   },
+  tableMenu: {
+    menuLabel: 'ٹیبل',
+    insertRowBefore: 'پہلاں قطار پاؤ',
+    insertRowAfter: 'بعد وچ قطار پاؤ',
+    insertColumnBefore: 'پہلاں کالم پاؤ',
+    insertColumnAfter: 'بعد وچ کالم پاؤ',
+    deleteRow: 'قطار مٹاؤ',
+    deleteColumn: 'کالم مٹاؤ',
+    deleteTable: 'ٹیبل مٹاؤ',
+    insertRowsBefore: 'پہلاں قطاراں پاؤ',
+    insertRowsAfter: 'بعد وچ قطاراں پاؤ',
+    insertColumnsBefore: 'پہلاں کالماں پاؤ',
+    insertColumnsAfter: 'بعد وچ کالماں پاؤ',
+    deleteRows: 'قطاراں مٹاؤ',
+    deleteColumns: 'کالماں مٹاؤ',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نئیں)',
@@ -631,6 +724,12 @@ const paShahmukhi: Strings = {
     textPlaceholder: 'لنک دی لکھت (نہ دین تے یو آر ایل ای ورتیا جاوے گا)',
     invalidUrl: 'کِرپا کر کے صحیح http(s)، mailto، tel یا نسبتی یو آر ایل پاؤ',
     apply: 'لاگو کرو',
+  },
+  tableDialog: {
+    title: 'ٹیبل پاؤ',
+    rows: 'قطاراں',
+    columns: 'کالم',
+    headerRow: 'سرکڑی قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر پاؤ',
