@@ -171,13 +171,22 @@ const INITIAL_STATE: ToolbarState = {
 const ICON_SIZE = 17;
 const ICON_STROKE = 1.75;
 
-const ALIGN_ICONS: Partial<Record<ElementFormatType, TablerIcon>> = {
+const ALIGN_ICONS_LTR: Partial<Record<ElementFormatType, TablerIcon>> = {
   start: IconAlignLeft,
   left: IconAlignLeft,
   center: IconAlignCenter,
   end: IconAlignRight,
   right: IconAlignRight,
   justify: IconAlignJustified,
+};
+
+// UI spec §5: "start"/"end" are direction-relative — in RTL, start points
+// right, so the icon has to swap glyphs. "left"/"right" are the poetry
+// preset's literal per-couplet overrides and never mirror.
+const ALIGN_ICONS_RTL: Partial<Record<ElementFormatType, TablerIcon>> = {
+  ...ALIGN_ICONS_LTR,
+  start: IconAlignRight,
+  end: IconAlignLeft,
 };
 
 const HEADING_ICONS: Record<number, TablerIcon> = {
@@ -480,6 +489,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const strings = useStrings(locale);
   const portalTarget = usePortalTarget();
   const [draftsOpen, setDraftsOpen] = useState(false);
+  const rtl = direction === 'rtl';
+  const ALIGN_ICONS = rtl ? ALIGN_ICONS_RTL : ALIGN_ICONS_LTR;
 
   // Responsive "priority+" overflow: the toolbar's outer container and a
   // hidden nowrap clone (rendered with every movable group forced inline)
@@ -955,17 +966,19 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     scriptCleanupItems.push({ key: 'clear', icon: IconClearFormatting, label: strings.toolbar.clearFormatting, onClick: clearFormatting });
   }
 
+  // UI spec §5: indent/outdent arrows are direction-relative and swap in RTL
+  // (outdent moves content toward the start edge, which is the right in RTL).
   const indentItems: ActionItem[] = config.indent
     ? [
         {
           key: 'outdent',
-          icon: IconIndentDecrease,
+          icon: rtl ? IconIndentIncrease : IconIndentDecrease,
           label: strings.toolbar.outdent,
           onClick: () => editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined),
         },
         {
           key: 'indent',
-          icon: IconIndentIncrease,
+          icon: rtl ? IconIndentDecrease : IconIndentIncrease,
           label: strings.toolbar.indent,
           onClick: () => editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined),
         },
