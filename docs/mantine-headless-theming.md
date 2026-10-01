@@ -1,8 +1,13 @@
 # Mantine Headless Mode, Default Theme, and Extension Guide
 
-**Status: proposed design.** Nothing in this document beyond the "Current
-state" section is implemented yet. It is the spec for the GitHub issue
-"Migrate UI to Mantine headless mode with a default out-of-the-box theme".
+**Status: proposed design, partially implemented.** Migration plan (§8) step 1
+is done (peer dependencies, CSS import boundary, `styles.css` export) and
+step 4's portal/CSS-variable scoping to the editor root (§4 rule 3) landed as
+part of other work. Steps 2, 3, 5 (headless hooks layer, Styles API rebuild,
+`unstyled`/`classNames`/`styles`/`components`/`toolbar` props) are not started
+— see the open questions in §9, which need a decision before that work begins.
+It is the spec for the GitHub issue "Migrate UI to Mantine headless mode with
+a default out-of-the-box theme".
 
 Related spec sections: `lexical-editor-spec.md` §10 (Theming),
 `editor-ui-design-spec.md` §8 (Mapping to Mantine), and
@@ -22,11 +27,11 @@ Phase 1 already depends on Mantine, but not in the way the specs describe:
 
 | Area | Spec says | Code today |
 |---|---|---|
-| Dependency | Peer-style, host controls version | `@mantine/core` and `@mantine/hooks` are hard `dependencies` of `packages/react` (`^9.6.3`, which requires React 19.2+) |
-| Global CSS | Host controls load order | `EditorThemeProvider` imports `@mantine/core/styles.css` itself, a side-effect import inside the library |
-| Headless | Toolbar buttons are `UnstyledButton`, menus and modals are headless (UI spec §8) | Toolbar is hand-built; only `MantineProvider` and the theme object are used. No consumer-facing way to swap or restyle parts |
-| Theme override | `theme` prop deep-merges over the default | `theme ?? defaultMantineTheme` replaces the default instead of merging |
-| Tokens | `--editor-*` CSS variables are the styling contract | Implemented (`packages/core/src/theme`), scoped to `.likhari-theme-scope` |
+| Dependency | Peer-style, host controls version | ✅ Done — `@mantine/core`/`@mantine/hooks` are `peerDependencies` of `packages/react` |
+| Global CSS | Host controls load order | ✅ Done — `EditorThemeProvider` no longer imports `@mantine/core/styles.css`; the package exports its own `@inshapardaz/likhari-react/styles.css` |
+| Headless | Toolbar buttons are `UnstyledButton`, menus and modals are headless (UI spec §8) | Not started — toolbar is hand-built; only `MantineProvider` and the theme object are used. No consumer-facing way to swap or restyle parts |
+| Theme override | `theme` prop deep-merges over the default | Partial — only `theme.colors` shallow-merges over the default (for the `accentColor` prop); other top-level theme fields still replace rather than merge |
+| Tokens | `--editor-*` CSS variables are the styling contract | ✅ Done (`packages/core/src/theme`), scoped per editor instance (not just `.likhari-theme-scope` globally — see §4 rule 3, also done) |
 
 The migration closes these gaps rather than starting over.
 
@@ -315,16 +320,19 @@ route.
 
 ## 8. Migration plan
 
-1. Move `@mantine/core` and `@mantine/hooks` to `peerDependencies`; remove the
-   `styles.css` import from `EditorThemeProvider`; export
+1. ✅ Done. Move `@mantine/core` and `@mantine/hooks` to `peerDependencies`;
+   remove the `styles.css` import from `EditorThemeProvider`; export
    `@inshapardaz/likhari-react/styles.css`.
 2. Extract layer 1 hooks from `Toolbar.tsx`.
 3. Rebuild toolbar pieces on `UnstyledButton` / `Menu` / `Modal`; add Styles
    API selectors, `unstyled`, `classNames`, `styles`, `components`, `toolbar`.
-4. Make `theme` deep-merge; scope CSS variables and portals to the editor root
-   (rules 3 and 6 in §4).
-5. Derive the default Mantine theme from `core` tokens; add dark-scheme
-   handling and the `colorScheme` prop.
+4. Partially done — CSS variables and portals are already scoped to the
+   editor root (rule 3 in §4; landed alongside other toolbar/dialog fixes).
+   Still needed: make `theme` fully deep-merge (rule 6 in §4) — today only
+   `theme.colors` shallow-merges, for the `accentColor` prop specifically.
+5. Derive the default Mantine theme from `core` tokens (done); add dark-scheme
+   handling and the `colorScheme` prop (done — also scoped per editor root,
+   going further than originally planned here).
 6. Tests: theme merge, `unstyled` output has no default classes, fullscreen
    portal target, two editors with different themes stay independent, RTL
    mirroring in replaced components.

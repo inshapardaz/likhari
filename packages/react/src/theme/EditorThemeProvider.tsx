@@ -1,6 +1,8 @@
 import { useMemo, type CSSProperties } from 'react';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import '@mantine/core/styles.css';
+// Mantine is a peer dependency (docs/mantine-headless-theming.md §4 rule 1):
+// the host imports '@mantine/core/styles.css' itself, once, in its own entry
+// point, so it controls load order. This package must not import it itself.
 import { buildThemeCss } from '@inshapardaz/likhari-core';
 import { defaultMantineTheme } from './mantineTheme';
 import { generateAccentCssVars, generateAccentShades } from './accentColor';
