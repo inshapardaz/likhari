@@ -162,6 +162,10 @@ function inlineNodes(children: SNode[], ctx?: ConverterContext): MdNode[] {
     } else if (child.type === 'link' || child.type === 'autolink') {
       flush();
       out.push({ type: 'link', url: String(child.url ?? ''), title: child.title ? String(child.title) : null, children: inlineNodes(child.children ?? [], ctx) });
+    } else if (child.type === 'footnote-reference') {
+      flush();
+      const id = String(child.footnoteId ?? '');
+      out.push({ type: 'footnoteReference', identifier: id, label: id });
     } else if (child.children) {
       flush();
       out.push(...inlineNodes(child.children, ctx));
@@ -290,6 +294,13 @@ function blockToMd(node: SNode, ctx?: ConverterContext): MdNode[] {
       return [tableToMd(node, ctx)];
     case 'layout-container':
       return [layoutToMd(node, ctx)];
+    case 'footnote-list':
+      return (node.children ?? []).map((item) => ({
+        type: 'footnoteDefinition',
+        identifier: String(item.footnoteId ?? ''),
+        label: String(item.footnoteId ?? ''),
+        children: (item.children ?? []).flatMap((child) => blockToMd(child, ctx)),
+      }));
     default:
       // Fallback rule (dialect spec §6): unknown blocks keep their text as paragraphs.
       return (node.children ?? []).flatMap((child) => blockToMd(child, ctx));

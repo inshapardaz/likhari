@@ -101,6 +101,10 @@ function collectInline(node: Node, state: InlineState, out: SNode[], preserveWs:
     out.push({ type: 'linebreak', version: 1 });
     return;
   }
+  if (tag === 'sup' && el.hasAttribute('data-likhari-footnote-ref')) {
+    out.push({ type: 'footnote-reference', version: 1, footnoteId: el.getAttribute('data-likhari-footnote-ref') ?? '' });
+    return;
+  }
   if (tag === 'a') {
     const url = safeUrl(el.getAttribute('href') ?? '');
     const children: SNode[] = [];
@@ -259,6 +263,25 @@ function convertLayout(container: HTMLElement): SNode {
   return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
 }
 
+function convertFootnoteList(el: HTMLElement): SNode {
+  const items: SNode[] = [];
+  Array.from(el.children).forEach((child) => {
+    if (child.tagName.toLowerCase() !== 'li') return;
+    const li = child as HTMLElement;
+    const footnoteId = li.getAttribute('data-likhari-footnote-item') ?? (li.getAttribute('id') ?? '').replace(/^fn-/, '');
+    if (!footnoteId) return;
+    // Drop the "↩" backlink our own serializer appends — it's a generated
+    // affordance, not part of the note's content.
+    const clone = li.cloneNode(true) as HTMLElement;
+    Array.from(clone.querySelectorAll('a'))
+      .filter((a) => a.getAttribute('href') === `#fnref-${footnoteId}`)
+      .forEach((a) => a.remove());
+    const children = flowBlocks(clone);
+    items.push(elementBase('footnote-item', children.length > 0 ? children : [paragraph()], { footnoteId }));
+  });
+  return elementBase('footnote-list', items);
+}
+
 function convertImage(img: HTMLElement, caption: string | null): SNode | null {
   const src = safeImageSrc(img.getAttribute('src') ?? '');
   if (!src) return null;
@@ -298,7 +321,7 @@ function convertBlock(el: HTMLElement): SNode[] {
     }
     case 'ul':
     case 'ol':
-      return [convertList(el)];
+      return el.hasAttribute('data-likhari-footnote-list') ? [convertFootnoteList(el)] : [convertList(el)];
     case 'li':
       return convertListItem(el, false).length > 0 ? [elementBase('list', convertListItem(el, false), { listType: 'bullet', start: 1, tag: 'ul' })] : [];
     case 'table':

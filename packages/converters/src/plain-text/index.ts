@@ -1,5 +1,6 @@
 import type { SerializedEditorState, SerializedLexicalNode } from 'lexical';
 import type { FormatConverter } from '../types';
+import { collectFootnoteOrder, type SNode } from '../shared/serialized';
 
 interface NodeWithChildren extends SerializedLexicalNode {
   children?: SerializedLexicalNode[];
@@ -21,7 +22,7 @@ const LIST_ITEM_PREFIX: Record<string, (index: number) => string> = {
  * all formatting — this is a documented, exhaustive mapping per node type,
  * not an ad hoc `.textContent` walk.
  */
-function nodeToText(node: SerializedLexicalNode, listItemIndex = 0): string {
+function nodeToText(node: SerializedLexicalNode, order: Map<string, number>, listItemIndex = 0): string {
   const withChildren = node as NodeWithChildren;
 
   if (node.type === 'text' || node.type === 'linebreak') {
@@ -35,25 +36,44 @@ function nodeToText(node: SerializedLexicalNode, listItemIndex = 0): string {
     return image.altText || image.caption || '';
   }
 
+  // Inline marker only — its matching note is in the trailing list (below),
+  // never inline, per the fidelity matrix's "inline bracketed number".
+  if (node.type === 'footnote-reference') {
+    const id = String((node as SerializedLexicalNode & { footnoteId?: string }).footnoteId ?? '');
+    return `[${order.get(id) ?? '?'}]`;
+  }
+
   if (node.type === 'list' && withChildren.children) {
     const listType = (node as { listType?: string }).listType ?? 'bullet';
     return withChildren.children
       .map((child, i) => {
         const prefix = LIST_ITEM_PREFIX[listType]?.(i) ?? '- ';
-        return prefix + nodeToText(child, i);
+        return prefix + nodeToText(child, order, i);
       })
       .join('\n');
   }
 
   if (withChildren.children) {
-    return withChildren.children.map((child) => nodeToText(child, listItemIndex)).join('');
+    return withChildren.children.map((child) => nodeToText(child, order, listItemIndex)).join('');
   }
 
   return '';
 }
 
-function blockToText(node: SerializedLexicalNode): string {
-  return nodeToText(node);
+function blockToText(node: SerializedLexicalNode, order: Map<string, number>): string {
+  return nodeToText(node, order);
+}
+
+/** `[n] note text` per footnote, in display-number order — the "trailing
+ * list" half of the fidelity matrix's plain-text footnote entry. */
+function footnoteListToText(node: SerializedLexicalNode, order: Map<string, number>): string {
+  const items = (node as NodeWithChildren).children ?? [];
+  return items
+    .map((item) => {
+      const id = String((item as SerializedLexicalNode & { footnoteId?: string }).footnoteId ?? '');
+      return `[${order.get(id) ?? '?'}] ${nodeToText(item, order)}`;
+    })
+    .join('\n');
 }
 
 export const plainTextConverter: FormatConverter = {
@@ -61,7 +81,11 @@ export const plainTextConverter: FormatConverter = {
 
   serialize(editorState) {
     const root = editorState.root as unknown as NodeWithChildren;
-    const blocks = (root.children ?? []).map(blockToText);
+    const children = root.children ?? [];
+    const order = collectFootnoteOrder(children as SNode[]);
+    const footnoteLists = children.filter((n) => n.type === 'footnote-list');
+    const blocks = children.filter((n) => n.type !== 'footnote-list').map((n) => blockToText(n, order));
+    if (footnoteLists.length > 0) blocks.push(footnoteLists.map((n) => footnoteListToText(n, order)).join('\n'));
     return blocks.join('\n\n');
   },
 

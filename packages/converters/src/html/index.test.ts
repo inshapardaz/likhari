@@ -81,6 +81,23 @@ describe('htmlConverter', () => {
     expect((back.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'right' });
   });
 
+  it('round-trips footnotes: inline reference and list entry', () => {
+    const footnoteList = elementBase('footnote-list', [
+      elementBase('footnote-item', [paragraph([textNode('first note')])], { footnoteId: 'a' }),
+      elementBase('footnote-item', [paragraph([textNode('second note')])], { footnoteId: 'b' }),
+    ]);
+    const body = paragraph([textNode('see'), { type: 'footnote-reference', version: 1, footnoteId: 'a' } as SNode, textNode('.')]);
+    const [backBody, backList] = blocksOf(roundTrip([body, footnoteList]));
+
+    expect(backBody.children!.map((c) => c.type)).toEqual(['text', 'footnote-reference', 'text']);
+    expect((backBody.children![1] as SNode).footnoteId).toBe('a');
+
+    expect(backList.type).toBe('footnote-list');
+    expect(backList.children!.map((item) => item.footnoteId)).toEqual(['a', 'b']);
+    expect((backList.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'first note' });
+    expect((backList.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'second note' });
+  });
+
   it('imports arbitrary web HTML: bare text, spans, inline styles', () => {
     const blocks = blocksOf(
       htmlConverter.parse('<div>Hello <b>big</b> <span style="font-style: italic">world</span></div><p>Two</p>'),

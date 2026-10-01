@@ -16,6 +16,11 @@ export interface MdNode {
   name?: string;
   attributes?: Record<string, string | null | undefined> | null;
   align?: Array<'left' | 'right' | 'center' | null> | null;
+  /** GFM footnotes (remark-gfm): `identifier` is normalized/lowercased by
+   * remark itself, `label` keeps the original casing. We only ever use
+   * plain numerals for both, so the distinction doesn't matter here. */
+  identifier?: string;
+  label?: string;
 }
 
 export type Attrs = Record<string, string>;

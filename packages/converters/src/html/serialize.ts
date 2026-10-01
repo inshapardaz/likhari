@@ -2,7 +2,7 @@ import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
-  FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX, rootChildren, type SNode,
+  FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX, collectFootnoteOrder, rootChildren, type SNode,
 } from '../shared/serialized';
 
 export function escapeHtml(value: string): string {
@@ -96,6 +96,29 @@ function tableToHtml(node: SNode, ctx?: ConverterContext): string {
   return `<table><tbody>${rows}</tbody></table>`;
 }
 
+/** Set once per serializeHtml() call and read by the footnote cases below —
+ * avoids threading a numbering map through every recursive nodeToHtml call
+ * for what is otherwise a leaf concern of two node types. Safe because
+ * serialization is synchronous and this module is never re-entered mid-call. */
+let footnoteOrder: Map<string, number> = new Map();
+
+function footnoteReferenceToHtml(node: SNode): string {
+  const id = String(node.footnoteId ?? '');
+  const n = footnoteOrder.get(id) ?? '?';
+  return `<sup data-likhari-footnote-ref="${escapeAttr(id)}"><a href="#fn-${escapeAttr(id)}" id="fnref-${escapeAttr(id)}">${n}</a></sup>`;
+}
+
+function footnoteListToHtml(node: SNode, ctx?: ConverterContext): string {
+  const items = (node.children ?? [])
+    .map((item) => {
+      const id = String(item.footnoteId ?? '');
+      const body = (item.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
+      return `<li id="fn-${escapeAttr(id)}" data-likhari-footnote-item="${escapeAttr(id)}">${body} <a href="#fnref-${escapeAttr(id)}">↩</a></li>`;
+    })
+    .join('');
+  return `<ol data-likhari-footnote-list>${items}</ol>`;
+}
+
 function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
   const items = node.children ?? [];
   const templateColumns = typeof node.templateColumns === 'string' ? node.templateColumns : `repeat(${items.length}, 1fr)`;
@@ -153,6 +176,10 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
       return tableToHtml(node, ctx);
     case 'layout-container':
       return layoutToHtml(node, ctx);
+    case 'footnote-reference':
+      return footnoteReferenceToHtml(node);
+    case 'footnote-list':
+      return footnoteListToHtml(node, ctx);
     default:
       // Unknown node (e.g. a future feature): keep its content, drop the wrapper.
       return inlineChildren(node, ctx);
@@ -160,5 +187,7 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
 }
 
 export function serializeHtml(state: SerializedEditorState, ctx?: ConverterContext): string {
-  return rootChildren(state).map((node) => nodeToHtml(node, ctx)).join('\n');
+  const blocks = rootChildren(state);
+  footnoteOrder = collectFootnoteOrder(blocks);
+  return blocks.map((node) => nodeToHtml(node, ctx)).join('\n');
 }

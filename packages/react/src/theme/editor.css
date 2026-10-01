@@ -178,6 +178,10 @@
   font-family: 'IBM Plex Serif', Georgia, serif;
   font-size: 15px;
   line-height: 1.75;
+  /* Scopes the footnote-reference counter to the whole document (editor.css
+     footnote rules below), so numbering is consistent regardless of which
+     blocks the references happen to sit in. */
+  counter-reset: likhari-footnote-ref;
 }
 
 .likhari-content-editable[dir='rtl'] {
@@ -333,6 +337,41 @@
 
 .likhari-layout-item > :last-child {
   margin-bottom: 0;
+}
+
+/* Footnotes (lexical-editor-spec.md §4.10). The bracketed number on both
+   the inline reference and its list entry is a CSS counter, not stored
+   state — Lexical insert/delete/reorder of the underlying nodes renumbers
+   both sequences automatically as long as list items stay in the same
+   order their references were inserted (FootnotePlugin's insert command
+   always appends in that order). */
+.likhari-footnote-ref {
+  counter-increment: likhari-footnote-ref;
+  cursor: default;
+}
+
+.likhari-footnote-ref::after {
+  content: '[' counter(likhari-footnote-ref) ']';
+}
+
+.likhari-footnote-list {
+  counter-reset: likhari-footnote-item;
+  list-style: none;
+  margin: 2em 0 0 0;
+  padding-inline-start: 1.5em;
+  border-top: 1px solid var(--editor-line);
+  padding-top: 0.75em;
+  font-size: 0.9em;
+  color: var(--editor-ink-soft);
+}
+
+.likhari-footnote-item {
+  counter-increment: likhari-footnote-item;
+  margin: 0.3em 0;
+}
+
+.likhari-footnote-item::marker {
+  content: '[' counter(likhari-footnote-item) '] ';
 }
 
 .likhari-table {

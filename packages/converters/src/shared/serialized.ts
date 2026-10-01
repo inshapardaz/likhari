@@ -53,3 +53,19 @@ export function makeState(blocks: SNode[]): SerializedEditorState {
 export function isInlineNode(node: SNode): boolean {
   return node.type === 'text' || node.type === 'linebreak' || node.type === 'tab' || node.type === 'link' || node.type === 'autolink';
 }
+
+/** Footnote reference numbers (lexical-editor-spec.md §4.10) are never
+ * stored — they're each `footnote-reference` node's position, in document
+ * order, among all such nodes. Walks the whole tree once so every converter
+ * numbers references and their matching footnote-list entries identically. */
+export function collectFootnoteOrder(blocks: SNode[]): Map<string, number> {
+  const order = new Map<string, number>();
+  const visit = (node: SNode) => {
+    if (node.type === 'footnote-reference' && typeof node.footnoteId === 'string' && !order.has(node.footnoteId)) {
+      order.set(node.footnoteId, order.size + 1);
+    }
+    (node.children ?? []).forEach(visit);
+  };
+  blocks.forEach(visit);
+  return order;
+}
