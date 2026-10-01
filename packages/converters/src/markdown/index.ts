@@ -1,21 +1,14 @@
 import type { FormatConverter } from '../types';
+import { serializeMarkdown } from './serialize';
+import { parseMarkdown } from './parse';
 
 /**
- * Placeholder — the extended Markdown dialect (lexical-editor-spec.md §2.1)
- * is Phase 2 work (§13) and needs its own spec doc + sign-off before the
- * converter is built against it. Registered now so FormatRegistry's shape
- * is stable and callers get a clear error instead of a missing format.
+ * Extended Markdown (docs/markdown-dialect.md, ADR-0001): GFM plus a small
+ * set of directives, built on unified/remark so the same mdast tree can be
+ * rendered elsewhere.
  */
 export const markdownConverter: FormatConverter = {
   id: 'markdown',
-  serialize() {
-    throw new Error(
-      '@inshapardaz/likhari-converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
-    );
-  },
-  parse() {
-    throw new Error(
-      '@inshapardaz/likhari-converters: the extended Markdown dialect is not implemented yet (Phase 2, see docs/lexical-editor-spec.md §2.1 and §13).',
-    );
-  },
+  serialize: (state, ctx) => serializeMarkdown(state, ctx),
+  parse: (input, ctx) => parseMarkdown(input, ctx),
 };
