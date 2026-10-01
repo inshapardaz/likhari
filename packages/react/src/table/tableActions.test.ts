@@ -10,12 +10,16 @@ import {
   type TableNode as TableNodeType,
 } from '@lexical/table';
 import {
+  $canMergeSelectedCells,
+  $canUnmergeSelectedCell,
   $deleteTable,
   $deleteTableColumns,
   $deleteTableRows,
   $getTableSelectionSize,
   $insertTableColumns,
   $insertTableRows,
+  $mergeTableCells,
+  $unmergeTableCell,
 } from './tableActions';
 
 function makeEditor(): LexicalEditor {
@@ -138,6 +142,68 @@ describe('tableActions', () => {
     withTable(columns);
     act(columns, [1, 1, 2, 2], () => $deleteTableColumns());
     expect(grid(columns)[0]).toEqual(['11', '14']);
+  });
+
+  it('merges a selected rectangle of cells into the top-left one', () => {
+    const editor = makeEditor();
+    withTable(editor);
+    act(editor, [1, 1, 2, 2], () => $mergeTableCells());
+
+    const spans = editor.getEditorState().read(() => {
+      const table = $getRoot().getFirstChild() as TableNodeType;
+      const cell = (table.getChildren()[1] as TableRowNode).getChildren()[1] as TableCellNode;
+      return { rowSpan: cell.getRowSpan(), colSpan: cell.getColSpan(), text: cell.getTextContent() };
+    });
+    expect(spans).toEqual({ rowSpan: 2, colSpan: 2, text: '22\n\n23\n\n32\n\n33' });
+
+    // The merge removed the 3 covered cells, so each affected row is one cell short.
+    expect(grid(editor)[1]).toEqual(['21', '22\n\n23\n\n32\n\n33', '24']);
+    expect(grid(editor)[2]).toEqual(['31', '34']);
+    expect(grid(editor).every((row) => row.length >= 2)).toBe(true);
+  });
+
+  it('reports whether the current selection can be merged or unmerged', () => {
+    const editor = makeEditor();
+    withTable(editor);
+
+    const can = (sel: [number, number, number?, number?]) => {
+      let result = { merge: false, unmerge: false };
+      act(editor, sel, () => {
+        result = { merge: $canMergeSelectedCells(), unmerge: $canUnmergeSelectedCell() };
+      });
+      return result;
+    };
+    expect(can([1, 1])).toEqual({ merge: false, unmerge: false });
+    expect(can([1, 1, 2, 2])).toEqual({ merge: true, unmerge: false });
+
+    act(editor, [1, 1, 2, 2], () => $mergeTableCells());
+    expect(can([1, 1])).toEqual({ merge: false, unmerge: true });
+  });
+
+  it('unmerges a merged cell back into separate cells', () => {
+    const editor = makeEditor();
+    withTable(editor);
+    act(editor, [1, 1, 2, 2], () => $mergeTableCells());
+    act(editor, [1, 1], () => $unmergeTableCell());
+
+    const spans = editor.getEditorState().read(() => {
+      const table = $getRoot().getFirstChild() as TableNodeType;
+      const cell = (table.getChildren()[1] as TableRowNode).getChildren()[1] as TableCellNode;
+      return { rowSpan: cell.getRowSpan(), colSpan: cell.getColSpan() };
+    });
+    expect(spans).toEqual({ rowSpan: 1, colSpan: 1 });
+    expect(grid(editor).every((row) => row.length === 4)).toBe(true);
+  });
+
+  it('refuses a merge whose rectangle would cut an already-merged cell in half', () => {
+    const editor = makeEditor();
+    withTable(editor);
+    act(editor, [1, 1, 2, 2], () => $mergeTableCells());
+    const before = grid(editor);
+    // (0,1) to (1,0) brackets only the merged cell's top-left corner —
+    // its rect extends past this selection on both axes.
+    act(editor, [0, 1, 1, 0], () => $mergeTableCells());
+    expect(grid(editor)).toEqual(before);
   });
 
   it('deletes the whole table', () => {

@@ -513,11 +513,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
-          {/* hasCellMerge disabled: cell merge/split is an explicitly
-              flagged open risk (lexical-editor-spec.md §12 item 3) needing
-              its own scope decision — every table stays a plain grid until
-              that's resolved, rather than shipping a half-built merge UI. */}
-          {config.tables && <TablePlugin hasCellMerge={false} hasTabHandler />}
+          {config.tables && <TablePlugin hasCellMerge hasTabHandler />}
           {config.blocks.horizontalRule && <HorizontalRulePlugin />}
           <EditorInstancePlugin instanceRef={editorInstanceRef} />
           <OnChangePlugin onChange={handleChange} />

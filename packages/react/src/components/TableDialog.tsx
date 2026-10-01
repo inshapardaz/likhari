@@ -22,8 +22,8 @@ const DEFAULT_COLUMNS = 3;
 
 /**
  * Insert-table dialog: rows x columns and an optional header row. Cell
- * merge/split is intentionally not offered anywhere in this dialog or the
- * table it creates — see the comment on `TablePlugin` in `EditorRoot.tsx`.
+ * merge/split is a selection-time action (table context menu), not a
+ * dimension of the table at creation, so it has no place in this dialog.
  */
 export function TableDialog({ opened, onSubmit, onClose }: TableDialogProps) {
   const strings = useUiStrings();
