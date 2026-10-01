@@ -455,6 +455,16 @@ export function App() {
             >
               Load HTML sample
             </button>
+            <button
+              onClick={() =>
+                editorRef.current?.setContent(
+                  '# Imported from Markdown\n\nPlain, **bold**, *italic*, :u[underlined] and a [link](https://example.com).\n\n:::para{align="center"}\nسلام دنیا\n:::\n\n- [x] done\n- [ ] todo\n\n| A | B |\n| - | - |\n| 1 | 2 |\n',
+                  'markdown',
+                )
+              }
+            >
+              Load Markdown sample
+            </button>
             <button onClick={() => showOutput('Markdown', editorRef.current?.getContent('markdown') ?? '')}>Get Markdown</button>
             <button onClick={() => showOutput('Lexical JSON', formatIfJson(editorRef.current?.getContent('lexical-json') ?? ''))}>
               Get Lexical JSON

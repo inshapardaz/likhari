@@ -19,7 +19,7 @@ not yet implemented; see the phasing table in the spec.
 packages/
   core/            EditorFeatureConfig schema + presets, design tokens/theme.css
   converters/       Format transformers (plain-text, Lexical JSON, HTML done;
-                     Markdown is still a stub behind the same interface)
+                     Markdown draft dialect done)
   react/            @inshapardaz/likhari-react — the editor component + toolbar
 apps/
   demo/             Vite app for manually exercising the editor
@@ -45,7 +45,7 @@ or closed. `main` deploys to the site root. Requires Pages set to
 ## Content formats and `setContent`
 
 `ref.getContent(format)` and `ref.setContent(value, format)` accept `'lexical-json'`,
-`'plain-text'` and `'html'` (`'markdown'` is not implemented yet), and `initialContent`
+`'plain-text'`, `'html'` and `'markdown'`, and `initialContent`
 takes the same formats. `setContent` replaces the document; the new value becomes the
 clean baseline (no unsaved changes, and any pending draft of the old content is dropped).
 
@@ -56,6 +56,12 @@ indent. Import accepts arbitrary HTML (pasted web pages, other tools' output): i
 formatting from tags or `style`, bare text is wrapped in paragraphs, `<script>`/`<style>`
 are dropped, and `javascript:` links and non-image `data:` sources are removed. Import
 needs a DOM (`DOMParser`), so it runs in the browser or jsdom, not plain Node.
+
+**Markdown.** The extended dialect (GFM plus `remark-directive` constructs for underline,
+sup/sub, colour/font, alignment, indent, direction, captions and page breaks) is written
+up in [`docs/markdown-dialect.md`](docs/markdown-dialect.md), including what each
+format round-trips and what degrades. Columns, footnotes and poetry join it with their
+Phase 3 editor features.
 
 ## Images
 

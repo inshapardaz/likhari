@@ -33,14 +33,14 @@ interface InlineState {
 }
 
 /** Link hrefs with an executable scheme are dropped on import. */
-function safeUrl(url: string): string | null {
+export function safeUrl(url: string): string | null {
   const trimmed = url.trim();
   if (/^(javascript|vbscript|data:text\/html)/i.test(trimmed.replace(/[\u0000- ]/g, ''))) return null;
   return trimmed;
 }
 
 /** Image sources: only http(s), relative and base64 image data URIs. */
-function safeImageSrc(src: string): string | null {
+export function safeImageSrc(src: string): string | null {
   const trimmed = src.trim();
   if (!trimmed) return null;
   if (/^data:/i.test(trimmed)) return /^data:image\/(png|jpe?g|gif|webp|svg\+xml|avif|bmp);/i.test(trimmed) ? trimmed : null;
