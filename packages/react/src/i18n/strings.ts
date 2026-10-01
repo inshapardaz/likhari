@@ -81,7 +81,6 @@ export interface Strings {
     save: string;
     saveDraft: string;
     discard: string;
-    stay: string;
     /** Shown when a draft could not be stored (document too large, or storage unavailable). */
     saveDraftFailed: string;
   };
@@ -252,8 +251,7 @@ const en: Strings = {
     message: 'You have unsaved changes. What would you like to do before leaving?',
     save: 'Save',
     saveDraft: 'Save draft',
-    discard: 'Discard changes',
-    stay: 'Stay',
+    discard: 'Discard',
     saveDraftFailed: "The draft couldn't be saved (the document may be too large, or browser storage is unavailable).",
   },
   drafts: {
@@ -421,8 +419,7 @@ const ur: Strings = {
     message: 'آپ کی تبدیلیاں محفوظ نہیں ہوئیں۔ جانے سے پہلے آپ کیا کرنا چاہیں گے؟',
     save: 'محفوظ کریں',
     saveDraft: 'مسودہ محفوظ کریں',
-    discard: 'تبدیلیاں رد کریں',
-    stay: 'یہیں رہیں',
+    discard: 'رد کریں',
     saveDraftFailed: 'مسودہ محفوظ نہیں ہو سکا (دستاویز بہت بڑی ہو سکتی ہے، یا براؤزر کا اسٹوریج دستیاب نہیں)۔',
   },
   drafts: {
@@ -590,8 +587,7 @@ const paShahmukhi: Strings = {
     message: 'تہاڈیاں تبدیلیاں سنبھالیاں نئیں گئیاں۔ جان توں پہلاں تسی کی کرنا چاہو گے؟',
     save: 'سنبھالو',
     saveDraft: 'سودھا سنبھالو',
-    discard: 'تبدیلیاں رد کرو',
-    stay: 'ایتھے ای رہو',
+    discard: 'رد کرو',
     saveDraftFailed: 'سودھا سنبھالیا نئیں جا سکیا (دستاویز بہت وڈی ہو سکدی اے، یا براؤزر دی سٹوریج نئیں اے)۔',
   },
   drafts: {

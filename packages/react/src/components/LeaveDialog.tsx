@@ -13,8 +13,8 @@ export interface LeaveDialogProps {
   onSave: () => void;
   onSaveDraft: () => void;
   onDiscard: () => void;
-  /** Stay on the page (also Escape, the close button, and clicking outside). */
-  onStay: () => void;
+  /** Cancel: stay on the page. Escape, the close button and clicking outside do the same. */
+  onCancel: () => void;
 }
 
 /**
@@ -23,16 +23,16 @@ export interface LeaveDialogProps {
  * be styled, translated per editor, or offer more than OK/Cancel. (The browser's
  * own tab-close prompt can't be replaced — see `navigationGuard`.)
  */
-export function LeaveDialog({ opened, canSave, canSaveDraft, draftFailed, onSave, onSaveDraft, onDiscard, onStay }: LeaveDialogProps) {
+export function LeaveDialog({ opened, canSave, canSaveDraft, draftFailed, onSave, onSaveDraft, onDiscard, onCancel }: LeaveDialogProps) {
   const strings = useUiStrings();
   const portalTarget = usePortalTarget();
   return (
     <Modal
       opened={opened}
-      onClose={onStay}
+      onClose={onCancel}
       title={strings.leaveDialog.title}
       centered
-      size="md"
+      size="lg"
       portalProps={portalTarget ? { target: portalTarget } : undefined}
     >
       <Stack gap="md">
@@ -42,19 +42,24 @@ export function LeaveDialog({ opened, canSave, canSaveDraft, draftFailed, onSave
             {strings.leaveDialog.saveDraftFailed}
           </Alert>
         )}
-        <Group justify="flex-end" gap="xs" wrap="wrap">
-          <Button variant="default" onClick={onStay} data-autofocus>
-            {strings.leaveDialog.stay}
-          </Button>
-          <Button variant="subtle" color="red" onClick={onDiscard}>
+        {/* One row, in this order: Save, Discard, Save draft, Cancel. */}
+        <Group justify="flex-end" gap="xs" wrap="nowrap">
+          {canSave && (
+            <Button size="sm" onClick={onSave}>
+              {strings.leaveDialog.save}
+            </Button>
+          )}
+          <Button size="sm" variant="outline" color="red" onClick={onDiscard}>
             {strings.leaveDialog.discard}
           </Button>
           {canSaveDraft && (
-            <Button variant="default" onClick={onSaveDraft}>
+            <Button size="sm" variant="default" onClick={onSaveDraft}>
               {strings.leaveDialog.saveDraft}
             </Button>
           )}
-          {canSave && <Button onClick={onSave}>{strings.leaveDialog.save}</Button>}
+          <Button size="sm" variant="default" onClick={onCancel} data-autofocus>
+            {strings.common.cancel}
+          </Button>
         </Group>
       </Stack>
     </Modal>

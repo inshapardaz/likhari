@@ -131,7 +131,7 @@ export interface EditorRootProps {
    * `EditorRef.confirmDiscard()` (in-app navigation, which your router guard
    * calls) and for closing or refreshing the tab:
    * - `'confirm'` (default): `confirmDiscard()` opens an in-editor popup (Save /
-   *   Save draft / Discard changes / Stay). On closing or refreshing the tab no
+   *   Discard / Save draft / Cancel). On closing or refreshing the tab no
    *   popup is possible, and a draft is saved instead when `autosave` is on, so the
    *   browser's own "leave this page?" prompt is skipped; it only appears as a last
    *   resort, when no draft could be stored (autosave off, document over
@@ -529,7 +529,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             clearDraft(draftId);
             settleLeave(true);
           }}
-          onStay={() => settleLeave(false)}
+          onCancel={() => settleLeave(false)}
         />
         </UiStringsContext.Provider>
         </PortalTargetContext.Provider>

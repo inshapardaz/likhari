@@ -132,10 +132,11 @@ Three props control how unsaved work is protected. The defaults are shown.
 
 **Leaving.** In-app navigation is yours to intercept (the editor can't know your
 router), so call `await ref.current.confirmDiscard()` from your route guard: it
-resolves `true` if leaving is fine and `false` if the user chose to stay. With
-`navigationGuard="confirm"` it opens an in-editor popup, **Save** (when you pass
-`onSave`), **Save draft**, **Discard changes** or **Stay**, instead of the browser's
-`window.confirm()`. With `'save-draft'` it saves a draft and resolves `true` with no
+resolves `true` if leaving is fine and `false` if the user cancelled. With
+`navigationGuard="confirm"` it opens an in-editor popup with one row of buttons,
+**Save** (when you pass `onSave`), **Discard**, **Save draft** and **Cancel**, instead
+of the browser's `window.confirm()`. Escape, the close button and clicking outside
+all mean Cancel. With `'save-draft'` it saves a draft and resolves `true` with no
 popup (this works even when `autosave` is `false`). If a draft can't be stored, for
 example because the document is over `autosaveMaxBytes`, it falls back to the popup,
 so work is never lost silently. `hasUnsavedChanges()` tells you whether there is
