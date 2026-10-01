@@ -317,6 +317,24 @@
   }
 }
 
+/* Columns layout (lexical-editor-spec.md §4.9) — a CSS grid row whose
+   column count/widths come from the node's own inline style, not this
+   stylesheet, so each container can differ. */
+.likhari-layout-container {
+  display: grid;
+  gap: 24px;
+  margin: 0 0 1em 0;
+}
+
+.likhari-layout-item {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.likhari-layout-item > :last-child {
+  margin-bottom: 0;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;

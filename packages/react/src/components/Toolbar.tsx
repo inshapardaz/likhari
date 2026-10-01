@@ -41,7 +41,9 @@ import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontal
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
+import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
+import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
 import {
   $canMergeSelectedCells,
@@ -112,6 +114,7 @@ import {
   IconColumnInsertLeft,
   IconColumnInsertRight,
   IconColumnRemove,
+  IconColumns,
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
@@ -728,6 +731,25 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     closeTableDialog();
   };
 
+  const [layoutDialogOpen, setLayoutDialogOpen] = useState(false);
+
+  const openLayoutDialog = () => {
+    snapshotSelection();
+    setLayoutDialogOpen(true);
+  };
+
+  const closeLayoutDialog = () => {
+    setLayoutDialogOpen(false);
+    editor.focus();
+  };
+
+  const insertLayout = ({ columnCount }: LayoutDialogValue) => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    editor.dispatchCommand(INSERT_LAYOUT_COMMAND, { columnCount });
+    closeLayoutDialog();
+  };
+
   /** Applies a font property per `config.font.scope`: to the selection, to
    * every text node in the document, or (for 'both') to the selection when
    * there is a range and to the whole document when there isn't. */
@@ -943,6 +965,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     config.tables ||
     config.blocks.horizontalRule ||
     config.blocks.pageBreak ||
+    config.columns ||
     config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
@@ -1267,6 +1290,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           />
         )}
         {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
+        {config.columns && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
         {config.blocks.horizontalRule && (
           <ToolbarButton
             icon={IconSeparatorHorizontal}
@@ -1453,6 +1477,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
       {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
+      {config.columns && <LayoutDialog opened={layoutDialogOpen} onSubmit={insertLayout} onClose={closeLayoutDialog} />}
       {config.links && (
         <LinkDialog
           opened={linkDialogOpen}

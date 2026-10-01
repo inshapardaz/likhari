@@ -96,6 +96,15 @@ function tableToHtml(node: SNode, ctx?: ConverterContext): string {
   return `<table><tbody>${rows}</tbody></table>`;
 }
 
+function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
+  const items = node.children ?? [];
+  const templateColumns = typeof node.templateColumns === 'string' ? node.templateColumns : `repeat(${items.length}, 1fr)`;
+  const columns = items
+    .map((item) => `<div data-likhari-layout-item>${(item.children ?? []).map((child) => nodeToHtml(child, ctx)).join('')}</div>`)
+    .join('');
+  return `<div data-likhari-layout-container style="display: grid; grid-template-columns: ${escapeAttr(templateColumns)}">${columns}</div>`;
+}
+
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {
   const rawSrc = String(node.src ?? '');
   const src = ctx?.resolveImageUrl ? ctx.resolveImageUrl(rawSrc) : rawSrc;
@@ -142,6 +151,8 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
       return imageToHtml(node, ctx);
     case 'table':
       return tableToHtml(node, ctx);
+    case 'layout-container':
+      return layoutToHtml(node, ctx);
     default:
       // Unknown node (e.g. a future feature): keep its content, drop the wrapper.
       return inlineChildren(node, ctx);

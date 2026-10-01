@@ -48,6 +48,7 @@ export interface Strings {
     insertImage: string;
     insertPageBreak: string;
     insertTable: string;
+    insertColumns: string;
     insertHorizontalRule: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
@@ -158,6 +159,10 @@ export interface Strings {
     columns: string;
     headerRow: string;
   };
+  layoutDialog: {
+    title: string;
+    columnCount: string;
+  };
   imageDialog: {
     titleInsert: string;
     titleEdit: string;
@@ -251,6 +256,7 @@ const en: Strings = {
     insertImage: 'Insert image',
     insertPageBreak: 'Insert page break',
     insertTable: 'Insert table',
+    insertColumns: 'Insert columns',
     insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
@@ -354,6 +360,10 @@ const en: Strings = {
     columns: 'Columns',
     headerRow: 'Header row',
   },
+  layoutDialog: {
+    title: 'Insert columns',
+    columnCount: 'Number of columns',
+  },
   imageDialog: {
     titleInsert: 'Insert image',
     titleEdit: 'Edit image',
@@ -448,6 +458,7 @@ const ur: Strings = {
     insertImage: 'تصویر شامل کریں',
     insertPageBreak: 'صفحے کی تقسیم شامل کریں',
     insertTable: 'جدول شامل کریں',
+    insertColumns: 'کالم شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
@@ -551,6 +562,10 @@ const ur: Strings = {
     columns: 'کالم',
     headerRow: 'سرِ فہرست قطار',
   },
+  layoutDialog: {
+    title: 'کالم شامل کریں',
+    columnCount: 'کالموں کی تعداد',
+  },
   imageDialog: {
     titleInsert: 'تصویر شامل کریں',
     titleEdit: 'تصویر میں ترمیم کریں',
@@ -645,6 +660,7 @@ const paShahmukhi: Strings = {
     insertImage: 'تصویر پاؤ',
     insertPageBreak: 'صفحے دی ونڈ پاؤ',
     insertTable: 'ٹیبل پاؤ',
+    insertColumns: 'کالم پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
@@ -747,6 +763,10 @@ const paShahmukhi: Strings = {
     rows: 'قطاراں',
     columns: 'کالم',
     headerRow: 'سرکڑی قطار',
+  },
+  layoutDialog: {
+    title: 'کالم پاؤ',
+    columnCount: 'کالماں دی گنتی',
   },
   imageDialog: {
     titleInsert: 'تصویر پاؤ',
