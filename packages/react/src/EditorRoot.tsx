@@ -7,6 +7,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import type { EditorState, SerializedEditorState } from 'lexical';
@@ -503,6 +504,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
+          {config.blocks.horizontalRule && <HorizontalRulePlugin />}
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>

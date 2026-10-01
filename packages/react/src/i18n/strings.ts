@@ -42,6 +42,7 @@ export interface Strings {
     linkOptions: string;
     insertLink: string;
     insertImage: string;
+    insertHorizontalRule: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
@@ -214,6 +215,7 @@ const en: Strings = {
     linkOptions: 'Link options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
+    insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
@@ -382,6 +384,7 @@ const ur: Strings = {
     linkOptions: 'لنک کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
+    insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
@@ -550,6 +553,7 @@ const paShahmukhi: Strings = {
     linkOptions: 'لنک دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
+    insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
