@@ -18,8 +18,8 @@ not yet implemented; see the phasing table in the spec.
 ```
 packages/
   core/            EditorFeatureConfig schema + presets, design tokens/theme.css
-  converters/       Format transformers (plain-text, Lexical JSON done;
-                     Markdown/HTML are Phase 2 stubs behind the same interface)
+  converters/       Format transformers (plain-text, Lexical JSON, HTML done;
+                     Markdown is still a stub behind the same interface)
   react/            @inshapardaz/likhari-react — the editor component + toolbar
 apps/
   demo/             Vite app for manually exercising the editor
@@ -41,6 +41,21 @@ Every pull request from a branch in this repo gets its own copy of the demo at
 comment and updated on each push. The preview is removed when the PR is merged
 or closed. `main` deploys to the site root. Requires Pages set to
 **Deploy from a branch: `gh-pages` / root** (one-time setting).
+
+## Content formats and `setContent`
+
+`ref.getContent(format)` and `ref.setContent(value, format)` accept `'lexical-json'`,
+`'plain-text'` and `'html'` (`'markdown'` is not implemented yet), and `initialContent`
+takes the same formats. `setContent` replaces the document; the new value becomes the
+clean baseline (no unsaved changes, and any pending draft of the old content is dropped).
+
+**HTML.** Export writes semantic HTML: paragraphs, headings, quotes, lists (including
+nested and checklists), links, tables, images (`<figure>`/`<figcaption>`), rules and page
+breaks, with `dir`, `text-align` and `padding-inline-start` for direction, alignment and
+indent. Import accepts arbitrary HTML (pasted web pages, other tools' output): inline
+formatting from tags or `style`, bare text is wrapped in paragraphs, `<script>`/`<style>`
+are dropped, and `javascript:` links and non-image `data:` sources are removed. Import
+needs a DOM (`DOMParser`), so it runs in the browser or jsdom, not plain Node.
 
 ## Images
 

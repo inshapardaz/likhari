@@ -11,7 +11,8 @@ import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
-import type { EditorState, SerializedEditorState } from 'lexical';
+import type { EditorState, LexicalEditor, SerializedEditorState } from 'lexical';
+import { EditorInstancePlugin } from './plugins/EditorInstancePlugin';
 import { defaultFormatRegistry, type FormatId } from '@inshapardaz/likhari-converters';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 import { EDITOR_NODES } from './nodes';
@@ -43,7 +44,7 @@ const DEFAULT_AUTOSAVE_MAX_DRAFTS = 20;
 export type NavigationGuardMode = 'confirm' | 'save-draft' | 'off';
 
 export interface EditorInitialContent {
-  format: Extract<FormatId, 'lexical-json' | 'plain-text'>;
+  format: FormatId;
   value: string;
 }
 
@@ -377,15 +378,19 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         return defaultFormatRegistry.serialize(format, json);
       },
       setContent(value, format) {
-        // Applied on next render via editorState prop is not supported for
-        // an already-mounted LexicalComposer; hosts needing this before
-        // Phase 2's controlled-mode support should remount with a new
-        // `initialContent`/`documentId` in the meantime.
-        void value;
-        void format;
-        throw new Error(
-          '@inshapardaz/likhari-react: EditorRef.setContent is not implemented yet — controlled mode is Phase 2 work (docs/editor-architecture-design.md §5).',
-        );
+        const editor = editorInstanceRef.current;
+        if (!editor) return;
+        const parsed = editor.parseEditorState(JSON.stringify(defaultFormatRegistry.parse(format, value)));
+        // The host's value is the new baseline: clean, and no stale draft of
+        // whatever it replaces should be offered back later.
+        lastSavedJsonRef.current = JSON.stringify(parsed.toJSON());
+        if (autosaveTimerRef.current) {
+          clearTimeout(autosaveTimerRef.current);
+          autosaveTimerRef.current = null;
+        }
+        pendingDraftRef.current = null;
+        editor.setEditorState(parsed);
+        setIsDirty(false);
       },
       hasUnsavedChanges() {
         return isDirty;
@@ -401,6 +406,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   );
 
   const rootElementRef = useRef<HTMLDivElement | null>(null);
+  const editorInstanceRef = useRef<LexicalEditor | null>(null);
 
   const handleChange = (state: EditorState) => {
     editorStateRef.current = state;
@@ -513,6 +519,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
               that's resolved, rather than shipping a half-built merge UI. */}
           {config.tables && <TablePlugin hasCellMerge={false} hasTabHandler />}
           {config.blocks.horizontalRule && <HorizontalRulePlugin />}
+          <EditorInstancePlugin instanceRef={editorInstanceRef} />
           <OnChangePlugin onChange={handleChange} />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
