@@ -37,11 +37,23 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
+import { TableDialog, type TableDialogValue } from './TableDialog';
+import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
+import {
+  $deleteTable,
+  $deleteTableColumns,
+  $deleteTableRows,
+  $getTableSelectionSize,
+  $insertTableColumns,
+  $insertTableRows,
+} from '../table/tableActions';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
+import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
@@ -61,6 +73,7 @@ import {
   IconClearFormatting,
   IconDeviceFloppy,
   IconDots,
+  IconHistory,
   IconExternalLink,
   IconFeather,
   IconH1,
@@ -85,10 +98,20 @@ import {
   IconPhoto,
   IconPilcrow,
   IconQuote,
+  IconSeparatorHorizontal,
   IconSparkles,
   IconStrikethrough,
   IconSubscript,
   IconSuperscript,
+  IconColumnInsertLeft,
+  IconColumnInsertRight,
+  IconColumnRemove,
+  IconRowInsertBottom,
+  IconRowInsertTop,
+  IconRowRemove,
+  IconTable,
+  IconTableMinus,
+  IconTableOptions,
   IconTextSize,
   IconTypography,
   IconUnderline,
@@ -115,6 +138,11 @@ interface ToolbarState {
   /** Selection is inside a link; `linkUrl` is that link's URL. */
   isLink: boolean;
   linkUrl: string;
+  /** The caret (or a multi-cell selection) is inside a table. */
+  inTable: boolean;
+  /** Rows / columns the selection spans, for the table menu's plural labels. */
+  tableRows: number;
+  tableColumns: number;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -133,6 +161,9 @@ const INITIAL_STATE: ToolbarState = {
   fontSize: UNSET_STYLE,
   isLink: false,
   linkUrl: '',
+  inTable: false,
+  tableRows: 1,
+  tableColumns: 1,
   canUndo: false,
   canRedo: false,
 };
@@ -374,6 +405,60 @@ function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit
   );
 }
 
+/** The table actions menu's contents — shared by the toolbar button and the
+ * right-click menu. Each acts on the selected cell, or on every row/column a
+ * multi-cell selection covers. */
+function TableMenuItems({
+  strings,
+  direction,
+  rows,
+  columns,
+  onAction,
+}: {
+  strings: Strings;
+  direction: 'ltr' | 'rtl';
+  /** Rows / columns the selection spans: more than one switches to the plural labels. */
+  rows: number;
+  columns: number;
+  onAction: (action: () => void) => () => void;
+}) {
+  const t = strings.tableMenu;
+  // "Before" is the start side, which is on the right in an RTL table.
+  const rtl = direction === 'rtl';
+  const manyRows = rows > 1;
+  const manyColumns = columns > 1;
+  const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => {
+    const Icon = icon;
+    return (
+      <Menu.Item
+        color={color}
+        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onAction(action)}
+      >
+        {label}
+      </Menu.Item>
+    );
+  };
+  return (
+    <>
+      <Menu.Label>{t.menuLabel}</Menu.Label>
+      {item(IconRowInsertTop, manyRows ? t.insertRowsBefore : t.insertRowBefore, () => $insertTableRows(false))}
+      {item(IconRowInsertBottom, manyRows ? t.insertRowsAfter : t.insertRowAfter, () => $insertTableRows(true))}
+      {item(rtl ? IconColumnInsertRight : IconColumnInsertLeft, manyColumns ? t.insertColumnsBefore : t.insertColumnBefore, () =>
+        $insertTableColumns(false),
+      )}
+      {item(rtl ? IconColumnInsertLeft : IconColumnInsertRight, manyColumns ? t.insertColumnsAfter : t.insertColumnAfter, () =>
+        $insertTableColumns(true),
+      )}
+      <Menu.Divider />
+      {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
+      {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
+      {item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -385,13 +470,16 @@ export interface ToolbarProps {
   direction?: 'ltr' | 'rtl';
   /** UI locale — picks the translated strings for labels, tooltips and menu items. */
   locale?: Locale;
+  /** Autosave drafts: when set, the toolbar offers a Drafts button that lists and restores them. */
+  drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en' }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
   const portalTarget = usePortalTarget();
+  const [draftsOpen, setDraftsOpen] = useState(false);
 
   // Responsive "priority+" overflow: the toolbar's outer container and a
   // hidden nowrap clone (rendered with every movable group forced inline)
@@ -406,9 +494,17 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
       const selection = $getSelection();
+      // A selection of several table cells isn't a range selection.
+      if ($isTableSelection(selection)) {
+        const { rows, columns } = $getTableSelectionSize();
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns }));
+        return;
+      }
       if (!$isRangeSelection(selection)) return;
 
       const anchorNode = selection.anchor.getNode();
+      const inTable = $getTableCellNodeFromLexicalNode(anchorNode) !== null;
+      const tableSize = inTable ? $getTableSelectionSize() : { rows: 1, columns: 1 };
       const element = anchorNode.getKey() === 'root' ? anchorNode : (anchorNode.getTopLevelElement() ?? anchorNode);
 
       const listParent = $findMatchingParent(anchorNode, $isListNode);
@@ -450,6 +546,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         fontSize,
         isLink,
         linkUrl,
+        inTable,
+        tableRows: tableSize.rows,
+        tableColumns: tableSize.columns,
       }));
     });
   }, [editor]);
@@ -570,6 +669,29 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     closeImageDialog();
   };
 
+  const [tableDialogOpen, setTableDialogOpen] = useState(false);
+
+  const openTableDialog = () => {
+    snapshotSelection();
+    setTableDialogOpen(true);
+  };
+
+  const closeTableDialog = () => {
+    setTableDialogOpen(false);
+    editor.focus();
+  };
+
+  const insertTable = ({ rows, columns, headerRow }: TableDialogValue) => {
+    const saved = menuSelectionRef.current;
+    if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
+    editor.dispatchCommand(INSERT_TABLE_COMMAND, {
+      rows: String(rows),
+      columns: String(columns),
+      includeHeaders: { rows: headerRow, columns: false },
+    });
+    closeTableDialog();
+  };
+
   /** Applies a font property per `config.font.scope`: to the selection, to
    * every text node in the document, or (for 'both') to the selection when
    * there is a range and to the whole document when there isn't. */
@@ -668,6 +790,51 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     });
   }, [editor, config.links]);
 
+  // Table actions. The menu takes focus, so the selection is snapshotted when it
+  // opens and restored before an action runs.
+  const runTableAction = (action: () => void) => () => {
+    restoreSelection();
+    editor.update(action);
+    editor.focus();
+  };
+
+  // Right-clicking a table cell opens the same actions at the pointer.
+  const [tableContext, setTableContext] = useState<{ x: number; y: number; rows: number; columns: number } | null>(null);
+
+  useEffect(() => {
+    if (!config.tables) return;
+    const onContextMenu = (event: MouseEvent) => {
+      if (event.defaultPrevented) return; // a link inside the cell already took it
+      const cellElement = (event.target as HTMLElement | null)?.closest?.('td, th');
+      if (!cellElement) return;
+      let handled = false;
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(cellElement);
+          const cell = node ? $getTableCellNodeFromLexicalNode(node) : null;
+          if (!cell) return;
+          handled = true;
+          const selection = $getSelection();
+          // Keep a multi-cell selection that includes this cell, so "insert
+          // rows" / "delete columns" act on everything selected.
+          const insideSelection =
+            $isTableSelection(selection) && selection.getNodes().some((n) => n.getKey() === cell.getKey());
+          if (!insideSelection) cell.selectEnd();
+        },
+        { discrete: true },
+      );
+      if (!handled) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      const size = editor.getEditorState().read($getTableSelectionSize);
+      setTableContext({ x: event.clientX, y: event.clientY, rows: size.rows, columns: size.columns });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.tables]);
+
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
     if (!config.links) return;
@@ -734,7 +901,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showStubInsertGroup = config.images.linked || config.images.embedded || config.blocks.pageBreak || config.poetry.enabled;
+  const showStubInsertGroup =
+    config.images.linked ||
+    config.images.embedded ||
+    config.tables ||
+    config.blocks.horizontalRule ||
+    config.blocks.pageBreak ||
+    config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
@@ -907,6 +1080,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
       </div>
     ),
+    drafts && (
+      <div className="likhari-toolbar-group" key="drafts">
+        <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />
+      </div>
+    ),
     config.history && (
       <div className="likhari-toolbar-group" key="history">
         <ToolbarButton
@@ -1050,7 +1228,38 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
           />
         )}
+        {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
+        {config.blocks.horizontalRule && (
+          <ToolbarButton
+            icon={IconSeparatorHorizontal}
+            title={strings.toolbar.insertHorizontalRule}
+            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+          />
+        )}
         {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
+      </div>
+    ),
+    config.tables && state.inTable && (
+      <div className="likhari-toolbar-group" key="tableActions">
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
+          <Menu.Target>
+            <button
+              type="button"
+              className="likhari-toolbar-button"
+              data-active="true"
+              aria-pressed="true"
+              aria-haspopup="menu"
+              aria-label={strings.toolbar.tableOptions}
+              title={strings.toolbar.tableOptions}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <IconTableOptions size={ICON_SIZE} stroke={ICON_STROKE} />
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <TableMenuItems strings={strings} direction={direction} rows={state.tableRows} columns={state.tableColumns} onAction={runTableAction} />
+          </Menu.Dropdown>
+        </Menu>
       </div>
     ),
     showLanguageGroup && (
@@ -1138,6 +1347,37 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         </Menu>
       )}
 
+      {config.tables && (
+        <Menu
+          opened={tableContext !== null}
+          onChange={(opened) => {
+            if (!opened) setTableContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          portalProps={{ target: portalTarget }}
+          shadow="sm"
+          width={240}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: tableContext?.x ?? -9999, top: tableContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <TableMenuItems
+              strings={strings}
+              direction={direction}
+              rows={tableContext?.rows ?? 1}
+              columns={tableContext?.columns ?? 1}
+              onAction={runTableAction}
+            />
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
       {/* Hidden clone, rendering every group (fixed + movable) inline with
           no wrapping — its natural (unclipped) width is what the effect
           above compares against the container's available width to decide
@@ -1164,6 +1404,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       {(config.images.linked || config.images.embedded) && (
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
+      {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
       {config.links && (
         <LinkDialog
           opened={linkDialogOpen}
@@ -1174,6 +1415,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           onClose={closeLinkDialog}
         />
       )}
+      {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
     </div>
   );
 }

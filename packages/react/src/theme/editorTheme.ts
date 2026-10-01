@@ -36,4 +36,9 @@ export const editorTheme: EditorThemeClasses = {
   hr: 'likhari-hr',
   image: 'likhari-image-block',
   pageBreak: 'likhari-page-break',
+  table: 'likhari-table',
+  tableRow: 'likhari-table-row',
+  tableCell: 'likhari-table-cell',
+  tableCellHeader: 'likhari-table-cell-header',
+  tableCellSelected: 'likhari-table-cell-selected',
 };

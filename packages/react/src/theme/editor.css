@@ -51,6 +51,12 @@
   pointer-events: none;
 }
 
+/* pointer-events is inherited, so without this every menu, dropdown and dialog
+   portaled into the (pointer-transparent) anchor would be unclickable. */
+.likhari-portal-target > * {
+  pointer-events: auto;
+}
+
 .likhari-toolbar-group {
   display: flex;
   align-items: center;
@@ -292,6 +298,37 @@
   }
 }
 
+/* Tables — cell merge/split is deliberately out of scope for now (a flagged
+   open risk, lexical-editor-spec.md §12 item 3, needing its own scope
+   decision); TablePlugin is configured with hasCellMerge={false} to keep
+   every table a plain grid until that's resolved. */
+.likhari-table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.likhari-table-row {
+  border-bottom: 1px solid var(--editor-line);
+}
+
+.likhari-table-cell {
+  border: 1px solid var(--editor-line);
+  padding: 6px 10px;
+  min-width: 72px;
+  vertical-align: top;
+}
+
+.likhari-table-cell-header {
+  background: var(--editor-paper-dim);
+  font-weight: 600;
+  text-align: start;
+}
+
+.likhari-table-cell-selected {
+  background: var(--editor-accent-soft);
+}
+
 /* Images — block-level figure; the caption is static text (edited in the
    image's dialog), and a selected image gets a corner resize handle. */
 .likhari-image-block {
@@ -408,4 +445,78 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Restore-draft banner: a strip between the toolbar and the canvas. Uses the
+   editor's own tokens, so it follows the accent color and dark mode. */
+.likhari-draft-banner {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--editor-accent-soft);
+  border-bottom: 1px solid var(--editor-line);
+  color: var(--editor-ink);
+  font-size: 13px;
+}
+
+.likhari-draft-banner-message {
+  display: flex;
+  flex: 1 1 240px;
+  align-items: center;
+  gap: 8px;
+}
+
+.likhari-draft-banner-message svg {
+  flex-shrink: 0;
+  color: var(--editor-accent);
+}
+
+.likhari-draft-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.likhari-draft-banner-button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--editor-line-strong);
+  border-radius: 6px;
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.likhari-draft-banner-button:hover {
+  background: var(--editor-paper-dim);
+}
+
+.likhari-draft-banner-button[data-variant='primary'] {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent);
+  color: var(--editor-paper);
+}
+
+.likhari-draft-banner-button[data-variant='primary']:hover {
+  filter: brightness(1.1);
+}
+
+.likhari-draft-banner-button[data-variant='danger'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--editor-danger);
+}
+
+.likhari-draft-banner-button[data-variant='danger']:hover {
+  background: var(--editor-paper-dim);
+}
+
+.likhari-draft-banner-button:focus-visible {
+  outline: 2px solid var(--editor-accent);
+  outline-offset: 1px;
 }

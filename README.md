@@ -87,6 +87,24 @@ return:
 Images serialize to Lexical JSON as an `image` node (`src`, `altText`, `caption`,
 `linkType`, `width`, `height`) and export to plain text as their alt text.
 
+## Tables
+
+With `tables` enabled in the feature config, the toolbar's table button inserts a
+table (rows, columns, optional header row). Cells can't be merged or split yet (see
+the open risk in `docs/lexical-editor-spec.md` §12), so every table is a plain grid.
+
+**Table actions.** While the caret is in a table the toolbar shows a *Table options*
+button, and right-clicking a cell opens the same menu at the pointer:
+
+- *Insert row before / after*, *Insert column before / after*
+- *Delete row*, *Delete column*, *Delete table*
+
+Select several cells (drag across them) and the actions apply to the whole selection:
+the menu switches to *Insert rows / columns before / after* and inserts as many as are
+selected, on the outside edge of the selection; *Delete rows / columns* removes every
+row or column the selection touches. In a right-to-left table "before" is the right-hand
+side. Deleting the last remaining row or column removes the table.
+
 ## Fonts
 
 When `font.family` / `font.size` are enabled in the feature config, the toolbar
@@ -111,6 +129,61 @@ import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
   fontOptions={[...DEFAULT_FONT_OPTIONS, { name: 'My font', family: '"My font", serif', group: 'Custom' }]}
 />
 ```
+
+## Drafts and leaving with unsaved changes
+
+Three props control how unsaved work is protected. The defaults are shown.
+
+| Prop | Values | What it controls |
+|---|---|---|
+| `autosave` | `true` / `false` | **Save drafts.** While you type, a draft is saved to the browser's `localStorage` (debounced by `autosaveDelayMs`, default 750 ms). A successful save clears it. |
+| `restoreDraft` | `'prompt'` / `'auto'` / `'off'` | **Load a saved draft** of this `documentId` that is newer than the initial content, on mount. `'prompt'` shows a banner (Restore / Ignore / Remove draft); `'auto'` loads it straight away (see `onDraftRestored`); `'off'` keeps the initial content and moves the draft aside into the drafts list. |
+| `navigationGuard` | `'confirm'` / `'save-draft'` / `'off'` | **What happens when the user leaves with unsaved changes.** `'confirm'` asks (an in-editor popup through `confirmDiscard()`); `'save-draft'` silently saves a draft and lets them go; `'off'` never asks. |
+
+```tsx
+// Silently keep a draft and never interrupt the user
+<EditorRoot documentId="chapter-3" restoreDraft="auto" navigationGuard="save-draft" />
+
+// Never store anything in the browser, but still ask before leaving
+<EditorRoot autosave={false} restoreDraft="off" navigationGuard="confirm" />
+```
+
+**Leaving.** In-app navigation is yours to intercept (the editor can't know your
+router), so call `await ref.current.confirmDiscard()` from your route guard: it
+resolves `true` if leaving is fine and `false` if the user cancelled. With
+`navigationGuard="confirm"` it opens an in-editor popup with one row of buttons,
+**Save** (when you pass `onSave`), **Discard**, **Save draft** and **Cancel**, instead
+of the browser's `window.confirm()`. Escape, the close button and clicking outside
+all mean Cancel. With `'save-draft'` it saves a draft and resolves `true` with no
+popup (this works even when `autosave` is `false`). If a draft can't be stored, for
+example because the document is over `autosaveMaxBytes`, it falls back to the popup,
+so work is never lost silently. `hasUnsavedChanges()` tells you whether there is
+anything to ask about.
+
+**Closing or refreshing the tab.** A page can't show its own popup there, and the
+browser's "leave this page?" prompt can't be restyled or reworded. So the editor
+avoids it: with `autosave` on (or `navigationGuard="save-draft"`) it saves a draft as
+the page unloads and shows nothing. The work comes back through the restore banner or
+the drafts list when the page is opened again. The browser prompt only appears as a
+last resort, with `navigationGuard="confirm"` when no draft could be stored (autosave
+is off, the document is over `autosaveMaxBytes`, or storage is unavailable), because
+it is then the only thing between the user and losing their work. Set
+`navigationGuard="off"` to never show it.
+
+**Draft key.** The draft is stored under your `documentId` when you give one. Without
+one, the editor generates a unique id for itself, so editors without a `documentId`
+never overwrite each other's drafts (`restoreDraft` needs a `documentId`, since there
+is no stable key to look up).
+
+**Drafts list.** The toolbar's clock button lists every draft in the browser (all
+documents, plus the earlier versions kept by *Ignore*, `restoreDraft="off"` and
+restores), newest first, with **Restore** and **Delete**. Restoring over different
+content asks first, and keeps the content it replaces as a draft of its own. Without
+a `documentId`, a restored draft becomes this editor's draft, so later edits update it.
+
+**Limits.** A draft over `autosaveMaxBytes` (default ~2 MB, since embedded images make
+documents large) isn't written, a blank document isn't stored, and only the newest
+`autosaveMaxDrafts` (default 20) are kept. Drafts live in this browser only.
 
 ## Theming and customization (Mantine, headless)
 

@@ -15,8 +15,6 @@ export interface Strings {
     placeholder: string;
     /** aria-label on the contenteditable itself. */
     contentLabel: string;
-    /** window.confirm() prompt shown by EditorRef.confirmDiscard() when there are unsaved changes. */
-    confirmDiscard: string;
     /** Label shown on a page-break marker's dashed line while editing. */
     pageBreakLabel: string;
   };
@@ -29,6 +27,8 @@ export interface Strings {
     /** aria-label on the toolbar's own role="toolbar" container. */
     ariaLabel: string;
     save: string;
+    /** Opens the list of autosaved drafts. */
+    drafts: string;
     undo: string;
     redo: string;
     formattingLabel: string;
@@ -42,9 +42,13 @@ export interface Strings {
     noMatch: string;
     alignment: string;
     linkOptions: string;
+    /** Toolbar button (shown while the caret is in a table) that opens the table actions menu. */
+    tableOptions: string;
     insertLink: string;
     insertImage: string;
     insertPageBreak: string;
+    insertTable: string;
+    insertHorizontalRule: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
@@ -77,6 +81,59 @@ export interface Strings {
       right: string;
     };
   };
+  /** The popup `EditorRef.confirmDiscard()` shows when the user is about to leave with unsaved changes (lexical-editor-spec.md §6.4). */
+  leaveDialog: {
+    title: string;
+    message: string;
+    save: string;
+    saveDraft: string;
+    discard: string;
+    /** Shown when a draft could not be stored (document too large, or storage unavailable). */
+    saveDraftFailed: string;
+  };
+  /** Autosave drafts (lexical-editor-spec.md §6.2): the restore banner and the drafts list dialog. */
+  drafts: {
+    /** Banner shown when a newer unsaved draft of this document is found; `when` is a formatted date/time. */
+    bannerMessage: (when: string) => string;
+    restore: string;
+    ignore: string;
+    remove: string;
+    dialogTitle: string;
+    intro: string;
+    empty: string;
+    /** Shown for a draft with no text (e.g. only an image). */
+    noText: string;
+    thisDocument: string;
+    untitled: string;
+    documentLabel: (id: string) => string;
+    earlierUntitled: string;
+    earlierVersionOf: (id: string) => string;
+    savedAt: (when: string) => string;
+    size: (kb: number) => string;
+    replacePrompt: string;
+    replace: string;
+    deletePrompt: string;
+    delete: string;
+    close: string;
+  };
+  /** The table actions menu (toolbar button and right-click on a cell). */
+  tableMenu: {
+    menuLabel: string;
+    insertRowBefore: string;
+    insertRowAfter: string;
+    insertColumnBefore: string;
+    insertColumnAfter: string;
+    deleteRow: string;
+    deleteColumn: string;
+    deleteTable: string;
+    /** Plural forms, used when the selection spans several rows or columns. */
+    insertRowsBefore: string;
+    insertRowsAfter: string;
+    insertColumnsBefore: string;
+    insertColumnsAfter: string;
+    deleteRows: string;
+    deleteColumns: string;
+  };
   link: {
     menuLabel: string;
     noUrl: string;
@@ -92,6 +149,12 @@ export interface Strings {
     textPlaceholder: string;
     invalidUrl: string;
     apply: string;
+  };
+  tableDialog: {
+    title: string;
+    rows: string;
+    columns: string;
+    headerRow: string;
   };
   imageDialog: {
     titleInsert: string;
@@ -157,7 +220,6 @@ const en: Strings = {
   editor: {
     placeholder: 'Start writing…',
     contentLabel: 'Editor content',
-    confirmDiscard: 'You have unsaved changes. Discard them?',
     pageBreakLabel: 'Page break',
   },
   common: {
@@ -168,6 +230,7 @@ const en: Strings = {
   toolbar: {
     ariaLabel: 'Formatting',
     save: 'Save',
+    drafts: 'Drafts',
     undo: 'Undo',
     redo: 'Redo',
     formattingLabel: 'Formatting',
@@ -181,9 +244,12 @@ const en: Strings = {
     noMatch: 'No match',
     alignment: 'Alignment',
     linkOptions: 'Link options',
+    tableOptions: 'Table options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
     insertPageBreak: 'Insert page break',
+    insertTable: 'Insert table',
+    insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
@@ -216,6 +282,52 @@ const en: Strings = {
       right: 'Align right',
     },
   },
+  leaveDialog: {
+    title: 'Unsaved changes',
+    message: 'You have unsaved changes. What would you like to do before leaving?',
+    save: 'Save',
+    saveDraft: 'Save draft',
+    discard: 'Discard',
+    saveDraftFailed: "The draft couldn't be saved (the document may be too large, or browser storage is unavailable).",
+  },
+  drafts: {
+    bannerMessage: (when) => `An unsaved draft of this document from ${when} was found.`,
+    restore: 'Restore',
+    ignore: 'Ignore',
+    remove: 'Remove draft',
+    dialogTitle: 'Saved drafts',
+    intro: 'Drafts are saved in this browser as you type, and removed when you save.',
+    empty: 'No drafts yet.',
+    noText: '(no text)',
+    thisDocument: 'Current document',
+    untitled: 'Untitled draft',
+    documentLabel: (id) => `Document “${id}”`,
+    earlierUntitled: 'Earlier version of an untitled draft',
+    earlierVersionOf: (id) => `Earlier version of “${id}”`,
+    savedAt: (when) => `Saved ${when}`,
+    size: (kb) => `${kb} KB`,
+    replacePrompt: 'Replace the current content with this draft?',
+    replace: 'Replace',
+    deletePrompt: 'Delete this draft?',
+    delete: 'Delete',
+    close: 'Close',
+  },
+  tableMenu: {
+    menuLabel: 'Table',
+    insertRowBefore: 'Insert row before',
+    insertRowAfter: 'Insert row after',
+    insertColumnBefore: 'Insert column before',
+    insertColumnAfter: 'Insert column after',
+    deleteRow: 'Delete row',
+    deleteColumn: 'Delete column',
+    deleteTable: 'Delete table',
+    insertRowsBefore: 'Insert rows before',
+    insertRowsAfter: 'Insert rows after',
+    insertColumnsBefore: 'Insert columns before',
+    insertColumnsAfter: 'Insert columns after',
+    deleteRows: 'Delete rows',
+    deleteColumns: 'Delete columns',
+  },
   link: {
     menuLabel: 'Link',
     noUrl: '(no URL)',
@@ -231,6 +343,12 @@ const en: Strings = {
     textPlaceholder: 'Link text (defaults to the URL)',
     invalidUrl: 'Enter a valid http(s), mailto, tel or relative URL',
     apply: 'Apply',
+  },
+  tableDialog: {
+    title: 'Insert table',
+    rows: 'Rows',
+    columns: 'Columns',
+    headerRow: 'Header row',
   },
   imageDialog: {
     titleInsert: 'Insert image',
@@ -297,7 +415,6 @@ const ur: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کریں…',
     contentLabel: 'ایڈیٹر کا مواد',
-    confirmDiscard: 'آپ کی غیر محفوظ شدہ تبدیلیاں ہیں۔ کیا انہیں رد کر دیا جائے؟',
     pageBreakLabel: 'صفحے کی تقسیم',
   },
   common: {
@@ -308,6 +425,7 @@ const ur: Strings = {
   toolbar: {
     ariaLabel: 'فارمیٹنگ',
     save: 'محفوظ کریں',
+    drafts: 'مسودے',
     undo: 'کالعدم کریں',
     redo: 'دوبارہ کریں',
     formattingLabel: 'فارمیٹنگ',
@@ -321,9 +439,12 @@ const ur: Strings = {
     noMatch: 'کوئی مماثلت نہیں',
     alignment: 'سیدھ',
     linkOptions: 'لنک کے اختیارات',
+    tableOptions: 'جدول کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
     insertPageBreak: 'صفحے کی تقسیم شامل کریں',
+    insertTable: 'جدول شامل کریں',
+    insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
@@ -356,6 +477,52 @@ const ur: Strings = {
       right: 'دائیں سیدھ',
     },
   },
+  leaveDialog: {
+    title: 'غیر محفوظ شدہ تبدیلیاں',
+    message: 'آپ کی تبدیلیاں محفوظ نہیں ہوئیں۔ جانے سے پہلے آپ کیا کرنا چاہیں گے؟',
+    save: 'محفوظ کریں',
+    saveDraft: 'مسودہ محفوظ کریں',
+    discard: 'رد کریں',
+    saveDraftFailed: 'مسودہ محفوظ نہیں ہو سکا (دستاویز بہت بڑی ہو سکتی ہے، یا براؤزر کا اسٹوریج دستیاب نہیں)۔',
+  },
+  drafts: {
+    bannerMessage: (when) => `اس دستاویز کا ایک غیر محفوظ شدہ مسودہ (${when}) ملا ہے۔`,
+    restore: 'بحال کریں',
+    ignore: 'نظر انداز کریں',
+    remove: 'مسودہ ہٹائیں',
+    dialogTitle: 'محفوظ شدہ مسودے',
+    intro: 'لکھتے وقت مسودے اس براؤزر میں خود بخود محفوظ ہوتے ہیں اور محفوظ کرنے پر ہٹا دیے جاتے ہیں۔',
+    empty: 'ابھی کوئی مسودہ نہیں۔',
+    noText: '(کوئی متن نہیں)',
+    thisDocument: 'موجودہ دستاویز',
+    untitled: 'بلا عنوان مسودہ',
+    documentLabel: (id) => `دستاویز «${id}»`,
+    earlierUntitled: 'ایک بلا عنوان مسودے کا پرانا ورژن',
+    earlierVersionOf: (id) => `«${id}» کا پرانا ورژن`,
+    savedAt: (when) => `محفوظ شدہ: ${when}`,
+    size: (kb) => `${kb} کے بی`,
+    replacePrompt: 'موجودہ مواد کو اس مسودے سے بدل دیں؟',
+    replace: 'بدل دیں',
+    deletePrompt: 'یہ مسودہ حذف کریں؟',
+    delete: 'حذف کریں',
+    close: 'بند کریں',
+  },
+  tableMenu: {
+    menuLabel: 'جدول',
+    insertRowBefore: 'پہلے قطار شامل کریں',
+    insertRowAfter: 'بعد میں قطار شامل کریں',
+    insertColumnBefore: 'پہلے کالم شامل کریں',
+    insertColumnAfter: 'بعد میں کالم شامل کریں',
+    deleteRow: 'قطار حذف کریں',
+    deleteColumn: 'کالم حذف کریں',
+    deleteTable: 'جدول حذف کریں',
+    insertRowsBefore: 'پہلے قطاریں شامل کریں',
+    insertRowsAfter: 'بعد میں قطاریں شامل کریں',
+    insertColumnsBefore: 'پہلے کالمز شامل کریں',
+    insertColumnsAfter: 'بعد میں کالمز شامل کریں',
+    deleteRows: 'قطاریں حذف کریں',
+    deleteColumns: 'کالمز حذف کریں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -371,6 +538,12 @@ const ur: Strings = {
     textPlaceholder: 'لنک کی عبارت (نہ دینے پر یو آر ایل ہی استعمال ہوگا)',
     invalidUrl: 'براہِ کرم ایک درست http(s)، mailto، tel یا رشتہ دار یو آر ایل درج کریں',
     apply: 'لاگو کریں',
+  },
+  tableDialog: {
+    title: 'جدول شامل کریں',
+    rows: 'قطاریں',
+    columns: 'کالم',
+    headerRow: 'سرِ فہرست قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر شامل کریں',
@@ -437,7 +610,6 @@ const paShahmukhi: Strings = {
   editor: {
     placeholder: 'لکھنا شروع کرو…',
     contentLabel: 'ایڈیٹر دی سامگری',
-    confirmDiscard: 'تہاڈیاں کجھ تبدیلیاں سنبھالیاں نئیں گئیاں۔ کی ایہناں نوں رد کر دیئے؟',
     pageBreakLabel: 'صفحے دی ونڈ',
   },
   common: {
@@ -448,6 +620,7 @@ const paShahmukhi: Strings = {
   toolbar: {
     ariaLabel: 'فارمیٹنگ',
     save: 'سنبھالو',
+    drafts: 'سودھے',
     undo: 'پہلاں جیہا کرو',
     redo: 'مُڑ کرو',
     formattingLabel: 'فارمیٹنگ',
@@ -461,9 +634,12 @@ const paShahmukhi: Strings = {
     noMatch: 'کوئی نئیں ملیا',
     alignment: 'سیدھ',
     linkOptions: 'لنک دے اختیار',
+    tableOptions: 'ٹیبل دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
     insertPageBreak: 'صفحے دی ونڈ پاؤ',
+    insertTable: 'ٹیبل پاؤ',
+    insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
@@ -496,6 +672,52 @@ const paShahmukhi: Strings = {
       right: 'سجے سیدھ',
     },
   },
+  leaveDialog: {
+    title: 'غیر محفوظ تبدیلیاں',
+    message: 'تہاڈیاں تبدیلیاں سنبھالیاں نئیں گئیاں۔ جان توں پہلاں تسی کی کرنا چاہو گے؟',
+    save: 'سنبھالو',
+    saveDraft: 'سودھا سنبھالو',
+    discard: 'رد کرو',
+    saveDraftFailed: 'سودھا سنبھالیا نئیں جا سکیا (دستاویز بہت وڈی ہو سکدی اے، یا براؤزر دی سٹوریج نئیں اے)۔',
+  },
+  drafts: {
+    bannerMessage: (when) => `ایس دستاویز دا اک غیر محفوظ سودھا (${when}) لبھیا اے۔`,
+    restore: 'بحال کرو',
+    ignore: 'نظر انداز کرو',
+    remove: 'سودھا ہٹاؤ',
+    dialogTitle: 'سنبھالے ہوئے سودھے',
+    intro: 'لکھدیاں ہویاں سودھے ایس براؤزر وچ آپ سنبھلدے نیں تے سنبھالن تے ہٹ جاندے نیں۔',
+    empty: 'ہلے کوئی سودھا نئیں۔',
+    noText: '(کوئی متن نئیں)',
+    thisDocument: 'موجودہ دستاویز',
+    untitled: 'بنا ناں دا سودھا',
+    documentLabel: (id) => `دستاویز «${id}»`,
+    earlierUntitled: 'اک بنا ناں دے سودھے دا پرانا ورژن',
+    earlierVersionOf: (id) => `«${id}» دا پرانا ورژن`,
+    savedAt: (when) => `سنبھالیا: ${when}`,
+    size: (kb) => `${kb} کے بی`,
+    replacePrompt: 'موجودہ مواد نوں ایس سودھے نال بدل دیئے؟',
+    replace: 'بدل دیو',
+    deletePrompt: 'ایہ سودھا مٹا دیئے؟',
+    delete: 'مٹاؤ',
+    close: 'بند کرو',
+  },
+  tableMenu: {
+    menuLabel: 'ٹیبل',
+    insertRowBefore: 'پہلاں قطار پاؤ',
+    insertRowAfter: 'بعد وچ قطار پاؤ',
+    insertColumnBefore: 'پہلاں کالم پاؤ',
+    insertColumnAfter: 'بعد وچ کالم پاؤ',
+    deleteRow: 'قطار مٹاؤ',
+    deleteColumn: 'کالم مٹاؤ',
+    deleteTable: 'ٹیبل مٹاؤ',
+    insertRowsBefore: 'پہلاں قطاراں پاؤ',
+    insertRowsAfter: 'بعد وچ قطاراں پاؤ',
+    insertColumnsBefore: 'پہلاں کالماں پاؤ',
+    insertColumnsAfter: 'بعد وچ کالماں پاؤ',
+    deleteRows: 'قطاراں مٹاؤ',
+    deleteColumns: 'کالماں مٹاؤ',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نئیں)',
@@ -511,6 +733,12 @@ const paShahmukhi: Strings = {
     textPlaceholder: 'لنک دی لکھت (نہ دین تے یو آر ایل ای ورتیا جاوے گا)',
     invalidUrl: 'کِرپا کر کے صحیح http(s)، mailto، tel یا نسبتی یو آر ایل پاؤ',
     apply: 'لاگو کرو',
+  },
+  tableDialog: {
+    title: 'ٹیبل پاؤ',
+    rows: 'قطاراں',
+    columns: 'کالم',
+    headerRow: 'سرکڑی قطار',
   },
   imageDialog: {
     titleInsert: 'تصویر پاؤ',

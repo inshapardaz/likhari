@@ -55,7 +55,9 @@ function PageBreakComponent({ nodeKey }: { nodeKey: NodeKey }) {
         CLICK_COMMAND,
         (event: MouseEvent) => {
           const element = editor.getElementByKey(nodeKey);
-          if (event.target !== element) return false;
+          // The marker is made of child spans (the label and two lines), so a
+          // click almost never lands on the outer element itself.
+          if (!element || !element.contains(event.target as Node)) return false;
           if (!event.shiftKey) clearSelection();
           setSelected(!isSelected);
           return true;
