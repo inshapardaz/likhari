@@ -129,14 +129,17 @@ export interface EditorRootProps {
   /**
    * What happens when the user is about to leave with unsaved changes, for both
    * `EditorRef.confirmDiscard()` (in-app navigation, which your router guard
-   * calls) and closing or refreshing the tab:
+   * calls) and for closing or refreshing the tab:
    * - `'confirm'` (default): `confirmDiscard()` opens an in-editor popup (Save /
-   *   Save draft / Discard changes / Stay); closing the tab shows the browser's
-   *   own prompt, which can't be customised;
+   *   Save draft / Discard changes / Stay). On closing or refreshing the tab no
+   *   popup is possible, and a draft is saved instead when `autosave` is on, so the
+   *   browser's own "leave this page?" prompt is skipped; it only appears as a last
+   *   resort, when no draft could be stored (autosave off, document over
+   *   `autosaveMaxBytes`, storage unavailable);
    * - `'save-draft'`: silently saves a draft and lets the user go — no popup, no
    *   browser prompt. Works even with `autosave={false}`. If the draft can't be
-   *   stored (e.g. the document is over `autosaveMaxBytes`) it falls back to
-   *   `'confirm'`, so work is never lost silently;
+   *   stored (e.g. the document is over `autosaveMaxBytes`) `confirmDiscard()` falls
+   *   back to the popup, so work is never lost silently;
    * - `'off'`: no guard; the user is never asked.
    */
   navigationGuard?: NavigationGuardMode;
@@ -279,6 +282,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   saveDraftNowRef.current = saveDraftNow;
   const navigationGuardRef = useRef(navigationGuard);
   navigationGuardRef.current = navigationGuard;
+  const autosaveRef = useRef(autosave);
+  autosaveRef.current = autosave;
 
   // The in-editor "leave?" popup behind confirmDiscard().
   const [leavePrompt, setLeavePrompt] = useState<{ draftFailed: boolean } | null>(null);
@@ -343,8 +348,13 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
       if (!isDirtyRef.current) return;
       const guard = navigationGuardRef.current;
       if (guard === 'off') return;
-      // Saved a draft instead: nothing is lost, so don't interrupt the user.
-      if (guard === 'save-draft' && saveDraftNowRef.current()) return;
+      // The work is saved as a draft (restorable from the banner / drafts list
+      // when the page is opened again), so there is nothing to warn about and
+      // the browser's prompt is skipped. It only appears as a last resort, when
+      // no draft could be stored (autosave off, document too large, storage
+      // unavailable) — a page can't customise or replace it, and it is the only
+      // thing between the user and silently losing their work.
+      if ((guard === 'save-draft' || autosaveRef.current) && saveDraftNowRef.current()) return;
       event.preventDefault();
       event.returnValue = '';
     };
