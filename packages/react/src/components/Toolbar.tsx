@@ -37,12 +37,14 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { INSERT_TABLE_COMMAND } from '@lexical/table';
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
+import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
@@ -62,6 +64,7 @@ import {
   IconClearFormatting,
   IconDeviceFloppy,
   IconDots,
+  IconHistory,
   IconExternalLink,
   IconFeather,
   IconH1,
@@ -85,6 +88,7 @@ import {
   IconPhoto,
   IconPilcrow,
   IconQuote,
+  IconSeparatorHorizontal,
   IconSparkles,
   IconStrikethrough,
   IconSubscript,
@@ -386,13 +390,16 @@ export interface ToolbarProps {
   direction?: 'ltr' | 'rtl';
   /** UI locale — picks the translated strings for labels, tooltips and menu items. */
   locale?: Locale;
+  /** Autosave drafts: when set, the toolbar offers a Drafts button that lists and restores them. */
+  drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en' }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
   const portalTarget = usePortalTarget();
+  const [draftsOpen, setDraftsOpen] = useState(false);
 
   // Responsive "priority+" overflow: the toolbar's outer container and a
   // hidden nowrap clone (rendered with every movable group forced inline)
@@ -758,7 +765,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showStubInsertGroup = config.images.linked || config.images.embedded || config.tables || config.poetry.enabled;
+  const showStubInsertGroup =
+    config.images.linked || config.images.embedded || config.tables || config.blocks.horizontalRule || config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
@@ -931,6 +939,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
       </div>
     ),
+    drafts && (
+      <div className="likhari-toolbar-group" key="drafts">
+        <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />
+      </div>
+    ),
     config.history && (
       <div className="likhari-toolbar-group" key="history">
         <ToolbarButton
@@ -1068,6 +1081,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
         )}
         {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
+        {config.blocks.horizontalRule && (
+          <ToolbarButton
+            icon={IconSeparatorHorizontal}
+            title={strings.toolbar.insertHorizontalRule}
+            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+          />
+        )}
         {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
       </div>
     ),
@@ -1193,6 +1213,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
           onClose={closeLinkDialog}
         />
       )}
+      {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
     </div>
   );
 }

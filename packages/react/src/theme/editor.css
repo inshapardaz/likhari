@@ -401,3 +401,77 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Restore-draft banner: a strip between the toolbar and the canvas. Uses the
+   editor's own tokens, so it follows the accent color and dark mode. */
+.likhari-draft-banner {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--editor-accent-soft);
+  border-bottom: 1px solid var(--editor-line);
+  color: var(--editor-ink);
+  font-size: 13px;
+}
+
+.likhari-draft-banner-message {
+  display: flex;
+  flex: 1 1 240px;
+  align-items: center;
+  gap: 8px;
+}
+
+.likhari-draft-banner-message svg {
+  flex-shrink: 0;
+  color: var(--editor-accent);
+}
+
+.likhari-draft-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.likhari-draft-banner-button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--editor-line-strong);
+  border-radius: 6px;
+  background: var(--editor-paper);
+  color: var(--editor-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.likhari-draft-banner-button:hover {
+  background: var(--editor-paper-dim);
+}
+
+.likhari-draft-banner-button[data-variant='primary'] {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent);
+  color: var(--editor-paper);
+}
+
+.likhari-draft-banner-button[data-variant='primary']:hover {
+  filter: brightness(1.1);
+}
+
+.likhari-draft-banner-button[data-variant='danger'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--editor-danger);
+}
+
+.likhari-draft-banner-button[data-variant='danger']:hover {
+  background: var(--editor-paper-dim);
+}
+
+.likhari-draft-banner-button:focus-visible {
+  outline: 2px solid var(--editor-accent);
+  outline-offset: 1px;
+}

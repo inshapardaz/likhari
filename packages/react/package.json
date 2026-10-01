@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-react",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "React implementation of the Likhari editor, built on @lexical/react.",
   "license": "MIT",
   "repository": {
@@ -16,6 +16,7 @@
       "development": "./src/index.ts",
       "import": "./dist/index.js"
     },
+    "./styles.css": "./dist/theme/editor.css",
     "./package.json": "./package.json"
   },
   "files": [
@@ -41,13 +42,17 @@
     "@lexical/utils": "^0.20.0",
     "@inshapardaz/likhari-converters": "^0.1.0",
     "@inshapardaz/likhari-core": "^0.1.0",
-    "@mantine/core": "^9.6.3",
-    "@mantine/hooks": "^9.6.3",
     "@tabler/icons-react": "^3.46.0",
     "lexical": "^0.20.0"
   },
   "peerDependencies": {
+    "@mantine/core": "^9.6.3",
+    "@mantine/hooks": "^9.6.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@mantine/core": "^9.6.3",
+    "@mantine/hooks": "^9.6.3"
   }
 }

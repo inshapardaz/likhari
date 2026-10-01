@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { EditorRoot, type EditorRef } from '@inshapardaz/likhari-react';
+import { EditorRoot, type DraftRestoreMode, type EditorRef, type NavigationGuardMode } from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
@@ -176,6 +176,12 @@ export function App() {
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
   const [showSave, setShowSave] = useState(true);
+  // Without a documentId the editor generates a unique draft id (see `autosave`).
+  const [useDocumentId, setUseDocumentId] = useState(true);
+  // The three draft / navigation behaviours (see EditorRootProps).
+  const [autosave, setAutosave] = useState(true);
+  const [restoreDraft, setRestoreDraft] = useState<DraftRestoreMode>('prompt');
+  const [navigationGuard, setNavigationGuard] = useState<NavigationGuardMode>('confirm');
   const [locale, setLocale] = useState<Locale>('en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [popup, setPopup] = useState<{ title: string; content: string } | null>(null);
@@ -377,6 +383,40 @@ export function App() {
             <ControlGroup title="Other" dark={dark}>
               <Checkbox label="Undo / redo" checked={!!config.history} onChange={(v) => updateTopLevel('history', v)} />
               <Checkbox label="Save button" checked={showSave} onChange={setShowSave} />
+              <Checkbox label="Give the editor a documentId" checked={useDocumentId} onChange={setUseDocumentId} />
+            </ControlGroup>
+
+            <ControlGroup title="Drafts & leaving" dark={dark}>
+              <Checkbox label="Save drafts (autosave)" checked={autosave} onChange={setAutosave} />
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 13 }}>
+                Load a saved draft
+                <select value={restoreDraft} onChange={(e) => setRestoreDraft(e.target.value as DraftRestoreMode)} style={{ fontSize: 13 }}>
+                  <option value="prompt">Ask (banner)</option>
+                  <option value="auto">Automatically</option>
+                  <option value="off">Never</option>
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 13 }}>
+                When leaving unsaved
+                <select
+                  value={navigationGuard}
+                  onChange={(e) => setNavigationGuard(e.target.value as NavigationGuardMode)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="confirm">Ask (popup)</option>
+                  <option value="save-draft">Save a draft silently</option>
+                  <option value="off">Don't ask</option>
+                </select>
+              </label>
+              <button
+                style={{ fontSize: 12 }}
+                onClick={async () => {
+                  const canLeave = (await editorRef.current?.confirmDiscard()) ?? true;
+                  showOutput('confirmDiscard()', canLeave ? 'true: it is fine to leave' : 'false: stay on the page');
+                }}
+              >
+                Simulate leaving the page
+              </button>
             </ControlGroup>
           </aside>
         )}
@@ -384,8 +424,12 @@ export function App() {
         <main style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: 0, padding: 16, gap: 12 }}>
           <div style={{ flex: '1 1 auto', minHeight: 0 }}>
             <EditorRoot
+              key={`${useDocumentId ? 'named' : 'anonymous'}-${restoreDraft}`}
               ref={editorRef}
-              documentId="demo-doc"
+              documentId={useDocumentId ? 'demo-doc' : undefined}
+              autosave={autosave}
+              restoreDraft={restoreDraft}
+              navigationGuard={navigationGuard}
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}
