@@ -248,6 +248,17 @@ function convertTable(el: HTMLElement): SNode {
   return elementBase('table', rows);
 }
 
+function convertLayout(container: HTMLElement): SNode {
+  const items = Array.from(container.children)
+    .filter((child) => child.hasAttribute('data-likhari-layout-item'))
+    .map((item) => {
+      const children = flowBlocks(item as HTMLElement);
+      return elementBase('layout-item', children.length > 0 ? children : [paragraph()]);
+    });
+  const templateColumns = container.style.gridTemplateColumns || `repeat(${Math.max(items.length, 2)}, 1fr)`;
+  return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
+}
+
 function convertImage(img: HTMLElement, caption: string | null): SNode | null {
   const src = safeImageSrc(img.getAttribute('src') ?? '');
   if (!src) return null;
@@ -308,6 +319,7 @@ function convertBlock(el: HTMLElement): SNode[] {
     }
     case 'div':
       if (el.hasAttribute('data-likhari-page-break')) return [{ type: 'page-break', version: 1 }];
+      if (el.hasAttribute('data-likhari-layout-container')) return [convertLayout(el)];
       return flowBlocks(el);
     case 'figcaption':
       return [];

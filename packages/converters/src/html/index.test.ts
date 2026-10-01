@@ -67,6 +67,20 @@ describe('htmlConverter', () => {
     expect(blocks.slice(1).map((b) => b.type)).toEqual(['horizontalrule', 'page-break']);
   });
 
+  it('round-trips a columns layout', () => {
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left')])]), elementBase('layout-item', [paragraph([textNode('right')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const [back] = blocksOf(roundTrip([container]));
+    expect(back.type).toBe('layout-container');
+    expect(back.templateColumns).toBe('repeat(2, 1fr)');
+    expect(back.children!.map((item) => item.type)).toEqual(['layout-item', 'layout-item']);
+    expect((back.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'left' });
+    expect((back.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'right' });
+  });
+
   it('imports arbitrary web HTML: bare text, spans, inline styles', () => {
     const blocks = blocksOf(
       htmlConverter.parse('<div>Hello <b>big</b> <span style="font-style: italic">world</span></div><p>Two</p>'),

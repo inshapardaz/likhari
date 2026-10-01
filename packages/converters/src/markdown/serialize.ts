@@ -242,6 +242,12 @@ function imageToMd(node: SNode, ctx?: ConverterContext): MdNode {
   return directive('leafDirective', 'figure', attrs, caption ? [{ type: 'text', value: caption }] : []);
 }
 
+function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
+  const items = node.children ?? [];
+  const columns = items.map((item) => directive('containerDirective', 'column', {}, (item.children ?? []).flatMap((child) => blockToMd(child, ctx))));
+  return directive('containerDirective', 'columns', { count: String(items.length) }, columns);
+}
+
 function tableToMd(node: SNode, ctx?: ConverterContext): MdNode {
   const rows: MdNode[] = (node.children ?? []).map((row) => ({
     type: 'tableRow',
@@ -282,6 +288,8 @@ function blockToMd(node: SNode, ctx?: ConverterContext): MdNode[] {
       return [imageToMd(node, ctx)];
     case 'table':
       return [tableToMd(node, ctx)];
+    case 'layout-container':
+      return [layoutToMd(node, ctx)];
     default:
       // Fallback rule (dialect spec §6): unknown blocks keep their text as paragraphs.
       return (node.children ?? []).flatMap((child) => blockToMd(child, ctx));

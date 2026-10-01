@@ -98,6 +98,22 @@ describe('markdownConverter', () => {
     expect((blocks[1].children as SNode[]).map((c) => c.type)).toEqual(['text', 'linebreak', 'text']);
   });
 
+  it('round-trips a columns layout via the extended dialect', () => {
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left')])]), elementBase('layout-item', [paragraph([textNode('right')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const out = md([container]);
+    expect(out).toContain(':::columns');
+    expect(out).toContain(':::column');
+    const [back] = parse(out);
+    expect(back.type).toBe('layout-container');
+    expect(back.children!.map((item) => item.type)).toEqual(['layout-item', 'layout-item']);
+    expect((back.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'left' });
+    expect((back.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'right' });
+  });
+
   it('is safe on hostile input and tolerant of plain Markdown', () => {
     const blocks = parse('[x](javascript:alert(1)) ![i](javascript:alert(1))\n\n<script>alert(1)</script>\n\n10:30 and a:b');
     expect(JSON.stringify(blocks)).not.toMatch(/javascript|alert/);

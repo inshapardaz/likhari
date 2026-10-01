@@ -227,8 +227,21 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
         out.push(tableBlock(node));
         break;
       case 'containerDirective':
-        // Unknown containers are transparent: their content is kept.
-        out.push(...blocks(node.children ?? [], node.name === 'para' ? blockExtras(node.attributes ?? {}) : extra));
+        if (node.name === 'columns') {
+          const columns = (node.children ?? [])
+            .filter((c) => c.type === 'containerDirective' && c.name === 'column')
+            .map((c) => {
+              const children = blocks(c.children ?? []);
+              return elementBase('layout-item', children.length > 0 ? children : [paragraph()]);
+            });
+          if (columns.length > 0) {
+            out.push(elementBase('layout-container', columns, { templateColumns: `repeat(${columns.length}, 1fr)` }));
+          }
+        } else {
+          // Unknown containers (including a stray "column" outside "columns")
+          // are transparent: their content is kept.
+          out.push(...blocks(node.children ?? [], node.name === 'para' ? blockExtras(node.attributes ?? {}) : extra));
+        }
         break;
       case 'leafDirective': {
         if (node.name === 'pagebreak') out.push({ type: 'page-break', version: 1 });

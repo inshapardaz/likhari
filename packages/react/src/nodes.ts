@@ -6,6 +6,7 @@ import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
 import { ImageNode } from './image/ImageNode';
 import { PageBreakNode } from './blocks/PageBreakNode';
+import { LayoutContainerNode, LayoutItemNode } from './blocks/LayoutNode';
 
 /**
  * Node types registered on the editor at construction time. Per
@@ -28,4 +29,6 @@ export const EDITOR_NODES: Klass<LexicalNode>[] = [
   TableCellNode,
   ImageNode,
   PageBreakNode,
+  LayoutContainerNode,
+  LayoutItemNode,
 ];
