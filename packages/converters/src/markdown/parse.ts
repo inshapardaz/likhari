@@ -240,6 +240,12 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
           if (columns.length > 0) {
             out.push(elementBase('layout-container', columns, { templateColumns: `repeat(${columns.length}, 1fr)` }));
           }
+        } else if (node.name === 'poetry') {
+          const attrs = node.attributes ?? {};
+          const layout = attrs.layout === 'two-column' ? 'two-column' : 'single';
+          const align = ALIGNMENTS.has(attrs.align ?? '') ? (attrs.align as string) : 'justify';
+          const children = blocks(node.children ?? []);
+          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align }));
         } else {
           // Unknown containers (including a stray "column" outside "columns")
           // are transparent: their content is kept.

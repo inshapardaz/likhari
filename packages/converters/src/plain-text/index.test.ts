@@ -56,4 +56,22 @@ describe('plainTextConverter', () => {
     const state = makeState([body, footnoteList]) as unknown as SerializedEditorState;
     expect(plainTextConverter.serialize(state)).toBe('see[1] and [2].\n\n[1] first note\n[2] second note');
   });
+
+  it('linearizes a poetry couplet as two lines, regardless of single/two-column layout', () => {
+    const single = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
+      layout: 'single',
+      align: 'justify',
+    });
+    const singleState = makeState([single]) as unknown as SerializedEditorState;
+    expect(plainTextConverter.serialize(singleState)).toBe('first misra\nsecond misra');
+
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const twoColumn = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const twoColumnState = makeState([twoColumn]) as unknown as SerializedEditorState;
+    expect(plainTextConverter.serialize(twoColumnState)).toBe('left misra\nright misra');
+  });
 });

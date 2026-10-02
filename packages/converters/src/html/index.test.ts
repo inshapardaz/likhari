@@ -98,6 +98,29 @@ describe('htmlConverter', () => {
     expect((backList.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'second note' });
   });
 
+  it('round-trips a single-column poetry couplet', () => {
+    const couplet = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
+      layout: 'single',
+      align: 'right',
+    });
+    const [back] = blocksOf(roundTrip([couplet]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', align: 'right' });
+    expect(back.children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
+  });
+
+  it('round-trips a two-column poetry couplet built on the layout primitive', () => {
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const [back] = blocksOf(roundTrip([couplet]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', align: 'justify' });
+    expect(back.children![0].type).toBe('layout-container');
+    expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
+  });
+
   it('imports arbitrary web HTML: bare text, spans, inline styles', () => {
     const blocks = blocksOf(
       htmlConverter.parse('<div>Hello <b>big</b> <span style="font-style: italic">world</span></div><p>Two</p>'),

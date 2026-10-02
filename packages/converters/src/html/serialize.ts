@@ -128,6 +128,13 @@ function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
   return `<div data-likhari-layout-container style="display: grid; grid-template-columns: ${escapeAttr(templateColumns)}">${columns}</div>`;
 }
 
+function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
+  const layout = node.layout === 'two-column' ? 'two-column' : 'single';
+  const align = typeof node.align === 'string' ? node.align : 'justify';
+  const inner = (node.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-align="${align}" style="text-align: ${escapeAttr(align)}">${inner}</div>`;
+}
+
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {
   const rawSrc = String(node.src ?? '');
   const src = ctx?.resolveImageUrl ? ctx.resolveImageUrl(rawSrc) : rawSrc;
@@ -180,6 +187,8 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
       return footnoteReferenceToHtml(node);
     case 'footnote-list':
       return footnoteListToHtml(node, ctx);
+    case 'poetry-couplet':
+      return poetryToHtml(node, ctx);
     default:
       // Unknown node (e.g. a future feature): keep its content, drop the wrapper.
       return inlineChildren(node, ctx);

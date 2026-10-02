@@ -44,14 +44,16 @@ export interface Strings {
     linkOptions: string;
     /** Toolbar button (shown while the caret is in a table) that opens the table actions menu. */
     tableOptions: string;
+    /** Toolbar button (shown while the caret is in a couplet) that opens the poetry layout/alignment menu. */
+    poetryOptions: string;
     insertLink: string;
     insertImage: string;
     insertPageBreak: string;
     insertTable: string;
     insertColumns: string;
     insertFootnote: string;
+    insertPoetryCouplet: string;
     insertHorizontalRule: string;
-    poetryBlocks: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
     textCleanup: string;
@@ -137,6 +139,11 @@ export interface Strings {
     deleteColumns: string;
     mergeCells: string;
     unmergeCell: string;
+  };
+  poetryMenu: {
+    menuLabel: string;
+    singleColumn: string;
+    twoColumn: string;
   };
   link: {
     menuLabel: string;
@@ -253,14 +260,15 @@ const en: Strings = {
     alignment: 'Alignment',
     linkOptions: 'Link options',
     tableOptions: 'Table options',
+    poetryOptions: 'Poetry options',
     insertLink: 'Insert link (Ctrl+K)',
     insertImage: 'Insert image',
     insertPageBreak: 'Insert page break',
     insertTable: 'Insert table',
     insertColumns: 'Insert columns',
     insertFootnote: 'Insert footnote',
+    insertPoetryCouplet: 'Insert poetry couplet',
     insertHorizontalRule: 'Insert horizontal rule',
-    poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
     textCleanup: 'Text cleanup',
@@ -339,6 +347,11 @@ const en: Strings = {
     deleteColumns: 'Delete columns',
     mergeCells: 'Merge cells',
     unmergeCell: 'Unmerge cell',
+  },
+  poetryMenu: {
+    menuLabel: 'Poetry',
+    singleColumn: 'Single column',
+    twoColumn: 'Two column',
   },
   link: {
     menuLabel: 'Link',
@@ -456,14 +469,15 @@ const ur: Strings = {
     alignment: 'سیدھ',
     linkOptions: 'لنک کے اختیارات',
     tableOptions: 'جدول کے اختیارات',
+    poetryOptions: 'شاعری کے اختیارات',
     insertLink: 'لنک شامل کریں (Ctrl+K)',
     insertImage: 'تصویر شامل کریں',
     insertPageBreak: 'صفحے کی تقسیم شامل کریں',
     insertTable: 'جدول شامل کریں',
     insertColumns: 'کالم شامل کریں',
     insertFootnote: 'فٹ نوٹ شامل کریں',
+    insertPoetryCouplet: 'شعر شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
-    poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
     textCleanup: 'متن کی صفائی',
@@ -542,6 +556,11 @@ const ur: Strings = {
     deleteColumns: 'کالمز حذف کریں',
     mergeCells: 'خانے ضم کریں',
     unmergeCell: 'خانہ الگ کریں',
+  },
+  poetryMenu: {
+    menuLabel: 'شاعری',
+    singleColumn: 'ایک کالم',
+    twoColumn: 'دو کالم',
   },
   link: {
     menuLabel: 'لنک',
@@ -659,14 +678,15 @@ const paShahmukhi: Strings = {
     alignment: 'سیدھ',
     linkOptions: 'لنک دے اختیار',
     tableOptions: 'ٹیبل دے اختیار',
+    poetryOptions: 'شاعری دے اختیار',
     insertLink: 'لنک پاؤ (Ctrl+K)',
     insertImage: 'تصویر پاؤ',
     insertPageBreak: 'صفحے دی ونڈ پاؤ',
     insertTable: 'ٹیبل پاؤ',
     insertColumns: 'کالم پاؤ',
     insertFootnote: 'فٹ نوٹ پاؤ',
+    insertPoetryCouplet: 'شعر پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
-    poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
     textCleanup: 'متن دی صفائی',
@@ -745,6 +765,11 @@ const paShahmukhi: Strings = {
     deleteColumns: 'کالماں مٹاؤ',
     mergeCells: 'خانے رلاؤ',
     unmergeCell: 'خانہ الگ کرو',
+  },
+  poetryMenu: {
+    menuLabel: 'شاعری',
+    singleColumn: 'اک کالم',
+    twoColumn: 'دو کالم',
   },
   link: {
     menuLabel: 'لنک',

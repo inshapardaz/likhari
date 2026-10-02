@@ -43,6 +43,16 @@ function nodeToText(node: SerializedLexicalNode, order: Map<string, number>, lis
     return `[${order.get(id) ?? '?'}]`;
   }
 
+  // Linearized per the fidelity matrix ("Poetry layout variants ⚠️ linearized"):
+  // the two misras, one per line, regardless of single/two-column layout —
+  // the columns primitive a two-column couplet is built on otherwise has no
+  // per-node case and would fall through to running the lines together.
+  if (node.type === 'poetry-couplet') {
+    const children = withChildren.children ?? [];
+    const misraHolders = children[0]?.type === 'layout-container' ? ((children[0] as NodeWithChildren).children ?? []) : children;
+    return misraHolders.map((child) => nodeToText(child, order)).join('\n');
+  }
+
   if (node.type === 'list' && withChildren.children) {
     const listType = (node as { listType?: string }).listType ?? 'bullet';
     return withChildren.children

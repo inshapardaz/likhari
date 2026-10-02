@@ -43,6 +43,9 @@ import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
+import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
+import { $getPoetryBlockFromSelection, $setPoetryLayout } from '../blocks/poetryActions';
+import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
@@ -116,6 +119,8 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconColumns1,
+  IconColumns2,
   IconNumber1Small,
   IconRowInsertBottom,
   IconRowInsertTop,
@@ -158,6 +163,10 @@ interface ToolbarState {
   canMergeCells: boolean;
   /** A caret in a single table cell that already spans more than one row/column. */
   canUnmergeCell: boolean;
+  /** The caret is inside a poetry couplet; layout/align mirror that couplet's own. */
+  inPoetry: boolean;
+  poetryLayout: PoetryLayout;
+  poetryAlign: PoetryAlign;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -181,6 +190,9 @@ const INITIAL_STATE: ToolbarState = {
   tableColumns: 1,
   canMergeCells: false,
   canUnmergeCell: false,
+  inPoetry: false,
+  poetryLayout: 'single',
+  poetryAlign: 'justify',
   canUndo: false,
   canRedo: false,
 };
@@ -494,6 +506,58 @@ function TableMenuItems({
   );
 }
 
+/** The poetry couplet menu's contents — layout (single/two-column) and
+ * literal alignment, both per-instance overrides (requirements doc §4.11:
+ * "set per CoupletNode, not inherited from a document-wide setting"). */
+function PoetryMenuItems({
+  strings,
+  alignIcons,
+  layout,
+  align,
+  onAction,
+}: {
+  strings: Strings;
+  alignIcons: Record<string, TablerIcon>;
+  layout: PoetryLayout;
+  align: PoetryAlign;
+  onAction: (action: () => void) => () => void;
+}) {
+  const t = strings.poetryMenu;
+  const a = strings.toolbar.alignOptions;
+  const item = (icon: TablerIcon, label: string, action: () => void, active: boolean) => {
+    const Icon = icon;
+    return (
+      <Menu.Item
+        disabled={active}
+        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onAction(action)}
+      >
+        {label}
+      </Menu.Item>
+    );
+  };
+  const setLayout = (next: PoetryLayout) => () => {
+    const node = $getPoetryBlockFromSelection();
+    if (node) $setPoetryLayout(node, next);
+  };
+  const setAlign = (next: PoetryAlign) => () => {
+    $getPoetryBlockFromSelection()?.setAlign(next);
+  };
+  return (
+    <>
+      <Menu.Label>{t.menuLabel}</Menu.Label>
+      {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
+      {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      <Menu.Divider />
+      {item(alignIcons.justify ?? IconAlignJustified, a.justify, setAlign('justify'), align === 'justify')}
+      {item(alignIcons.start ?? IconAlignLeft, a.start, setAlign('start'), align === 'start')}
+      {item(IconAlignLeft, a.left, setAlign('left'), align === 'left')}
+      {item(IconAlignRight, a.right, setAlign('right'), align === 'right')}
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -535,7 +599,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       if ($isTableSelection(selection)) {
         const { rows, columns } = $getTableSelectionSize();
         const canMergeCells = $canMergeSelectedCells();
-        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false }));
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false, inPoetry: false }));
         return;
       }
       if (!$isRangeSelection(selection)) return;
@@ -544,6 +608,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       const inTable = $getTableCellNodeFromLexicalNode(anchorNode) !== null;
       const tableSize = inTable ? $getTableSelectionSize() : { rows: 1, columns: 1 };
       const canUnmergeCell = inTable && $canUnmergeSelectedCell();
+      const poetryBlock = $getPoetryBlockFromSelection();
       const element = anchorNode.getKey() === 'root' ? anchorNode : (anchorNode.getTopLevelElement() ?? anchorNode);
 
       const listParent = $findMatchingParent(anchorNode, $isListNode);
@@ -590,6 +655,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         tableColumns: tableSize.columns,
         canMergeCells: false,
         canUnmergeCell,
+        inPoetry: poetryBlock !== null,
+        poetryLayout: poetryBlock?.getLayout() ?? s.poetryLayout,
+        poetryAlign: poetryBlock?.getAlign() ?? s.poetryAlign,
       }));
     });
   }, [editor]);
@@ -850,9 +918,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     });
   }, [editor, config.links]);
 
-  // Table actions. The menu takes focus, so the selection is snapshotted when it
-  // opens and restored before an action runs.
-  const runTableAction = (action: () => void) => () => {
+  // Table/poetry contextual-menu actions. The menu takes focus, so the
+  // selection is snapshotted when it opens and restored before an action runs.
+  const runMenuAction = (action: () => void) => () => {
     restoreSelection();
     editor.update(action);
     editor.focus();
@@ -1308,7 +1376,17 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
           />
         )}
-        {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
+        {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
+            outside an Urdu/Punjabi editing context, not just when the feature is off. */}
+        {config.poetry.enabled && locale !== 'en' && (
+          <ToolbarButton
+            icon={IconFeather}
+            title={strings.toolbar.insertPoetryCouplet}
+            onClick={() =>
+              editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, align: 'justify' })
+            }
+          />
+        )}
       </div>
     ),
     config.tables && state.inTable && (
@@ -1336,8 +1414,31 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               columns={state.tableColumns}
               canMergeCells={state.canMergeCells}
               canUnmergeCell={state.canUnmergeCell}
-              onAction={runTableAction}
+              onAction={runMenuAction}
             />
+          </Menu.Dropdown>
+        </Menu>
+      </div>
+    ),
+    config.poetry.enabled && state.inPoetry && (
+      <div className="likhari-toolbar-group" key="poetryActions">
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200} onOpen={snapshotSelection}>
+          <Menu.Target>
+            <button
+              type="button"
+              className="likhari-toolbar-button"
+              data-active="true"
+              aria-pressed="true"
+              aria-haspopup="menu"
+              aria-label={strings.toolbar.poetryOptions}
+              title={strings.toolbar.poetryOptions}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1454,7 +1555,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               columns={tableContext?.columns ?? 1}
               canMergeCells={state.canMergeCells}
               canUnmergeCell={state.canUnmergeCell}
-              onAction={runTableAction}
+              onAction={runMenuAction}
             />
           </Menu.Dropdown>
         </Menu>

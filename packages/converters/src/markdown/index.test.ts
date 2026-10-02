@@ -132,6 +132,32 @@ describe('markdownConverter', () => {
     expect((backList.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'first note' });
   });
 
+  it('round-trips a single-column poetry couplet via the extended dialect', () => {
+    const couplet = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
+      layout: 'single',
+      align: 'right',
+    });
+    const out = md([couplet]);
+    expect(out).toContain(':::poetry');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', align: 'right' });
+    expect(back.children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
+  });
+
+  it('round-trips a two-column poetry couplet (approximate, builds on the columns dialect)', () => {
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const out = md([couplet]);
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', align: 'justify' });
+    expect(back.children![0].type).toBe('layout-container');
+    expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
+  });
+
   it('is safe on hostile input and tolerant of plain Markdown', () => {
     const blocks = parse('[x](javascript:alert(1)) ![i](javascript:alert(1))\n\n<script>alert(1)</script>\n\n10:30 and a:b');
     expect(JSON.stringify(blocks)).not.toMatch(/javascript|alert/);

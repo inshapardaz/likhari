@@ -263,6 +263,29 @@ function convertLayout(container: HTMLElement): SNode {
   return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
 }
 
+const POETRY_LAYOUTS = new Set(['single', 'two-column']);
+const POETRY_ALIGNS = new Set(['justify', 'left', 'right', 'start']);
+
+function convertPoetry(el: HTMLElement): SNode {
+  const rawLayout = el.getAttribute('data-likhari-poetry-layout') ?? 'single';
+  const layout = POETRY_LAYOUTS.has(rawLayout) ? rawLayout : 'single';
+  const rawAlign = el.getAttribute('data-likhari-poetry-align') ?? 'justify';
+  const align = POETRY_ALIGNS.has(rawAlign) ? rawAlign : 'justify';
+
+  if (layout === 'two-column') {
+    const containerEl = Array.from(el.children).find((c) => c.hasAttribute('data-likhari-layout-container')) as HTMLElement | undefined;
+    const container = containerEl
+      ? convertLayout(containerEl)
+      : elementBase('layout-container', [elementBase('layout-item', [paragraph()]), elementBase('layout-item', [paragraph()])], {
+          templateColumns: 'repeat(2, 1fr)',
+        });
+    return elementBase('poetry-couplet', [container], { layout, align });
+  }
+
+  const children = flowBlocks(el);
+  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align });
+}
+
 function convertFootnoteList(el: HTMLElement): SNode {
   const items: SNode[] = [];
   Array.from(el.children).forEach((child) => {
@@ -343,6 +366,7 @@ function convertBlock(el: HTMLElement): SNode[] {
     case 'div':
       if (el.hasAttribute('data-likhari-page-break')) return [{ type: 'page-break', version: 1 }];
       if (el.hasAttribute('data-likhari-layout-container')) return [convertLayout(el)];
+      if (el.hasAttribute('data-likhari-poetry-layout')) return [convertPoetry(el)];
       return flowBlocks(el);
     case 'figcaption':
       return [];

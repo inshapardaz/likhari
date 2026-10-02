@@ -374,6 +374,34 @@
   content: '[' counter(likhari-footnote-item) '] ';
 }
 
+/* Poetry couplets (lexical-editor-spec.md §4.11, editor-ui-design-spec.md §4).
+   Own type scale and spacing, distinct from body text — the .likhari-ltr/
+   .likhari-rtl per-block classes (above) already switch font-family for this
+   element same as any other block; these rules layer poetry's own size/
+   line-height/gap on top, combined with those same classes. */
+.likhari-poetry {
+  margin: 0 0 1.4em 0;
+}
+
+.likhari-poetry.likhari-ltr {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.likhari-poetry.likhari-rtl {
+  font-size: 20px;
+  line-height: 2.1;
+}
+
+.likhari-poetry--two-column .likhari-layout-container {
+  margin: 0;
+  gap: 16px;
+}
+
+.likhari-poetry--two-column .likhari-layout-item {
+  text-align: inherit;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;
