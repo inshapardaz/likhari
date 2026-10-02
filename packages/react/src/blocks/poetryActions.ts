@@ -71,3 +71,34 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
   misraA.selectStart();
   return true;
 }
+
+/**
+ * Enter at the end of a couplet's last misra would otherwise land inside
+ * ParagraphNode's own insertNewAfter — which inserts the new paragraph as a
+ * sibling of the misra, i.e. still inside the couplet (or, for two-column,
+ * inside its LayoutItemNode) — trapping the caret with no way to add a line
+ * after the block. Handled here instead: a plain paragraph after the whole
+ * couplet, focused. Returns false (let normal Enter handling proceed) for
+ * every other caret position, including earlier in the couplet.
+ */
+export function $exitPoetryOnEnter(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const couplet = $getPoetryBlockFromSelection();
+  if (!couplet) return false;
+
+  const misras = $getMisraParagraphs(couplet);
+  const lastMisra = misras[misras.length - 1];
+  if (!lastMisra) return false;
+
+  const anchor = selection.anchor;
+  const lastDesc = lastMisra.getLastDescendant();
+  const isAtEnd = lastDesc ? anchor.key === lastDesc.getKey() && anchor.offset === lastDesc.getTextContentSize() : anchor.key === lastMisra.getKey();
+  if (!isAtEnd) return false;
+
+  const paragraph = $createParagraphNode();
+  couplet.insertAfter(paragraph);
+  paragraph.select();
+  return true;
+}
