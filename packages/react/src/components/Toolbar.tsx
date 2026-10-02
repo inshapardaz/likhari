@@ -969,6 +969,37 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     });
   }, [editor, config.tables]);
 
+  // Right-clicking a poetry couplet opens the same options menu at the pointer.
+  const [poetryContext, setPoetryContext] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!config.poetry.enabled) return;
+    const onContextMenu = (event: MouseEvent) => {
+      if (event.defaultPrevented) return; // a link inside the couplet already took it
+      const coupletElement = (event.target as HTMLElement | null)?.closest?.('.likhari-poetry');
+      if (!coupletElement) return;
+      let handled = false;
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(coupletElement);
+          const couplet = node ? $findMatchingParent(node, $isPoetryBlockNode) : null;
+          if (!couplet) return;
+          handled = true;
+          if (!$getPoetryBlockFromSelection()) couplet.selectStart();
+        },
+        { discrete: true },
+      );
+      if (!handled) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      setPoetryContext({ x: event.clientX, y: event.clientY });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.poetry.enabled]);
+
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
     if (!config.links) return;
@@ -1563,6 +1594,31 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               canUnmergeCell={state.canUnmergeCell}
               onAction={runMenuAction}
             />
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
+      {config.poetry.enabled && (
+        <Menu
+          opened={poetryContext !== null}
+          onChange={(opened) => {
+            if (!opened) setPoetryContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          portalProps={{ target: portalTarget }}
+          shadow="sm"
+          width={200}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: poetryContext?.x ?? -9999, top: poetryContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}
