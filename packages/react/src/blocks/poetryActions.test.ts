@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, createEditor, type LexicalEditor } from 'lexical';
 import { LayoutContainerNode, LayoutItemNode } from './LayoutNode';
 import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
-import { $exitPoetryOnEnter, $getMisraParagraphs, $getPoetryBlockFromSelection, $insertPoetryCouplet, $setPoetryLayout } from './poetryActions';
+import {
+  $ensureTrailingParagraph,
+  $exitPoetryOnEnter,
+  $getMisraParagraphs,
+  $getPoetryBlockFromSelection,
+  $insertPoetryCouplet,
+  $setPoetryLayout,
+} from './poetryActions';
 
 function makeEditor(): LexicalEditor {
   return createEditor({
@@ -41,6 +48,8 @@ describe('$insertPoetryCouplet', () => {
       expect(couplet.getLayout()).toBe('single');
       expect(couplet.getAlign()).toBe('justify');
       expect(couplet.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+      // Always leaves somewhere editable to click after a trailing couplet.
+      expect(couplet.getNextSibling()?.getType()).toBe('paragraph');
     });
     expect(misraTexts(editor)).toEqual(['', '']);
   });
@@ -238,6 +247,38 @@ describe('$exitPoetryOnEnter', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       expect($exitPoetryOnEnter()).toBe(false);
+    });
+  });
+});
+
+describe('$ensureTrailingParagraph', () => {
+  it('appends an empty paragraph after a couplet with no next sibling', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+        couplet.getNextSibling()!.remove(); // simulate the invariant having been broken later
+        expect(couplet.getNextSibling()).toBeNull();
+        $ensureTrailingParagraph(couplet);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+      expect(couplet.getNextSibling()?.getType()).toBe('paragraph');
+    });
+  });
+
+  it('is a no-op when a next sibling already exists', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(() => {
+      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+      const sibling = couplet.getNextSibling();
+      $ensureTrailingParagraph(couplet);
+      expect(couplet.getNextSibling()).toBe(sibling);
     });
   });
 });

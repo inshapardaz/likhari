@@ -49,6 +49,17 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
   node.setLayoutAttribute(layout);
 }
 
+/** A couplet at the very end of the document would otherwise leave no
+ * editable block to click or arrow down into — appends one empty paragraph
+ * if the couplet doesn't already have a next sibling. Idempotent: once a
+ * sibling exists (that paragraph, or anything else), this is a no-op, so
+ * it's safe to call from both the insert command and a node transform that
+ * keeps the invariant even after later edits (e.g. deleting the trailing
+ * paragraph, or JSON content loaded without one). */
+export function $ensureTrailingParagraph(node: PoetryBlockNode): void {
+  if (node.getNextSibling() === null) node.insertAfter($createParagraphNode());
+}
+
 /** Inserts a new two-misra couplet after the selection's top-level block,
  * in `layout`/`align`, and focuses its first misra. */
 export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): boolean {
@@ -73,6 +84,7 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
   }
 
   anchorTopLevel.insertAfter(node);
+  $ensureTrailingParagraph(node);
   misraA.selectStart();
   return true;
 }
@@ -102,8 +114,11 @@ export function $exitPoetryOnEnter(): boolean {
   const isAtEnd = lastDesc ? anchor.key === lastDesc.getKey() && anchor.offset === lastDesc.getTextContentSize() : anchor.key === lastMisra.getKey();
   if (!isAtEnd) return false;
 
-  const paragraph = $createParagraphNode();
-  couplet.insertAfter(paragraph);
+  // $ensureTrailingParagraph already guarantees one after every couplet —
+  // reuse it rather than stacking a new empty paragraph on repeated Enters.
+  const existing = couplet.getNextSibling();
+  const paragraph = $isParagraphNode(existing) ? existing : $createParagraphNode();
+  if (paragraph !== existing) couplet.insertAfter(paragraph);
   paragraph.select();
   return true;
 }

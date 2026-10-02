@@ -4,7 +4,7 @@ import { COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HIGH, KEY_ENTER_COMMAND, crea
 import { mergeRegister } from '@lexical/utils';
 import { LayoutContainerNode, LayoutItemNode } from '../blocks/LayoutNode';
 import { PoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
-import { $exitPoetryOnEnter, $insertPoetryCouplet } from '../blocks/poetryActions';
+import { $ensureTrailingParagraph, $exitPoetryOnEnter, $insertPoetryCouplet } from '../blocks/poetryActions';
 
 export const INSERT_POETRY_COUPLET_COMMAND: LexicalCommand<{ layout: PoetryLayout; align: PoetryAlign }> = createCommand(
   'INSERT_POETRY_COUPLET_COMMAND',
@@ -12,9 +12,9 @@ export const INSERT_POETRY_COUPLET_COMMAND: LexicalCommand<{ layout: PoetryLayou
 
 /**
  * Registers INSERT_POETRY_COUPLET_COMMAND (mirrors LayoutPlugin/FootnotePlugin's
- * shape), a node transform that removes a couplet left with no misra
- * content — e.g. after undo/paste leaves it structurally empty — rather
- * than letting an unselectable husk linger in the document, and a
+ * shape); a node transform that removes a couplet left with no misra
+ * content (e.g. after undo/paste leaves it structurally empty) and keeps a
+ * trailing couplet always followed by an editable paragraph; and a
  * KEY_ENTER_COMMAND handler (above RichTextPlugin's own, which would
  * otherwise trap Enter inside the couplet — see poetryActions.ts) that lets
  * Enter at the end of the last misra add a paragraph after the block.
@@ -34,7 +34,11 @@ export function PoetryPlugin() {
         COMMAND_PRIORITY_EDITOR,
       ),
       editor.registerNodeTransform(PoetryBlockNode, (node) => {
-        if (node.getChildrenSize() === 0) node.remove();
+        if (node.getChildrenSize() === 0) {
+          node.remove();
+          return;
+        }
+        $ensureTrailingParagraph(node);
       }),
       editor.registerCommand(
         KEY_ENTER_COMMAND,

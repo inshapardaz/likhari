@@ -413,6 +413,13 @@
   text-align: inherit;
 }
 
+/* A visible divider between misra columns, same dashed language as the
+   couplet's own border — matches a table's internal cell borders. */
+.likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
+  border-inline-start: 1px dashed var(--editor-line-strong);
+  padding-inline-start: 16px;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;
