@@ -406,7 +406,7 @@
 
 .likhari-poetry--two-column .likhari-layout-container {
   margin: 0;
-  gap: 16px;
+  gap: 40px;
 }
 
 .likhari-poetry--two-column .likhari-layout-item {
@@ -417,7 +417,7 @@
    couplet's own border — matches a table's internal cell borders. */
 .likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
   border-inline-start: 1px dashed var(--editor-line-strong);
-  padding-inline-start: 16px;
+  padding-inline-start: 24px;
 }
 
 .likhari-table {
