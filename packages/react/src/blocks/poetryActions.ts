@@ -131,13 +131,17 @@ export function $deletePoetryOnBackspace(): boolean {
 }
 
 /**
- * Enter at the end of a couplet's last misra would otherwise land inside
- * ParagraphNode's own insertNewAfter — which inserts the new paragraph as a
- * sibling of the misra, i.e. still inside the couplet (or, for two-column,
- * inside its LayoutItemNode) — trapping the caret with no way to add a line
- * after the block. Handled here instead: a plain paragraph after the whole
- * couplet, focused. Returns false (let normal Enter handling proceed) for
- * every other caret position, including earlier in the couplet.
+ * A couplet is always exactly two misras — Enter must never grow it past
+ * that. Pressed anywhere in the first misra, Enter moves the caret to the
+ * second (the line already exists; nothing is inserted). Pressed anywhere
+ * in the second (the last), Enter exits: ParagraphNode's own
+ * insertNewAfter would otherwise insert the new paragraph as a sibling of
+ * the misra — i.e. still inside the couplet, growing it to three lines
+ * and, on the next Enter, four, and so on — so that's handled here
+ * instead, reusing or creating a plain paragraph after the whole couplet.
+ * Intercepts Enter at *any* caret position inside the couplet (not just
+ * at an edge) specifically to prevent that growth; returns false only
+ * when the selection isn't inside a couplet at all.
  */
 export function $exitPoetryOnEnter(): boolean {
   const selection = $getSelection();
@@ -147,16 +151,18 @@ export function $exitPoetryOnEnter(): boolean {
   if (!couplet) return false;
 
   const misras = $getMisraParagraphs(couplet);
-  const lastMisra = misras[misras.length - 1];
-  if (!lastMisra) return false;
+  const anchorNode = selection.anchor.getNode();
+  const misraIndex = misras.findIndex((m) => m.getKey() === anchorNode.getKey() || m.isParentOf(anchorNode));
 
-  const anchor = selection.anchor;
-  const lastDesc = lastMisra.getLastDescendant();
-  const isAtEnd = lastDesc ? anchor.key === lastDesc.getKey() && anchor.offset === lastDesc.getTextContentSize() : anchor.key === lastMisra.getKey();
-  if (!isAtEnd) return false;
+  if (misraIndex !== -1 && misraIndex < misras.length - 1) {
+    misras[misraIndex + 1].selectEnd();
+    return true;
+  }
 
-  // $ensureTrailingParagraph already guarantees one after every couplet —
-  // reuse it rather than stacking a new empty paragraph on repeated Enters.
+  // On the last misra (or misraIndex === -1, e.g. the caret landed on the
+  // couplet's shadow-root boundary itself) — exit. $ensureTrailingParagraph
+  // already guarantees a paragraph after every couplet; reuse it rather
+  // than stacking a new empty one on repeated Enters.
   const existing = couplet.getNextSibling();
   const paragraph = $isParagraphNode(existing) ? existing : $createParagraphNode();
   if (paragraph !== existing) couplet.insertAfter(paragraph);
