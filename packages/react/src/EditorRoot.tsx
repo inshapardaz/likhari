@@ -23,6 +23,7 @@ import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { PageBreakPlugin } from './plugins/PageBreakPlugin';
 import { LayoutPlugin } from './plugins/LayoutPlugin';
+import { FootnotePlugin } from './plugins/FootnotePlugin';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
@@ -515,6 +516,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.columns && <LayoutPlugin />}
+          {config.footnotes && <FootnotePlugin />}
           {config.tables && <TablePlugin hasCellMerge hasTabHandler />}
           {config.blocks.horizontalRule && <HorizontalRulePlugin />}
           <EditorInstancePlugin instanceRef={editorInstanceRef} />

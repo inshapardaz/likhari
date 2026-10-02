@@ -49,6 +49,7 @@ export interface Strings {
     insertPageBreak: string;
     insertTable: string;
     insertColumns: string;
+    insertFootnote: string;
     insertHorizontalRule: string;
     poetryBlocks: string;
     comingSoon: (label: string) => string;
@@ -257,6 +258,7 @@ const en: Strings = {
     insertPageBreak: 'Insert page break',
     insertTable: 'Insert table',
     insertColumns: 'Insert columns',
+    insertFootnote: 'Insert footnote',
     insertHorizontalRule: 'Insert horizontal rule',
     poetryBlocks: 'Poetry blocks',
     comingSoon: (label) => `${label} (coming soon)`,
@@ -459,6 +461,7 @@ const ur: Strings = {
     insertPageBreak: 'صفحے کی تقسیم شامل کریں',
     insertTable: 'جدول شامل کریں',
     insertColumns: 'کالم شامل کریں',
+    insertFootnote: 'فٹ نوٹ شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
     poetryBlocks: 'شاعری کے بلاکس',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
@@ -661,6 +664,7 @@ const paShahmukhi: Strings = {
     insertPageBreak: 'صفحے دی ونڈ پاؤ',
     insertTable: 'ٹیبل پاؤ',
     insertColumns: 'کالم پاؤ',
+    insertFootnote: 'فٹ نوٹ پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
     poetryBlocks: 'شاعری بلاک',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,

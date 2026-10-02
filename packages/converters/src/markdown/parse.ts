@@ -74,6 +74,9 @@ function inline(nodes: MdNode[], state: InlineState, out: SNode[]): void {
         else out.push(elementBase('link', children, { url, rel: null, target: null, title: node.title ?? null }));
         break;
       }
+      case 'footnoteReference':
+        out.push({ type: 'footnote-reference', version: 1, footnoteId: node.identifier ?? '' });
+        break;
       case 'textDirective': {
         const name = node.name ?? '';
         if (name === 'span') {
@@ -292,8 +295,25 @@ function restoreUnknownDirectives(node: MdNode & { position?: { start: { offset?
   });
 }
 
+/** Footnote definitions are always top-level in CommonMark/GFM (never nested
+ * inside a list/quote/etc.), wherever in the source they appear — so unlike
+ * everything else `blocks()` handles, they're pulled out before the normal
+ * recursive walk and collected into the one footnote-list our editor model
+ * expects, instead of staying scattered where the source happened to put them. */
+function extractFootnoteList(topLevel: MdNode[]): SNode | null {
+  const defs = topLevel.filter((node) => node.type === 'footnoteDefinition');
+  if (defs.length === 0) return null;
+  const items = defs.map((def) =>
+    elementBase('footnote-item', blocks(def.children ?? []), { footnoteId: def.identifier ?? '' }),
+  );
+  return elementBase('footnote-list', items);
+}
+
 export function parseMarkdown(input: string, _ctx?: ConverterContext): SerializedEditorState {
   const tree = processor.parse(input) as unknown as MdNode;
   restoreUnknownDirectives(tree, input);
-  return makeState(blocks(tree.children ?? []));
+  const topLevel = tree.children ?? [];
+  const footnoteList = extractFootnoteList(topLevel);
+  const body = blocks(topLevel.filter((node) => node.type !== 'footnoteDefinition'));
+  return makeState(footnoteList ? [...body, footnoteList] : body);
 }

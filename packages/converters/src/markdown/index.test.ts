@@ -114,6 +114,24 @@ describe('markdownConverter', () => {
     expect((back.children![1].children![0] as SNode).children![0]).toMatchObject({ text: 'right' });
   });
 
+  it('round-trips footnotes as [^1] + a reference block', () => {
+    const footnoteList = elementBase('footnote-list', [
+      elementBase('footnote-item', [paragraph([textNode('first note')])], { footnoteId: 'a' }),
+      elementBase('footnote-item', [paragraph([textNode('second note')])], { footnoteId: 'b' }),
+    ]);
+    const body = paragraph([textNode('see'), { type: 'footnote-reference', version: 1, footnoteId: 'a' } as SNode, textNode('.')]);
+    const out = md([body, footnoteList]);
+    expect(out).toContain('[^a]');
+    expect(out).toContain('[^a]: first note');
+
+    const [backBody, backList] = parse(out);
+    expect(backBody.children!.map((c) => c.type)).toEqual(['text', 'footnote-reference', 'text']);
+    expect((backBody.children![1] as SNode).footnoteId).toBe('a');
+    expect(backList.type).toBe('footnote-list');
+    expect(backList.children!.map((item) => item.footnoteId)).toEqual(['a', 'b']);
+    expect((backList.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'first note' });
+  });
+
   it('is safe on hostile input and tolerant of plain Markdown', () => {
     const blocks = parse('[x](javascript:alert(1)) ![i](javascript:alert(1))\n\n<script>alert(1)</script>\n\n10:30 and a:b');
     expect(JSON.stringify(blocks)).not.toMatch(/javascript|alert/);

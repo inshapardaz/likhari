@@ -42,6 +42,7 @@ import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
+import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
@@ -115,6 +116,7 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconNumber1Small,
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
@@ -966,6 +968,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     config.blocks.horizontalRule ||
     config.blocks.pageBreak ||
     config.columns ||
+    config.footnotes ||
     config.poetry.enabled;
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
@@ -1291,6 +1294,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         )}
         {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
         {config.columns && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
+        {config.footnotes && (
+          <ToolbarButton
+            icon={IconNumber1Small}
+            title={strings.toolbar.insertFootnote}
+            onClick={() => editor.dispatchCommand(INSERT_FOOTNOTE_COMMAND, undefined)}
+          />
+        )}
         {config.blocks.horizontalRule && (
           <ToolbarButton
             icon={IconSeparatorHorizontal}

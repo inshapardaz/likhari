@@ -7,6 +7,8 @@ import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
 import { ImageNode } from './image/ImageNode';
 import { PageBreakNode } from './blocks/PageBreakNode';
 import { LayoutContainerNode, LayoutItemNode } from './blocks/LayoutNode';
+import { FootnoteReferenceNode } from './blocks/FootnoteNode';
+import { FootnoteItemNode, FootnoteListNode } from './blocks/FootnoteListNode';
 
 /**
  * Node types registered on the editor at construction time. Per
@@ -31,4 +33,7 @@ export const EDITOR_NODES: Klass<LexicalNode>[] = [
   PageBreakNode,
   LayoutContainerNode,
   LayoutItemNode,
+  FootnoteReferenceNode,
+  FootnoteListNode,
+  FootnoteItemNode,
 ];
