@@ -383,8 +383,15 @@
    conventional poetry typesetting — rather than a full-width paragraph where
    a short line just hugs the start edge regardless of its own text-align. */
 .likhari-poetry {
+  box-sizing: border-box;
   margin: 0 auto 1.4em auto;
   max-width: 70%;
+  /* A visible boundary while editing, same affordance as a table's own
+     border — poetry couplets are a distinct structural block, not a plain
+     paragraph, and should read as one at a glance. */
+  border: 1px dashed var(--editor-line-strong);
+  border-radius: 6px;
+  padding: 10px 16px;
 }
 
 .likhari-poetry.likhari-ltr {

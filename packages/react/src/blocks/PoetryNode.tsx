@@ -18,6 +18,16 @@ export type PoetryAlign = 'justify' | 'left' | 'right' | 'start';
 const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column']);
 const VALID_ALIGNS = new Set<PoetryAlign>(['justify', 'left', 'right', 'start']);
 
+/** `text-align: justify` only stretches a line that actually wraps — a
+ * misra short enough to fit on one line would otherwise just sit at its own
+ * start edge. `text-align-last: center` centers that single/last line while
+ * still justifying any line that does wrap, which is what "justified
+ * couplets, centered on the page" means in practice for most real verse. */
+function applyAlignStyle(element: HTMLElement, align: PoetryAlign): void {
+  element.style.textAlign = align;
+  element.style.textAlignLast = align === 'justify' ? 'center' : '';
+}
+
 export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign }, SerializedElementNode>;
 
 /**
@@ -96,7 +106,7 @@ export class PoetryBlockNode extends ElementNode {
     const element = document.createElement('div');
     element.setAttribute('data-likhari-poetry-layout', this.getLayout());
     element.setAttribute('data-likhari-poetry-align', this.getAlign());
-    element.style.textAlign = this.getAlign();
+    applyAlignStyle(element, this.getAlign());
     return { element };
   }
 
@@ -104,7 +114,7 @@ export class PoetryBlockNode extends ElementNode {
     const element = document.createElement('div');
     const base = config.theme.poetry ?? 'likhari-poetry';
     addClassNamesToElement(element, base, `${base}--${this.__layout}`);
-    element.style.textAlign = this.__align;
+    applyAlignStyle(element, this.__align);
     return element;
   }
 
@@ -119,7 +129,7 @@ export class PoetryBlockNode extends ElementNode {
       dom.classList.add(`${base}--${this.__layout}`);
     }
     if (prevNode.__align !== this.__align) {
-      dom.style.textAlign = this.__align;
+      applyAlignStyle(dom, this.__align);
     }
     return false;
   }
