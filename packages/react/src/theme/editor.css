@@ -404,6 +404,15 @@
   line-height: 2.1;
 }
 
+/* Misra lines sit tight against each other within a couplet — the generic
+   .likhari-paragraph margin would otherwise add the same gap between a
+   couplet's own two lines as between separate couplets, losing the pairing
+   entirely. The couplet's own margin-bottom (above) is the only gap that
+   should read as "extra space", and it falls after every second line. */
+.likhari-poetry .likhari-paragraph {
+  margin: 0;
+}
+
 .likhari-poetry--two-column .likhari-layout-container {
   margin: 0;
   /* No grid gap — the divider below sits exactly on the track boundary, so
