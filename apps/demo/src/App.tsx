@@ -359,6 +359,8 @@ export function App() {
               <Checkbox label="Quote" checked={!!config.blocks?.quote} onChange={(v) => updateBlocks('quote', v)} />
               <Checkbox label="Page break" checked={!!config.blocks?.pageBreak} onChange={(v) => updateBlocks('pageBreak', v)} />
               <Checkbox label="Table" checked={!!config.tables} onChange={(v) => setConfig((c) => ({ ...c, tables: v }))} />
+              <Checkbox label="Columns" checked={!!config.columns} onChange={(v) => setConfig((c) => ({ ...c, columns: v }))} />
+              <Checkbox label="Footnotes" checked={!!config.footnotes} onChange={(v) => setConfig((c) => ({ ...c, footnotes: v }))} />
             </ControlGroup>
 
             <ControlGroup title="Headings" dark={dark}>
