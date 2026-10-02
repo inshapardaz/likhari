@@ -158,6 +158,27 @@ describe('markdownConverter', () => {
     expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
   });
 
+  it('round-trips a poetry block with multiple couplets (single and two-column)', () => {
+    const singleBlock = elementBase(
+      'poetry-couplet',
+      [paragraph([textNode('a1')]), paragraph([textNode('b1')]), paragraph([textNode('a2')]), paragraph([textNode('b2')])],
+      { layout: 'single', align: 'justify' },
+    );
+    const [backSingle] = parse(md([singleBlock]));
+    expect(backSingle.children!.map((p) => (p.children![0] as SNode).text)).toEqual(['a1', 'b1', 'a2', 'b2']);
+
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    const twoColumnBlock = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const [backTwoColumn] = parse(md([twoColumnBlock]));
+    expect(backTwoColumn.children).toHaveLength(2);
+    expect(backTwoColumn.children!.every((c) => c.type === 'layout-container')).toBe(true);
+  });
+
   it('is safe on hostile input and tolerant of plain Markdown', () => {
     const blocks = parse('[x](javascript:alert(1)) ![i](javascript:alert(1))\n\n<script>alert(1)</script>\n\n10:30 and a:b');
     expect(JSON.stringify(blocks)).not.toMatch(/javascript|alert/);

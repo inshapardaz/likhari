@@ -273,13 +273,18 @@ function convertPoetry(el: HTMLElement): SNode {
   const align = POETRY_ALIGNS.has(rawAlign) ? rawAlign : 'justify';
 
   if (layout === 'two-column') {
-    const containerEl = Array.from(el.children).find((c) => c.hasAttribute('data-likhari-layout-container')) as HTMLElement | undefined;
-    const container = containerEl
-      ? convertLayout(containerEl)
-      : elementBase('layout-container', [elementBase('layout-item', [paragraph()]), elementBase('layout-item', [paragraph()])], {
-          templateColumns: 'repeat(2, 1fr)',
-        });
-    return elementBase('poetry-couplet', [container], { layout, align });
+    // One LayoutContainerNode row per couplet — grab all of them, not just
+    // the first, or every couplet past the first silently disappears.
+    const containerEls = Array.from(el.children).filter((c) => c.hasAttribute('data-likhari-layout-container')) as HTMLElement[];
+    const containers =
+      containerEls.length > 0
+        ? containerEls.map((c) => convertLayout(c))
+        : [
+            elementBase('layout-container', [elementBase('layout-item', [paragraph()]), elementBase('layout-item', [paragraph()])], {
+              templateColumns: 'repeat(2, 1fr)',
+            }),
+          ];
+    return elementBase('poetry-couplet', containers, { layout, align });
   }
 
   const children = flowBlocks(el);

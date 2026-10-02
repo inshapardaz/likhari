@@ -1,21 +1,42 @@
 import { $findMatchingParent } from '@lexical/utils';
 import { $createParagraphNode, $getSelection, $isElementNode, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
-import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode } from './LayoutNode';
+import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode, type LayoutContainerNode } from './LayoutNode';
 import { $createPoetryBlockNode, $isPoetryBlockNode, type PoetryAlign, type PoetryLayout, type PoetryBlockNode } from './PoetryNode';
 
-/** The couplet's two misra paragraphs, in document order, regardless of
- * which layout currently holds them. */
-export function $getMisraParagraphs(node: PoetryBlockNode): ParagraphNode[] {
+/** One couplet's two misra paragraphs, in order. */
+export type Couplet = [ParagraphNode, ParagraphNode];
+
+/**
+ * A poetry block is a *section* of one or more couplets sharing one layout
+ * (single-column stacks each couplet's two misras directly as paragraph
+ * children, two deep per couplet; two-column gives each couplet its own
+ * LayoutContainerNode row). This walks that structure and returns each
+ * couplet as a pair, in document order — the one place that knows how to
+ * read either shape, so nothing else needs to.
+ */
+export function $getCouplets(node: PoetryBlockNode): Couplet[] {
   if (node.getLayout() === 'single') {
-    return node.getChildren().filter($isParagraphNode);
+    const paragraphs = node.getChildren().filter($isParagraphNode);
+    const couplets: Couplet[] = [];
+    for (let i = 0; i + 1 < paragraphs.length; i += 2) couplets.push([paragraphs[i], paragraphs[i + 1]]);
+    return couplets;
   }
-  const container = node.getChildren().find($isLayoutContainerNode);
-  if (!container) return [];
-  return container
-    .getChildren()
-    .filter($isLayoutItemNode)
-    .map((item) => item.getFirstChild())
-    .filter($isParagraphNode);
+  const containers = node.getChildren().filter($isLayoutContainerNode);
+  const couplets: Couplet[] = [];
+  for (const container of containers) {
+    const items = container.getChildren().filter($isLayoutItemNode);
+    const a = items[0]?.getFirstChild();
+    const b = items[1]?.getFirstChild();
+    if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
+  }
+  return couplets;
+}
+
+/** Every misra in the block, flattened across all its couplets — for
+ * operations (like $setPoetryLayout) that don't care about couplet
+ * boundaries, just the full set of lines. */
+export function $getMisraParagraphs(node: PoetryBlockNode): ParagraphNode[] {
+  return $getCouplets(node).flat();
 }
 
 /** The PoetryBlockNode the current selection is inside, or null. */
@@ -26,32 +47,63 @@ export function $getPoetryBlockFromSelection(): PoetryBlockNode | null {
   return match ?? null;
 }
 
+/** Which couplet (and which of its two misras, 0 or 1) a node sits inside,
+ * or null if it's in neither — e.g. on the block's own boundary. */
+function $findCoupletPosition(couplets: Couplet[], target: import('lexical').LexicalNode): { coupletIndex: number; misraIndex: 0 | 1 } | null {
+  for (let c = 0; c < couplets.length; c++) {
+    for (const misraIndex of [0, 1] as const) {
+      const misra = couplets[c][misraIndex];
+      if (misra.getKey() === target.getKey() || misra.isParentOf(target)) return { coupletIndex: c, misraIndex };
+    }
+  }
+  return null;
+}
+
+function $appendCoupletTo(node: PoetryBlockNode): Couplet {
+  const misraA = $createParagraphNode();
+  const misraB = $createParagraphNode();
+  if (node.getLayout() === 'single') {
+    node.append(misraA, misraB);
+  } else {
+    const container = $createLayoutContainerNode('repeat(2, 1fr)');
+    container.append($createLayoutItemNode().append(misraA), $createLayoutItemNode().append(misraB));
+    node.append(container);
+  }
+  return [misraA, misraB];
+}
+
 /**
- * Converts a couplet between single-column (two stacked misras) and
- * two-column (built on the columns primitive, §4.9) in place — pulls the
- * two misra paragraphs out of whichever shape currently holds them and
- * rebuilds the other shape around the same paragraph nodes, so content,
- * selection and undo history all survive the conversion.
+ * Converts every couplet in the block between single-column (two stacked
+ * misras) and two-column (built on the columns primitive, §4.9) in place —
+ * pulls each couplet's two misra paragraphs out of whichever shape
+ * currently holds them and rebuilds the other shape around the same
+ * paragraph nodes, preserving couplet order, so content, selection and
+ * undo history all survive the conversion.
  */
 export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): void {
   if (node.getLayout() === layout) return;
-  const misras = $getMisraParagraphs(node);
-  for (const misra of misras) misra.remove();
+  const couplets = $getCouplets(node);
+  for (const [a, b] of couplets) {
+    a.remove();
+    b.remove();
+  }
   for (const leftover of node.getChildren()) leftover.remove();
 
   if (layout === 'single') {
-    for (const misra of misras) node.append(misra);
+    for (const [a, b] of couplets) node.append(a, b);
   } else {
-    const container = $createLayoutContainerNode('repeat(2, 1fr)');
-    for (const misra of misras) container.append($createLayoutItemNode().append(misra));
-    node.append(container);
+    for (const [a, b] of couplets) {
+      const container = $createLayoutContainerNode('repeat(2, 1fr)');
+      container.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
+      node.append(container);
+    }
   }
   node.setLayoutAttribute(layout);
 }
 
-/** A couplet at the very end of the document would otherwise leave no
+/** A block at the very end of the document would otherwise leave no
  * editable block to click or arrow down into — appends one empty paragraph
- * if the couplet doesn't already have a next sibling. Idempotent: once a
+ * if the block doesn't already have a next sibling. Idempotent: once a
  * sibling exists (that paragraph, or anything else), this is a no-op, so
  * it's safe to call from both the insert command and a node transform that
  * keeps the invariant even after later edits (e.g. deleting the trailing
@@ -60,28 +112,29 @@ export function $ensureTrailingParagraph(node: PoetryBlockNode): void {
   if (node.getNextSibling() === null) node.insertAfter($createParagraphNode());
 }
 
-/** Inserts a new two-misra couplet after the selection's top-level block,
- * in `layout`/`align`, and focuses its first misra. */
+/**
+ * Inserts a poetry couplet at the caret. If the caret is already inside a
+ * poetry block, appends a new couplet to *that* block (in its existing
+ * layout — "one poetry block can contain one or more couplets, in one or
+ * two column layout", so a block's layout is fixed once it has couplets,
+ * not chosen per couplet) and focuses its first misra. Otherwise creates a
+ * new block (in `layout`/`align`) with one couplet, after the selection's
+ * top-level element.
+ */
 export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
-  // getTopLevelElement() stops at the nearest shadow root, and a
-  // PoetryBlockNode is one — so from inside an existing couplet it resolves
-  // to the misra paragraph itself, not the couplet. Without this check, a
-  // second insert lands as a sibling of that misra (nested inside the first
-  // couplet) instead of after the couplet as a whole.
-  const anchorTopLevel = $getPoetryBlockFromSelection() ?? selection.anchor.getNode().getTopLevelElementOrThrow();
 
-  const node = $createPoetryBlockNode(layout, align);
-  const misraA = $createParagraphNode();
-  const misraB = $createParagraphNode();
-  if (layout === 'single') {
-    node.append(misraA, misraB);
-  } else {
-    const container = $createLayoutContainerNode('repeat(2, 1fr)');
-    container.append($createLayoutItemNode().append(misraA), $createLayoutItemNode().append(misraB));
-    node.append(container);
+  const existing = $getPoetryBlockFromSelection();
+  if (existing) {
+    const [misraA] = $appendCoupletTo(existing);
+    misraA.selectStart();
+    return true;
   }
+
+  const anchorTopLevel = selection.anchor.getNode().getTopLevelElementOrThrow();
+  const node = $createPoetryBlockNode(layout, align);
+  const [misraA] = $appendCoupletTo(node);
 
   anchorTopLevel.insertAfter(node);
   $ensureTrailingParagraph(node);
@@ -89,83 +142,149 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
   return true;
 }
 
-/** Removes the whole couplet the selection is inside, if any — the explicit,
- * always-available counterpart to $deletePoetryOnBackspace's empty-couplet
- * shortcut (mirrors the table menu's own "Delete table" action). */
+/** Removes the couplet the selection is inside. If it's the block's only
+ * couplet, removes the whole block (an empty poetry section serves no
+ * purpose) — the explicit, always-available counterpart to
+ * $deletePoetryOnBackspace's empty-couplet shortcut (mirrors the table
+ * menu's own "Delete table" action). */
 export function $deletePoetryCouplet(): boolean {
-  const couplet = $getPoetryBlockFromSelection();
-  if (!couplet) return false;
-  couplet.remove();
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+
+  const selection = $getSelection();
+  const couplets = $getCouplets(block);
+  const anchorNode = $isRangeSelection(selection) ? selection.anchor.getNode() : null;
+  const position = anchorNode ? $findCoupletPosition(couplets, anchorNode) : null;
+  const target = position ? couplets[position.coupletIndex] : couplets[couplets.length - 1];
+  if (!target) return false;
+
+  if (couplets.length <= 1) {
+    block.remove();
+    return true;
+  }
+
+  const [a, b] = target;
+  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
+  if (container) container.remove();
+  else {
+    a.remove();
+    b.remove();
+  }
   return true;
 }
 
 /**
- * Backspace at the very start of an empty couplet's first misra removes the
- * whole block — the natural keystroke to try first, and otherwise there was
- * no way to get rid of an empty couplet created by mistake (its two misra
- * paragraphs each have their own default canBeEmpty, so Lexical's usual
- * "delete the empty block" handling never reaches the couplet itself).
- * Returns false for every other caret position, including a non-empty
- * couplet, so normal Backspace handling (e.g. deleting within text) proceeds.
+ * Backspace at the very start of an empty couplet removes just that
+ * couplet — merging back into the previous one's end, or (if it's the
+ * block's only couplet) removing the whole block, since an empty poetry
+ * section serves no purpose. Otherwise there was no way to get rid of an
+ * empty couplet created by mistake (its misra paragraphs each have their
+ * own default canBeEmpty, so Lexical's usual "delete the empty block"
+ * handling never reaches the couplet itself). Returns false for every
+ * other caret position, including a non-empty couplet, so normal Backspace
+ * handling (e.g. deleting within text) proceeds.
  */
 export function $deletePoetryOnBackspace(): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
 
-  const couplet = $getPoetryBlockFromSelection();
-  if (!couplet) return false;
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
 
-  const misras = $getMisraParagraphs(couplet);
-  const firstMisra = misras[0];
-  if (!firstMisra) return false;
-  if (misras.some((m) => !m.isEmpty())) return false;
+  const couplets = $getCouplets(block);
+  const anchorNode = selection.anchor.getNode();
+  const position = $findCoupletPosition(couplets, anchorNode);
+  if (!position || position.misraIndex !== 0) return false;
 
+  const [firstMisra] = couplets[position.coupletIndex];
   const anchor = selection.anchor;
   const isAtStart = anchor.key === firstMisra.getKey() && anchor.offset === 0;
   if (!isAtStart) return false;
 
-  const previous = couplet.getPreviousSibling();
-  couplet.remove();
-  if ($isElementNode(previous)) previous.selectEnd();
+  const [a, b] = couplets[position.coupletIndex];
+  if (!a.isEmpty() || !b.isEmpty()) return false;
+
+  if (couplets.length <= 1) {
+    const previous = block.getPreviousSibling();
+    block.remove();
+    if ($isElementNode(previous)) previous.selectEnd();
+    return true;
+  }
+
+  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
+  if (container) container.remove();
+  else {
+    a.remove();
+    b.remove();
+  }
+  const remaining = $getCouplets(block);
+  const previousCouplet = remaining[position.coupletIndex - 1] ?? remaining[0];
+  previousCouplet?.[1].selectEnd();
   return true;
 }
 
 /**
- * A couplet is always exactly two misras — Enter must never grow it past
- * that. Pressed anywhere in the first misra, Enter moves the caret to the
- * second (the line already exists; nothing is inserted). Pressed anywhere
- * in the second (the last), Enter exits: ParagraphNode's own
- * insertNewAfter would otherwise insert the new paragraph as a sibling of
- * the misra — i.e. still inside the couplet, growing it to three lines
- * and, on the next Enter, four, and so on — so that's handled here
- * instead, reusing or creating a plain paragraph after the whole couplet.
- * Intercepts Enter at *any* caret position inside the couplet (not just
- * at an edge) specifically to prevent that growth; returns false only
- * when the selection isn't inside a couplet at all.
+ * Enter inside a poetry block never grows a couplet past its fixed two
+ * misras. The block's *last* couplet being completely empty is always the
+ * exit trigger, regardless of which of its two (both-empty) misras the
+ * caret happens to be on — pressing Enter once on a non-empty last couplet
+ * appends a fresh empty one to continue into ("new couplet after last"),
+ * and pressing Enter again on that still-untouched couplet exits ("double
+ * enter to exit the block"): the same empty-item convention most editors
+ * use for lists. Outside that case: pressed in a couplet's first misra,
+ * Enter moves the caret to the second (already there; nothing inserted —
+ * this is what stops ParagraphNode's default insertNewAfter from growing
+ * the couplet, which would otherwise insert the new paragraph as a sibling
+ * of wherever the caret was, i.e. still inside the couplet); pressed in
+ * the last misra of a couplet that isn't the block's last, it moves to the
+ * next couplet's first misra.
  */
 export function $exitPoetryOnEnter(): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
 
-  const couplet = $getPoetryBlockFromSelection();
-  if (!couplet) return false;
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
 
-  const misras = $getMisraParagraphs(couplet);
-  const anchorNode = selection.anchor.getNode();
-  const misraIndex = misras.findIndex((m) => m.getKey() === anchorNode.getKey() || m.isParentOf(anchorNode));
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return false;
 
-  if (misraIndex !== -1 && misraIndex < misras.length - 1) {
-    misras[misraIndex + 1].selectEnd();
+  const { coupletIndex, misraIndex } = position;
+  const [a, b] = couplets[coupletIndex];
+  const isLastCouplet = coupletIndex === couplets.length - 1;
+  const coupletEmpty = a.isEmpty() && b.isEmpty();
+
+  if (isLastCouplet && coupletEmpty) {
+    // Drop the couplet we ourselves auto-created on the previous Enter —
+    // unless it's the block's only couplet, in which case leave the
+    // section as the user's (empty) content rather than deleting it.
+    if (couplets.length > 1) {
+      const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
+      if (container) container.remove();
+      else {
+        a.remove();
+        b.remove();
+      }
+    }
+    const existingNext = block.getNextSibling();
+    const paragraph = $isParagraphNode(existingNext) ? existingNext : $createParagraphNode();
+    if (paragraph !== existingNext) block.insertAfter(paragraph);
+    paragraph.select();
     return true;
   }
 
-  // On the last misra (or misraIndex === -1, e.g. the caret landed on the
-  // couplet's shadow-root boundary itself) — exit. $ensureTrailingParagraph
-  // already guarantees a paragraph after every couplet; reuse it rather
-  // than stacking a new empty one on repeated Enters.
-  const existing = couplet.getNextSibling();
-  const paragraph = $isParagraphNode(existing) ? existing : $createParagraphNode();
-  if (paragraph !== existing) couplet.insertAfter(paragraph);
-  paragraph.select();
+  if (misraIndex === 0) {
+    b.selectEnd();
+    return true;
+  }
+
+  if (!isLastCouplet) {
+    couplets[coupletIndex + 1][0].selectEnd();
+    return true;
+  }
+
+  const [newA] = $appendCoupletTo(block);
+  newA.selectStart();
   return true;
 }

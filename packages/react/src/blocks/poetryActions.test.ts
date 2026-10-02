@@ -7,6 +7,7 @@ import {
   $deletePoetryOnBackspace,
   $ensureTrailingParagraph,
   $exitPoetryOnEnter,
+  $getCouplets,
   $getMisraParagraphs,
   $getPoetryBlockFromSelection,
   $insertPoetryCouplet,
@@ -34,36 +35,40 @@ function withCaretInParagraph(editor: LexicalEditor, action: () => void): void {
   );
 }
 
+const getBlock = () => $getRoot().getChildren().find($isPoetryBlockNode)!;
+
 const misraTexts = (editor: LexicalEditor): string[] =>
   editor.getEditorState().read(() => {
-    const couplet = $getRoot().getChildren().find($isPoetryBlockNode);
-    return couplet ? $getMisraParagraphs(couplet).map((p) => p.getTextContent()) : [];
+    const block = $getRoot().getChildren().find($isPoetryBlockNode);
+    return block ? $getMisraParagraphs(block).map((p) => p.getTextContent()) : [];
   });
 
 describe('$insertPoetryCouplet', () => {
-  it('inserts a single-column couplet with two empty misras after the caret block', () => {
+  it('inserts a single-column block with one couplet after the caret block', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getLayout()).toBe('single');
-      expect(couplet.getAlign()).toBe('justify');
-      expect(couplet.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
-      // Always leaves somewhere editable to click after a trailing couplet.
-      expect(couplet.getNextSibling()?.getType()).toBe('paragraph');
+      const block = getBlock();
+      expect(block.getLayout()).toBe('single');
+      expect(block.getAlign()).toBe('justify');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+      // Always leaves somewhere editable to click after a trailing block.
+      expect(block.getNextSibling()?.getType()).toBe('paragraph');
     });
     expect(misraTexts(editor)).toEqual(['', '']);
   });
 
-  it('inserts a two-column couplet built on the layout primitive', () => {
+  it('inserts a two-column block built on the layout primitive', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'start'));
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getLayout()).toBe('two-column');
-      expect(couplet.getChildren()[0].getType()).toBe('layout-container');
+      const block = getBlock();
+      expect(block.getLayout()).toBe('two-column');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren()[0].getType()).toBe('layout-container');
     });
     expect(misraTexts(editor)).toEqual(['', '']);
   });
@@ -78,29 +83,29 @@ describe('$insertPoetryCouplet', () => {
     });
   });
 
-  it('inserts a second couplet as a sibling after the first, not nested inside it', () => {
+  it('appends a second couplet to the same block when the caret is still inside it', () => {
     // getTopLevelElement() stops at the nearest shadow root — and a
-    // PoetryBlockNode is one — so from a caret still inside the first
-    // couplet (the common flow: insert, then insert again without moving
-    // the caret) it resolves to the misra paragraph, not the couplet. This
-    // regression-tests that $insertPoetryCouplet corrects for that.
+    // PoetryBlockNode is one — so from a caret still inside the block (the
+    // common flow: insert, then insert again without moving the caret) a
+    // naive "insert after the top-level element" would resolve to the
+    // misra paragraph, not the block. $insertPoetryCouplet instead detects
+    // this and appends a couplet to the existing block, matching "one
+    // poetry block can contain one or more couplets".
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[0].selectStart(); // caret still in the first couplet
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectStart();
         $insertPoetryCouplet('single', 'justify');
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplets = $getRoot().getChildren().filter($isPoetryBlockNode);
-      expect(couplets).toHaveLength(2);
-      for (const couplet of couplets) {
-        expect(couplet.getChildren().map((c) => c.getType())).toEqual(['paragraph', 'paragraph']);
-      }
+      const blocks = $getRoot().getChildren().filter($isPoetryBlockNode);
+      expect(blocks).toHaveLength(1);
+      expect($getCouplets(blocks[0])).toHaveLength(2);
     });
   });
 });
@@ -111,8 +116,8 @@ describe('$setPoetryLayout', () => {
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        const [a, b] = $getMisraParagraphs(couplet);
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
         a.append($createTextNode('first misra'));
         b.append($createTextNode('second misra'));
       },
@@ -121,16 +126,15 @@ describe('$setPoetryLayout', () => {
 
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $setPoetryLayout(couplet, 'two-column');
+        $setPoetryLayout(getBlock(), 'two-column');
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getLayout()).toBe('two-column');
-      expect(couplet.getChildren()[0].getType()).toBe('layout-container');
+      const block = getBlock();
+      expect(block.getLayout()).toBe('two-column');
+      expect(block.getChildren()[0].getType()).toBe('layout-container');
     });
     expect(misraTexts(editor)).toEqual(['first misra', 'second misra']);
   });
@@ -140,8 +144,8 @@ describe('$setPoetryLayout', () => {
     withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        const [a, b] = $getMisraParagraphs(couplet);
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
         a.append($createTextNode('x'));
         b.append($createTextNode('y'));
       },
@@ -150,16 +154,15 @@ describe('$setPoetryLayout', () => {
 
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $setPoetryLayout(couplet, 'single');
+        $setPoetryLayout(getBlock(), 'single');
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getLayout()).toBe('single');
-      expect(couplet.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+      const block = getBlock();
+      expect(block.getLayout()).toBe('single');
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
     });
     expect(misraTexts(editor)).toEqual(['x', 'y']);
   });
@@ -168,25 +171,63 @@ describe('$setPoetryLayout', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      $setPoetryLayout(couplet, 'single');
-      expect(couplet.getLayout()).toBe('single');
+      const block = getBlock();
+      $setPoetryLayout(block, 'single');
+      expect(block.getLayout()).toBe('single');
     });
+  });
+
+  it('preserves couplet order and count across a two-couplet block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a1, b1] = $getMisraParagraphs(block);
+        a1.append($createTextNode('a1'));
+        b1.append($createTextNode('b1'));
+        $getMisraParagraphs(block)[1].selectEnd();
+        $exitPoetryOnEnter(); // appends a second couplet
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [, , a2, b2] = $getMisraParagraphs(block);
+        a2.append($createTextNode('a2'));
+        b2.append($createTextNode('b2'));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+    });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1', 'a2', 'b2']);
   });
 });
 
 describe('$getPoetryBlockFromSelection', () => {
-  it('finds the couplet the caret is inside, through a misra and through a layout item', () => {
+  it('finds the block the caret is inside, through a misra and through a layout item', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      $getMisraParagraphs(couplet)[0].selectEnd();
-      expect($getPoetryBlockFromSelection()).toBe(couplet);
+      const block = getBlock();
+      $getMisraParagraphs(block)[0].selectEnd();
+      expect($getPoetryBlockFromSelection()).toBe(block);
     });
   });
 
-  it('returns null outside a couplet', () => {
+  it('returns null outside a block', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       expect($getPoetryBlockFromSelection()).toBeNull();
@@ -195,91 +236,135 @@ describe('$getPoetryBlockFromSelection', () => {
 });
 
 describe('$exitPoetryOnEnter', () => {
-  it('adds a paragraph after the couplet when Enter is pressed at the end of the last misra', () => {
-    const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
-    editor.update(
-      () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[1].selectEnd();
-        expect($exitPoetryOnEnter()).toBe(true);
-      },
-      { discrete: true },
-    );
-
-    editor.getEditorState().read(() => {
-      const root = $getRoot();
-      const children = root.getChildren();
-      // paragraph ("hello"), couplet, new trailing paragraph
-      expect(children).toHaveLength(3);
-      expect(children[1].getType()).toBe('poetry-couplet');
-      expect(children[2].getType()).toBe('paragraph');
-    });
-  });
-
   it('moves to the second misra when Enter is pressed anywhere in the first, without growing the couplet', () => {
     // Regression test: this used to fall through to the default Enter
     // handling, which inserted a brand-new paragraph *between* the two
-    // misras instead of moving into the existing second one — so every
-    // Enter kept growing the couplet past its fixed two lines.
+    // misras instead of moving into the existing second one.
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[0].selectStart();
+        const block = getBlock();
+        const [a] = $getMisraParagraphs(block);
+        a.append($createTextNode('line one')); // non-empty: a genuinely-empty
+        // couplet's Enter is the exit trigger instead (tested separately).
+        a.selectStart();
         expect($exitPoetryOnEnter()).toBe(true);
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect($getMisraParagraphs(couplet)).toHaveLength(2);
+      const block = getBlock();
+      expect($getMisraParagraphs(block)).toHaveLength(2);
       const selection = $getSelection();
-      expect($isRangeSelection(selection) && selection.anchor.getNode().getKey()).toBe($getMisraParagraphs(couplet)[1].getKey());
+      expect($isRangeSelection(selection) && selection.anchor.getNode().getKey()).toBe($getMisraParagraphs(block)[1].getKey());
     });
   });
 
-  it('never grows the couplet past two misras no matter where repeated Enters land', () => {
+  it('appends a new couplet when Enter is pressed at the end of a non-empty last couplet', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[0].selectStart();
-        $exitPoetryOnEnter(); // -> second misra
-        $exitPoetryOnEnter(); // -> exits the couplet
-        $exitPoetryOnEnter(); // -> already outside; no-ops
+        const block = getBlock();
+        const [, b] = $getMisraParagraphs(block);
+        b.append($createTextNode('line two'));
+        b.selectEnd();
+        expect($exitPoetryOnEnter()).toBe(true);
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect($getMisraParagraphs(couplet)).toHaveLength(2);
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      // Still just the one block — appended, not a new top-level sibling.
+      expect($getRoot().getChildren().filter($isPoetryBlockNode)).toHaveLength(1);
+      const selection = $getSelection();
+      expect($isRangeSelection(selection) && selection.anchor.getNode().getKey()).toBe($getMisraParagraphs(block)[2].getKey());
     });
   });
 
-  it('works for a two-column couplet too', () => {
+  it('exits the block on a second Enter pressed on the fresh empty couplet ("double enter")', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [, b] = $getMisraParagraphs(block);
+        b.append($createTextNode('line two'));
+        b.selectEnd();
+        expect($exitPoetryOnEnter()).toBe(true); // 1st Enter: appends empty couplet 2
+        expect($exitPoetryOnEnter()).toBe(true); // 2nd Enter: couplet 2 still empty -> exit
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      // The auto-created empty couplet is dropped on exit.
+      expect($getCouplets(block)).toHaveLength(1);
+      const children = $getRoot().getChildren();
+      expect(children[children.length - 1].getType()).toBe('paragraph');
+      const selection = $getSelection();
+      expect($isRangeSelection(selection) && selection.anchor.getNode().getKey()).toBe(children[children.length - 1].getKey());
+    });
+  });
+
+  it('moves to the next couplet when Enter is pressed at the end of a non-last couplet', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
+        a.append($createTextNode('a1'));
+        b.append($createTextNode('b1')); // non-empty, so Enter appends rather than exits
+        b.selectEnd();
+        $exitPoetryOnEnter(); // appends couplet 2, 2 couplets now
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[1].selectEnd(); // end of couplet 1's last misra again
+        expect($exitPoetryOnEnter()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2); // unchanged: moved, didn't insert
+      const selection = $getSelection();
+      expect($isRangeSelection(selection) && selection.anchor.getNode().getKey()).toBe($getMisraParagraphs(block)[2].getKey());
+    });
+  });
+
+  it('works for a two-column block too', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[1].selectEnd();
+        const block = getBlock();
+        const [, b] = $getMisraParagraphs(block);
+        b.append($createTextNode('x'));
+        b.selectEnd();
         expect($exitPoetryOnEnter()).toBe(true);
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const children = $getRoot().getChildren();
-      expect(children[children.length - 1].getType()).toBe('paragraph');
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      expect(block.getChildren().every((c) => c.getType() === 'layout-container')).toBe(true);
     });
   });
 
-  it('returns false outside a couplet', () => {
+  it('returns false outside a block', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       expect($exitPoetryOnEnter()).toBe(false);
@@ -288,22 +373,21 @@ describe('$exitPoetryOnEnter', () => {
 });
 
 describe('$ensureTrailingParagraph', () => {
-  it('appends an empty paragraph after a couplet with no next sibling', () => {
+  it('appends an empty paragraph after a block with no next sibling', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        couplet.getNextSibling()!.remove(); // simulate the invariant having been broken later
-        expect(couplet.getNextSibling()).toBeNull();
-        $ensureTrailingParagraph(couplet);
+        const block = getBlock();
+        block.getNextSibling()!.remove(); // simulate the invariant having been broken later
+        expect(block.getNextSibling()).toBeNull();
+        $ensureTrailingParagraph(block);
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getNextSibling()?.getType()).toBe('paragraph');
+      expect(getBlock().getNextSibling()?.getType()).toBe('paragraph');
     });
   });
 
@@ -311,10 +395,10 @@ describe('$ensureTrailingParagraph', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      const sibling = couplet.getNextSibling();
-      $ensureTrailingParagraph(couplet);
-      expect(couplet.getNextSibling()).toBe(sibling);
+      const block = getBlock();
+      const sibling = block.getNextSibling();
+      $ensureTrailingParagraph(block);
+      expect(block.getNextSibling()).toBe(sibling);
     });
   });
 });
@@ -324,9 +408,9 @@ describe('PoetryBlockNode width', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getWidth()).toBeUndefined();
-      expect(couplet.exportJSON().width).toBeUndefined();
+      const block = getBlock();
+      expect(block.getWidth()).toBeUndefined();
+      expect(block.exportJSON().width).toBeUndefined();
     });
   });
 
@@ -335,28 +419,27 @@ describe('PoetryBlockNode width', () => {
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        couplet.setWidth(420);
+        getBlock().setWidth(420);
       },
       { discrete: true },
     );
 
     editor.getEditorState().read(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      expect(couplet.getWidth()).toBe(420);
-      expect(couplet.exportJSON().width).toBe(420);
+      const block = getBlock();
+      expect(block.getWidth()).toBe(420);
+      expect(block.exportJSON().width).toBe(420);
     });
   });
 });
 
 describe('$deletePoetryCouplet', () => {
-  it('removes the couplet the selection is inside, empty or not', () => {
+  it('removes the whole block when it has only one couplet', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[0].selectEnd();
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectEnd();
         expect($deletePoetryCouplet()).toBe(true);
       },
       { discrete: true },
@@ -366,7 +449,67 @@ describe('$deletePoetryCouplet', () => {
     });
   });
 
-  it('returns false outside a couplet', () => {
+  it('removes just the targeted couplet when the block has more than one', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a1, b1] = $getMisraParagraphs(block);
+        a1.append($createTextNode('a1'));
+        b1.append($createTextNode('b1'));
+        b1.selectEnd();
+        $exitPoetryOnEnter(); // couplet 2, empty
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[2].selectEnd(); // caret in couplet 2
+        expect($deletePoetryCouplet()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+    });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1']);
+  });
+
+  it('removes a targeted couplet from a two-column block (its own LayoutContainerNode row)', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
+        a.append($createTextNode('a1'));
+        b.append($createTextNode('b1')); // non-empty, so Enter appends rather than exits
+        b.selectEnd();
+        $exitPoetryOnEnter(); // couplet 2
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectEnd(); // couplet 1
+        expect($deletePoetryCouplet()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().filter((c) => c.getType() === 'layout-container')).toHaveLength(1);
+    });
+  });
+
+  it('returns false outside a block', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       expect($deletePoetryCouplet()).toBe(false);
@@ -375,13 +518,13 @@ describe('$deletePoetryCouplet', () => {
 });
 
 describe('$deletePoetryOnBackspace', () => {
-  it('removes an empty couplet when Backspace is pressed at its very start', () => {
+  it('removes the whole block when its only (empty) couplet is backspaced at the start', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(
       () => {
-        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-        $getMisraParagraphs(couplet)[0].selectStart();
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectStart();
         expect($deletePoetryOnBackspace()).toBe(true);
       },
       { discrete: true },
@@ -391,29 +534,65 @@ describe('$deletePoetryOnBackspace', () => {
     });
   });
 
+  it('merges an empty couplet into the end of the previous one, keeping the block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a1, b1] = $getMisraParagraphs(block);
+        a1.append($createTextNode('a1'));
+        b1.append($createTextNode('b1'));
+        b1.selectEnd();
+        $exitPoetryOnEnter(); // couplet 2, empty
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[2].selectStart(); // start of couplet 2's first misra
+        expect($deletePoetryOnBackspace()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+      const lastMisra = $getMisraParagraphs(block)[1];
+      const selection = $getSelection();
+      // selectEnd() on a non-empty paragraph lands on its text child, not
+      // the paragraph itself — check containment, not an exact key match.
+      const anchorNode = $isRangeSelection(selection) ? selection.anchor.getNode() : null;
+      expect(anchorNode !== null && (lastMisra.getKey() === anchorNode.getKey() || lastMisra.isParentOf(anchorNode))).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1']);
+  });
+
   it('does nothing when the couplet has content', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      const [first] = $getMisraParagraphs(couplet);
+      const block = getBlock();
+      const [first] = $getMisraParagraphs(block);
       first.append($createTextNode('x'));
       first.selectStart();
       expect($deletePoetryOnBackspace()).toBe(false);
     });
   });
 
-  it('does nothing when the caret is not at the very start of the first misra', () => {
+  it('does nothing when the caret is not at the very start of a couplet\'s first misra', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
     editor.update(() => {
-      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
-      $getMisraParagraphs(couplet)[1].selectStart(); // second misra, not the first
+      const block = getBlock();
+      $getMisraParagraphs(block)[1].selectStart(); // second misra, not the first
       expect($deletePoetryOnBackspace()).toBe(false);
     });
   });
 
-  it('returns false outside a couplet', () => {
+  it('returns false outside a block', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       expect($deletePoetryOnBackspace()).toBe(false);

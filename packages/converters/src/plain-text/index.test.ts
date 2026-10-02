@@ -74,4 +74,16 @@ describe('plainTextConverter', () => {
     const twoColumnState = makeState([twoColumn]) as unknown as SerializedEditorState;
     expect(plainTextConverter.serialize(twoColumnState)).toBe('left misra\nright misra');
   });
+
+  it('linearizes every couplet in a multi-couplet block, not just the first (two-column)', () => {
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const state = makeState([block]) as unknown as SerializedEditorState;
+    expect(plainTextConverter.serialize(state)).toBe('a1\nb1\na2\nb2');
+  });
 });

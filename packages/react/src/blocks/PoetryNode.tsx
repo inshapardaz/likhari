@@ -40,14 +40,17 @@ function applyWidthStyle(element: HTMLElement, width: number | undefined): void 
 export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign; width?: number }, SerializedElementNode>;
 
 /**
- * A couplet (two-line verse unit), the one extensible primitive requirements
- * doc §4.11 recommends in place of four fixed templates. `layout` picks
- * single-column (two stacked misras) vs. two-column (built on the columns
- * primitive, §4.9 — see blocks/poetryActions.ts for how children are
- * restructured between the two); `align` is a literal per-instance override,
- * independent of the document's own alignment setting (architecture doc
- * §3.1). Both mutate in place via poetryActions so converting a couplet
- * between layouts doesn't lose selection/undo coherence.
+ * A poetry *section*: one or more couplets (two-line verse units) sharing
+ * one layout — single-column stacks each couplet's two misras directly as
+ * paragraph children (two per couplet, in order), two-column gives each
+ * couplet its own LayoutContainerNode row (built on the columns primitive,
+ * §4.9) — see blocks/poetryActions.ts's $getCouplets for how either shape
+ * is read, and $setPoetryLayout/$exitPoetryOnEnter for how children are
+ * restructured/grown between couplets and layouts. `layout` and `align`
+ * apply to the whole section, not per couplet; both mutate in place via
+ * poetryActions so converting a section between layouts doesn't lose
+ * selection/undo coherence. One extensible primitive in place of four
+ * fixed templates, per requirements doc §4.11.
  */
 export class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;

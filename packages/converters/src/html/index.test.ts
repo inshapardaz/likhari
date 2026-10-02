@@ -121,6 +121,40 @@ describe('htmlConverter', () => {
     expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
   });
 
+  it('round-trips a poetry block with multiple couplets, single-column', () => {
+    const block = elementBase(
+      'poetry-couplet',
+      [
+        paragraph([textNode('a1')]),
+        paragraph([textNode('b1')]),
+        paragraph([textNode('a2')]),
+        paragraph([textNode('b2')]),
+      ],
+      { layout: 'single', align: 'justify' },
+    );
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single' });
+    expect(back.children!.map((p) => (p.children![0] as SNode).text)).toEqual(['a1', 'b1', 'a2', 'b2']);
+  });
+
+  it('round-trips a poetry block with multiple couplets, two-column (regression: only the first row survived)', () => {
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back.children).toHaveLength(2);
+    expect(back.children!.every((c) => c.type === 'layout-container')).toBe(true);
+    const texts = back.children!.map((row) => row.children!.map((item) => (item.children![0].children![0] as SNode).text));
+    expect(texts).toEqual([
+      ['a1', 'b1'],
+      ['a2', 'b2'],
+    ]);
+  });
+
   it('imports arbitrary web HTML: bare text, spans, inline styles', () => {
     const blocks = blocksOf(
       htmlConverter.parse('<div>Hello <b>big</b> <span style="font-style: italic">world</span></div><p>Two</p>'),

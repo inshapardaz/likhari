@@ -406,11 +406,16 @@
 
 /* Misra lines sit tight against each other within a couplet — the generic
    .likhari-paragraph margin would otherwise add the same gap between a
-   couplet's own two lines as between separate couplets, losing the pairing
-   entirely. The couplet's own margin-bottom (above) is the only gap that
-   should read as "extra space", and it falls after every second line. */
+   couplet's own two lines as between separate couplets within the same
+   block, losing the pairing entirely. Re-added below on every *second*
+   line (nth-child(2n)) — one couplet's worth of lines — so the extra space
+   falls after every couplet, not after every single line. */
 .likhari-poetry .likhari-paragraph {
   margin: 0;
+}
+
+.likhari-poetry--single .likhari-paragraph:nth-child(2n):not(:last-child) {
+  margin-bottom: 1em;
 }
 
 .likhari-poetry--two-column .likhari-layout-container {
@@ -419,6 +424,12 @@
      spacing instead comes from matching padding on each side of it, which
      keeps the gutter visually even on both sides of the line. */
   gap: 0;
+}
+
+/* One row per couplet in two-column layout — same "extra space after every
+   couplet" rhythm as the single-column rule above. */
+.likhari-poetry--two-column .likhari-layout-container:not(:last-child) {
+  margin-bottom: 1em;
 }
 
 .likhari-poetry--two-column .likhari-layout-item {
