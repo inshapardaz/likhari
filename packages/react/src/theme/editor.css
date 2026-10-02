@@ -378,9 +378,13 @@
    Own type scale and spacing, distinct from body text — the .likhari-ltr/
    .likhari-rtl per-block classes (above) already switch font-family for this
    element same as any other block; these rules layer poetry's own size/
-   line-height/gap on top, combined with those same classes. */
+   line-height/gap on top, combined with those same classes.
+   Capped width + auto margins read verse as a centered block on the page —
+   conventional poetry typesetting — rather than a full-width paragraph where
+   a short line just hugs the start edge regardless of its own text-align. */
 .likhari-poetry {
-  margin: 0 0 1.4em 0;
+  margin: 0 auto 1.4em auto;
+  max-width: 70%;
 }
 
 .likhari-poetry.likhari-ltr {
