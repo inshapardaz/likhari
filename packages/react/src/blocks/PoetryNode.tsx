@@ -20,12 +20,13 @@ const VALID_ALIGNS = new Set<PoetryAlign>(['justify', 'left', 'right', 'start'])
 
 /** `text-align: justify` only stretches a line that actually wraps — a
  * misra short enough to fit on one line would otherwise just sit at its own
- * start edge. `text-align-last: center` centers that single/last line while
- * still justifying any line that does wrap, which is what "justified
- * couplets, centered on the page" means in practice for most real verse. */
+ * start edge instead of spreading its words across the full column width.
+ * `text-align-last: justify` extends that same word-spacing stretch to the
+ * single/last line too, so a one-line misra reads edge-to-edge exactly like
+ * a wrapped one would. */
 function applyAlignStyle(element: HTMLElement, align: PoetryAlign): void {
   element.style.textAlign = align;
-  element.style.textAlignLast = align === 'justify' ? 'center' : '';
+  element.style.textAlignLast = align === 'justify' ? 'justify' : '';
 }
 
 export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign }, SerializedElementNode>;
