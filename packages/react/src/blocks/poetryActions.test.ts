@@ -66,6 +66,32 @@ describe('$insertPoetryCouplet', () => {
       expect($getRoot().getChildren().some($isPoetryBlockNode)).toBe(false);
     });
   });
+
+  it('inserts a second couplet as a sibling after the first, not nested inside it', () => {
+    // getTopLevelElement() stops at the nearest shadow root — and a
+    // PoetryBlockNode is one — so from a caret still inside the first
+    // couplet (the common flow: insert, then insert again without moving
+    // the caret) it resolves to the misra paragraph, not the couplet. This
+    // regression-tests that $insertPoetryCouplet corrects for that.
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+        $getMisraParagraphs(couplet)[0].selectStart(); // caret still in the first couplet
+        $insertPoetryCouplet('single', 'justify');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const couplets = $getRoot().getChildren().filter($isPoetryBlockNode);
+      expect(couplets).toHaveLength(2);
+      for (const couplet of couplets) {
+        expect(couplet.getChildren().map((c) => c.getType())).toEqual(['paragraph', 'paragraph']);
+      }
+    });
+  });
 });
 
 describe('$setPoetryLayout', () => {

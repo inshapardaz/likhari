@@ -54,7 +54,12 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
 export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
-  const anchorTopLevel = selection.anchor.getNode().getTopLevelElementOrThrow();
+  // getTopLevelElement() stops at the nearest shadow root, and a
+  // PoetryBlockNode is one — so from inside an existing couplet it resolves
+  // to the misra paragraph itself, not the couplet. Without this check, a
+  // second insert lands as a sibling of that misra (nested inside the first
+  // couplet) instead of after the couplet as a whole.
+  const anchorTopLevel = $getPoetryBlockFromSelection() ?? selection.anchor.getNode().getTopLevelElementOrThrow();
 
   const node = $createPoetryBlockNode(layout, align);
   const misraA = $createParagraphNode();
