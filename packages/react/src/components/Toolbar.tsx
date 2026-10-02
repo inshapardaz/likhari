@@ -639,6 +639,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // Lexical's read/update context has already closed, so any $-prefixed
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
+      const poetryLayout = poetryBlock?.getLayout();
+      const poetryAlign = poetryBlock?.getAlign();
 
       setState((s) => ({
         ...s,
@@ -656,8 +658,8 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         canMergeCells: false,
         canUnmergeCell,
         inPoetry: poetryBlock !== null,
-        poetryLayout: poetryBlock?.getLayout() ?? s.poetryLayout,
-        poetryAlign: poetryBlock?.getAlign() ?? s.poetryAlign,
+        poetryLayout: poetryLayout ?? s.poetryLayout,
+        poetryAlign: poetryAlign ?? s.poetryAlign,
       }));
     });
   }, [editor]);
