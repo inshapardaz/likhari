@@ -29,7 +29,15 @@ function applyAlignStyle(element: HTMLElement, align: PoetryAlign): void {
   element.style.textAlignLast = align === 'justify' ? 'justify' : '';
 }
 
-export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign }, SerializedElementNode>;
+/** A user-dragged width overrides editor.css's default max-width: 70% —
+ * clearing the inline style (rather than setting it to that same 70%)
+ * lets the CSS default keep tracking the canvas if it's ever resized. */
+function applyWidthStyle(element: HTMLElement, width: number | undefined): void {
+  if (width === undefined) element.style.removeProperty('max-width');
+  else element.style.maxWidth = `${width}px`;
+}
+
+export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign; width?: number }, SerializedElementNode>;
 
 /**
  * A couplet (two-line verse unit), the one extensible primitive requirements
@@ -44,11 +52,15 @@ export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: Po
 export class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
   __align: PoetryAlign;
+  /** User-chosen width in px (drag-resized), overriding editor.css's default
+   * max-width: 70%. Undefined until the user resizes it. */
+  __width?: number;
 
-  constructor(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify', key?: NodeKey) {
+  constructor(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify', width?: number, key?: NodeKey) {
     super(key);
     this.__layout = layout;
     this.__align = align;
+    this.__width = width;
   }
 
   static getType(): string {
@@ -56,7 +68,7 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static clone(node: PoetryBlockNode): PoetryBlockNode {
-    return new PoetryBlockNode(node.__layout, node.__align, node.__key);
+    return new PoetryBlockNode(node.__layout, node.__align, node.__width, node.__key);
   }
 
   getLayout(): PoetryLayout {
@@ -65,6 +77,16 @@ export class PoetryBlockNode extends ElementNode {
 
   getAlign(): PoetryAlign {
     return this.getLatest().__align;
+  }
+
+  getWidth(): number | undefined {
+    return this.getLatest().__width;
+  }
+
+  setWidth(width: number | undefined): this {
+    const writable = this.getWritable();
+    writable.__width = width;
+    return writable;
   }
 
   /** Attribute-only — restructuring children for a layout change is
@@ -83,11 +105,19 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static importJSON(serializedNode: SerializedPoetryBlockNode): PoetryBlockNode {
-    return $createPoetryBlockNode(serializedNode.layout, serializedNode.align);
+    return $createPoetryBlockNode(serializedNode.layout, serializedNode.align, serializedNode.width);
   }
 
   exportJSON(): SerializedPoetryBlockNode {
-    return { ...super.exportJSON(), type: 'poetry-couplet', version: 1, layout: this.getLayout(), align: this.getAlign() };
+    const width = this.getWidth();
+    return {
+      ...super.exportJSON(),
+      type: 'poetry-couplet',
+      version: 1,
+      layout: this.getLayout(),
+      align: this.getAlign(),
+      ...(width !== undefined ? { width } : {}),
+    };
   }
 
   static importDOM(): DOMConversionMap | null {
@@ -98,7 +128,9 @@ export class PoetryBlockNode extends ElementNode {
         const layout = VALID_LAYOUTS.has(rawLayout as PoetryLayout) ? (rawLayout as PoetryLayout) : 'single';
         const rawAlign = domNode.getAttribute('data-likhari-poetry-align') ?? 'justify';
         const align = VALID_ALIGNS.has(rawAlign as PoetryAlign) ? (rawAlign as PoetryAlign) : 'justify';
-        return { conversion: () => ({ node: $createPoetryBlockNode(layout, align) }), priority: 2 };
+        const rawWidth = Number(domNode.getAttribute('data-likhari-poetry-width'));
+        const width = Number.isFinite(rawWidth) && rawWidth > 0 ? rawWidth : undefined;
+        return { conversion: () => ({ node: $createPoetryBlockNode(layout, align, width) }), priority: 2 };
       },
     };
   }
@@ -107,7 +139,10 @@ export class PoetryBlockNode extends ElementNode {
     const element = document.createElement('div');
     element.setAttribute('data-likhari-poetry-layout', this.getLayout());
     element.setAttribute('data-likhari-poetry-align', this.getAlign());
+    const width = this.getWidth();
+    if (width !== undefined) element.setAttribute('data-likhari-poetry-width', String(width));
     applyAlignStyle(element, this.getAlign());
+    applyWidthStyle(element, width);
     return { element };
   }
 
@@ -116,6 +151,7 @@ export class PoetryBlockNode extends ElementNode {
     const base = config.theme.poetry ?? 'likhari-poetry';
     addClassNamesToElement(element, base, `${base}--${this.__layout}`);
     applyAlignStyle(element, this.__align);
+    applyWidthStyle(element, this.__width);
     return element;
   }
 
@@ -132,6 +168,9 @@ export class PoetryBlockNode extends ElementNode {
     if (prevNode.__align !== this.__align) {
       applyAlignStyle(dom, this.__align);
     }
+    if (prevNode.__width !== this.__width) {
+      applyWidthStyle(dom, this.__width);
+    }
     return false;
   }
 
@@ -144,8 +183,8 @@ export class PoetryBlockNode extends ElementNode {
   }
 }
 
-export function $createPoetryBlockNode(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify'): PoetryBlockNode {
-  return $applyNodeReplacement(new PoetryBlockNode(layout, align));
+export function $createPoetryBlockNode(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify', width?: number): PoetryBlockNode {
+  return $applyNodeReplacement(new PoetryBlockNode(layout, align, width));
 }
 
 export function $isPoetryBlockNode(node: LexicalNode | null | undefined): node is PoetryBlockNode {

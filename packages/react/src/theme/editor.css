@@ -406,18 +406,55 @@
 
 .likhari-poetry--two-column .likhari-layout-container {
   margin: 0;
-  gap: 40px;
+  /* No grid gap — the divider below sits exactly on the track boundary, so
+     spacing instead comes from matching padding on each side of it, which
+     keeps the gutter visually even on both sides of the line. */
+  gap: 0;
 }
 
 .likhari-poetry--two-column .likhari-layout-item {
   text-align: inherit;
 }
 
+.likhari-poetry--two-column .likhari-layout-item:first-child {
+  padding-inline-end: 20px;
+}
+
 /* A visible divider between misra columns, same dashed language as the
    couplet's own border — matches a table's internal cell borders. */
 .likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
   border-inline-start: 1px dashed var(--editor-line-strong);
-  padding-inline-start: 24px;
+  padding-inline-start: 20px;
+}
+
+/* PoetryResizer.tsx's drag handle — portaled to a fixed position over the
+   active couplet's inline-end edge, so top/left are set inline per drag. */
+.likhari-poetry-resize-handle {
+  position: fixed;
+  width: 10px;
+  /* Physical, not logical: PoetryResizer.tsx already computes `left` as the
+     couplet's actual edge in viewport coordinates for either direction, so
+     centering the handle on it must stay physical too. */
+  margin-left: -5px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 20;
+}
+
+.likhari-poetry-resize-handle::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 100%;
+  margin-inline: auto;
+  border-radius: 2px;
+  background: var(--editor-accent);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.likhari-poetry-resize-handle:hover::before {
+  opacity: 0.6;
 }
 
 .likhari-table {

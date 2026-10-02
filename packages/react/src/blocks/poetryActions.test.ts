@@ -282,3 +282,33 @@ describe('$ensureTrailingParagraph', () => {
     });
   });
 });
+
+describe('PoetryBlockNode width', () => {
+  it('is undefined (falls back to the CSS default) until set', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.getEditorState().read(() => {
+      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+      expect(couplet.getWidth()).toBeUndefined();
+      expect(couplet.exportJSON().width).toBeUndefined();
+    });
+  });
+
+  it('round-trips a drag-resized width through setWidth and JSON', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(
+      () => {
+        const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+        couplet.setWidth(420);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const couplet = $getRoot().getChildren().find($isPoetryBlockNode)!;
+      expect(couplet.getWidth()).toBe(420);
+      expect(couplet.exportJSON().width).toBe(420);
+    });
+  });
+});
