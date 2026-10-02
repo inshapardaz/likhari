@@ -12,10 +12,10 @@ import {
   ElementNode,
 } from 'lexical';
 
-export type PoetryLayout = 'single' | 'two-column';
+export type PoetryLayout = 'single' | 'two-column' | 'alternating';
 export type PoetryAlign = 'justify' | 'left' | 'right' | 'start';
 
-const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column']);
+const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'alternating']);
 const VALID_ALIGNS = new Set<PoetryAlign>(['justify', 'left', 'right', 'start']);
 
 /** `text-align: justify` only stretches a line that actually wraps — a
@@ -40,17 +40,18 @@ function applyWidthStyle(element: HTMLElement, width: number | undefined): void 
 export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign; width?: number }, SerializedElementNode>;
 
 /**
- * A poetry *section*: one or more couplets (two-line verse units) sharing
- * one layout — single-column stacks each couplet's two misras directly as
- * paragraph children (two per couplet, in order), two-column gives each
- * couplet its own LayoutContainerNode row (built on the columns primitive,
- * §4.9) — see blocks/poetryActions.ts's $getCouplets for how either shape
- * is read, and $setPoetryLayout/$exitPoetryOnEnter for how children are
- * restructured/grown between couplets and layouts. `layout` and `align`
- * apply to the whole section, not per couplet; both mutate in place via
- * poetryActions so converting a section between layouts doesn't lose
- * selection/undo coherence. One extensible primitive in place of four
- * fixed templates, per requirements doc §4.11.
+ * A poetry *section*: one or more couplets (two-line verse units), each
+ * wrapped as either a PoetryCoupletNode (single-column/alternating — see
+ * that file) or a LayoutContainerNode row (two-column, built on the
+ * columns primitive, §4.9) — see blocks/poetryActions.ts's $getCouplets
+ * for how a block's children (a free mix of either wrapper, per couplet)
+ * are read, and $setPoetryLayout/$exitPoetryOnEnter for how they're
+ * restructured/grown. `layout` is this block's *default* for couplets
+ * appended to it (a PoetryCoupletNode can still individually override to
+ * "centered" regardless); `align` applies to the whole section. Both
+ * mutate in place via poetryActions so converting a section between
+ * layouts doesn't lose selection/undo coherence. One extensible primitive
+ * in place of four fixed templates, per requirements doc §4.11.
  */
 export class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
@@ -67,7 +68,7 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static getType(): string {
-    return 'poetry-couplet';
+    return 'poetry-block';
   }
 
   static clone(node: PoetryBlockNode): PoetryBlockNode {
@@ -115,7 +116,7 @@ export class PoetryBlockNode extends ElementNode {
     const width = this.getWidth();
     return {
       ...super.exportJSON(),
-      type: 'poetry-couplet',
+      type: 'poetry-block',
       version: 1,
       layout: this.getLayout(),
       align: this.getAlign(),

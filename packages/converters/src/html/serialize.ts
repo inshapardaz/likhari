@@ -129,10 +129,17 @@ function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
 }
 
 function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
-  const layout = node.layout === 'two-column' ? 'two-column' : 'single';
+  const layout = node.layout === 'two-column' || node.layout === 'alternating' ? node.layout : 'single';
   const align = typeof node.align === 'string' ? node.align : 'justify';
   const inner = (node.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
   return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-align="${align}" style="text-align: ${escapeAttr(align)}">${inner}</div>`;
+}
+
+function poetryCoupletToHtml(node: SNode, ctx?: ConverterContext): string {
+  const centered = node.centered === true;
+  const inner = (node.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
+  const centeredAttr = centered ? ' data-likhari-poetry-couplet-centered="true"' : '';
+  return `<div data-likhari-poetry-couplet${centeredAttr}>${inner}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {
@@ -187,8 +194,10 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
       return footnoteReferenceToHtml(node);
     case 'footnote-list':
       return footnoteListToHtml(node, ctx);
-    case 'poetry-couplet':
+    case 'poetry-block':
       return poetryToHtml(node, ctx);
+    case 'poetry-couplet':
+      return poetryCoupletToHtml(node, ctx);
     default:
       // Unknown node (e.g. a future feature): keep its content, drop the wrapper.
       return inlineChildren(node, ctx);

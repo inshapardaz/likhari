@@ -253,10 +253,16 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 }
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
-  const layout = node.layout === 'two-column' ? 'two-column' : 'single';
+  const layout = node.layout === 'two-column' || node.layout === 'alternating' ? node.layout : 'single';
   const align = typeof node.align === 'string' ? node.align : 'justify';
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
   return directive('containerDirective', 'poetry', { layout, align }, inner);
+}
+
+function poetryCoupletToMd(node: SNode, ctx?: ConverterContext): MdNode {
+  const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
+  const attrs: Attrs = node.centered === true ? { centered: 'true' } : {};
+  return directive('containerDirective', 'couplet', attrs, inner);
 }
 
 function tableToMd(node: SNode, ctx?: ConverterContext): MdNode {
@@ -301,8 +307,10 @@ function blockToMd(node: SNode, ctx?: ConverterContext): MdNode[] {
       return [tableToMd(node, ctx)];
     case 'layout-container':
       return [layoutToMd(node, ctx)];
-    case 'poetry-couplet':
+    case 'poetry-block':
       return [poetryToMd(node, ctx)];
+    case 'poetry-couplet':
+      return [poetryCoupletToMd(node, ctx)];
     case 'footnote-list':
       return (node.children ?? []).map((item) => ({
         type: 'footnoteDefinition',

@@ -1,33 +1,33 @@
 import { $findMatchingParent } from '@lexical/utils';
 import { $createParagraphNode, $getSelection, $isElementNode, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
-import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode, type LayoutContainerNode } from './LayoutNode';
+import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode } from './LayoutNode';
+import { $createPoetryCoupletNode, $isPoetryCoupletNode, type PoetryCoupletNode } from './PoetryCoupletNode';
 import { $createPoetryBlockNode, $isPoetryBlockNode, type PoetryAlign, type PoetryLayout, type PoetryBlockNode } from './PoetryNode';
 
 /** One couplet's two misra paragraphs, in order. */
 export type Couplet = [ParagraphNode, ParagraphNode];
 
 /**
- * A poetry block is a *section* of one or more couplets sharing one layout
- * (single-column stacks each couplet's two misras directly as paragraph
- * children, two deep per couplet; two-column gives each couplet its own
- * LayoutContainerNode row). This walks that structure and returns each
- * couplet as a pair, in document order — the one place that knows how to
- * read either shape, so nothing else needs to.
+ * A poetry block's children are a free mix, per couplet, of either a
+ * PoetryCoupletNode (single-column/alternating, optionally `centered`) or a
+ * LayoutContainerNode row (two-column) — "two columns with a couplet that
+ * is single, aligned centered" means exactly this: some couplets two-column,
+ * others centered singles, in the same block. This walks that mixed
+ * structure and returns each couplet as a misra pair, in document order —
+ * the one place that knows how to read either wrapper, so nothing else does.
  */
 export function $getCouplets(node: PoetryBlockNode): Couplet[] {
-  if (node.getLayout() === 'single') {
-    const paragraphs = node.getChildren().filter($isParagraphNode);
-    const couplets: Couplet[] = [];
-    for (let i = 0; i + 1 < paragraphs.length; i += 2) couplets.push([paragraphs[i], paragraphs[i + 1]]);
-    return couplets;
-  }
-  const containers = node.getChildren().filter($isLayoutContainerNode);
   const couplets: Couplet[] = [];
-  for (const container of containers) {
-    const items = container.getChildren().filter($isLayoutItemNode);
-    const a = items[0]?.getFirstChild();
-    const b = items[1]?.getFirstChild();
-    if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
+  for (const child of node.getChildren()) {
+    if ($isPoetryCoupletNode(child)) {
+      const [a, b] = child.getChildren().filter($isParagraphNode);
+      if (a && b) couplets.push([a, b]);
+    } else if ($isLayoutContainerNode(child)) {
+      const items = child.getChildren().filter($isLayoutItemNode);
+      const a = items[0]?.getFirstChild();
+      const b = items[1]?.getFirstChild();
+      if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
+    }
   }
   return couplets;
 }
@@ -59,29 +59,58 @@ function $findCoupletPosition(couplets: Couplet[], target: import('lexical').Lex
   return null;
 }
 
-function $appendCoupletTo(node: PoetryBlockNode): Couplet {
+/** A couplet's own wrapper node (PoetryCoupletNode or LayoutContainerNode) —
+ * every couplet has exactly one, so removing/replacing a couplet means
+ * operating on this, not on its misra paragraphs individually. */
+function $findCoupletWrapper(misra: ParagraphNode): PoetryCoupletNode | import('./LayoutNode').LayoutContainerNode | null {
+  return $findMatchingParent(misra, (n) => $isPoetryCoupletNode(n) || $isLayoutContainerNode(n)) as
+    | PoetryCoupletNode
+    | import('./LayoutNode').LayoutContainerNode
+    | null;
+}
+
+/** Appends a new couplet to the block, in its default layout (two-column
+ * for a 'two-column' block, a plain PoetryCoupletNode otherwise) unless
+ * `twoColumn` is given explicitly. */
+function $appendCoupletTo(node: PoetryBlockNode, twoColumn?: boolean): Couplet {
   const misraA = $createParagraphNode();
   const misraB = $createParagraphNode();
-  if (node.getLayout() === 'single') {
-    node.append(misraA, misraB);
-  } else {
+  const useTwoColumn = twoColumn ?? node.getLayout() === 'two-column';
+  if (useTwoColumn) {
     const container = $createLayoutContainerNode('repeat(2, 1fr)');
     container.append($createLayoutItemNode().append(misraA), $createLayoutItemNode().append(misraB));
     node.append(container);
+  } else {
+    node.append($createPoetryCoupletNode().append(misraA, misraB));
   }
   return [misraA, misraB];
 }
 
 /**
- * Converts every couplet in the block between single-column (two stacked
- * misras) and two-column (built on the columns primitive, §4.9) in place —
- * pulls each couplet's two misra paragraphs out of whichever shape
- * currently holds them and rebuilds the other shape around the same
- * paragraph nodes, preserving couplet order, so content, selection and
- * undo history all survive the conversion.
+ * Converts every couplet in the block between two-column (built on the
+ * columns primitive, §4.9) and single-column/alternating (a
+ * PoetryCoupletNode per couplet) — pulls each couplet's two misra
+ * paragraphs out of whichever shape currently holds them and rebuilds the
+ * other shape around the same paragraph nodes, preserving couplet order
+ * (and dropping any individual 'centered' override, which only applies to
+ * the non-two-column shape), so content, selection and undo history all
+ * survive the conversion. Switching between 'single' and 'alternating' is
+ * purely an attribute change (both use the same PoetryCoupletNode
+ * structure) — no restructuring needed.
  */
 export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): void {
-  if (node.getLayout() === layout) return;
+  const from = node.getLayout();
+  if (from === layout) return;
+
+  const fromTwoColumn = from === 'two-column';
+  const toTwoColumn = layout === 'two-column';
+  if (fromTwoColumn === toTwoColumn) {
+    // Both 'single' and 'alternating' share the same PoetryCoupletNode
+    // structure — just relabel the block.
+    node.setLayoutAttribute(layout);
+    return;
+  }
+
   const couplets = $getCouplets(node);
   for (const [a, b] of couplets) {
     a.remove();
@@ -89,16 +118,73 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
   }
   for (const leftover of node.getChildren()) leftover.remove();
 
-  if (layout === 'single') {
-    for (const [a, b] of couplets) node.append(a, b);
-  } else {
-    for (const [a, b] of couplets) {
+  for (const [a, b] of couplets) {
+    if (toTwoColumn) {
       const container = $createLayoutContainerNode('repeat(2, 1fr)');
       container.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
       node.append(container);
+    } else {
+      node.append($createPoetryCoupletNode().append(a, b));
     }
   }
   node.setLayoutAttribute(layout);
+}
+
+/**
+ * Sets whether the couplet the selection is inside renders as a narrower,
+ * centered box ("single, aligned centered") instead of the block's default
+ * width — independent of the block's own layout. A two-column couplet is
+ * converted into a PoetryCoupletNode first (its two columns stacked into
+ * two lines), since "centered" only applies to that shape; a couplet
+ * that's already a PoetryCoupletNode just has its flag flipped. Returns
+ * false when the selection isn't inside a couplet.
+ */
+export function $setCoupletCentered(centered: boolean): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return false;
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return false;
+
+  const [a, b] = couplets[position.coupletIndex];
+  const wrapper = $findCoupletWrapper(a);
+  if (!wrapper) return false;
+
+  if ($isPoetryCoupletNode(wrapper)) {
+    wrapper.setCentered(centered);
+    return true;
+  }
+
+  // A two-column couplet: stack its two columns into a centered pair,
+  // replacing the LayoutContainerNode row with a PoetryCoupletNode in the
+  // same position.
+  a.remove();
+  b.remove();
+  const coupletNode = $createPoetryCoupletNode(centered).append(a, b);
+  wrapper.insertAfter(coupletNode);
+  wrapper.remove();
+  return true;
+}
+
+/** Whether the couplet the selection is inside is currently centered —
+ * always false for a two-column couplet, since that override only applies
+ * to the PoetryCoupletNode shape. Null when the selection isn't inside a
+ * couplet at all (vs. inside one that just isn't centered). */
+export function $getCoupletCenteredFromSelection(): boolean | null {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return null;
+
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return null;
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return null;
+
+  const wrapper = $findCoupletWrapper(couplets[position.coupletIndex][0]);
+  return $isPoetryCoupletNode(wrapper) ? wrapper.getCentered() : false;
 }
 
 /** A block at the very end of the document would otherwise leave no
@@ -115,10 +201,8 @@ export function $ensureTrailingParagraph(node: PoetryBlockNode): void {
 /**
  * Inserts a poetry couplet at the caret. If the caret is already inside a
  * poetry block, appends a new couplet to *that* block (in its existing
- * layout — "one poetry block can contain one or more couplets, in one or
- * two column layout", so a block's layout is fixed once it has couplets,
- * not chosen per couplet) and focuses its first misra. Otherwise creates a
- * new block (in `layout`/`align`) with one couplet, after the selection's
+ * default layout) and focuses its first misra. Otherwise creates a new
+ * block (in `layout`/`align`) with one couplet, after the selection's
  * top-level element.
  */
 export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): boolean {
@@ -134,7 +218,7 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
 
   const anchorTopLevel = selection.anchor.getNode().getTopLevelElementOrThrow();
   const node = $createPoetryBlockNode(layout, align);
-  const [misraA] = $appendCoupletTo(node);
+  const [misraA] = $appendCoupletTo(node, layout === 'two-column');
 
   anchorTopLevel.insertAfter(node);
   $ensureTrailingParagraph(node);
@@ -163,13 +247,7 @@ export function $deletePoetryCouplet(): boolean {
     return true;
   }
 
-  const [a, b] = target;
-  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-  if (container) container.remove();
-  else {
-    a.remove();
-    b.remove();
-  }
+  $findCoupletWrapper(target[0])?.remove();
   return true;
 }
 
@@ -196,12 +274,10 @@ export function $deletePoetryOnBackspace(): boolean {
   const position = $findCoupletPosition(couplets, anchorNode);
   if (!position || position.misraIndex !== 0) return false;
 
-  const [firstMisra] = couplets[position.coupletIndex];
-  const anchor = selection.anchor;
-  const isAtStart = anchor.key === firstMisra.getKey() && anchor.offset === 0;
-  if (!isAtStart) return false;
-
   const [a, b] = couplets[position.coupletIndex];
+  const anchor = selection.anchor;
+  const isAtStart = anchor.key === a.getKey() && anchor.offset === 0;
+  if (!isAtStart) return false;
   if (!a.isEmpty() || !b.isEmpty()) return false;
 
   if (couplets.length <= 1) {
@@ -211,12 +287,7 @@ export function $deletePoetryOnBackspace(): boolean {
     return true;
   }
 
-  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-  if (container) container.remove();
-  else {
-    a.remove();
-    b.remove();
-  }
+  $findCoupletWrapper(a)?.remove();
   const remaining = $getCouplets(block);
   const previousCouplet = remaining[position.coupletIndex - 1] ?? remaining[0];
   previousCouplet?.[1].selectEnd();
@@ -259,14 +330,7 @@ export function $exitPoetryOnEnter(): boolean {
     // Drop the couplet we ourselves auto-created on the previous Enter —
     // unless it's the block's only couplet, in which case leave the
     // section as the user's (empty) content rather than deleting it.
-    if (couplets.length > 1) {
-      const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-      if (container) container.remove();
-      else {
-        a.remove();
-        b.remove();
-      }
-    }
+    if (couplets.length > 1) $findCoupletWrapper(a)?.remove();
     const existingNext = block.getNextSibling();
     const paragraph = $isParagraphNode(existingNext) ? existingNext : $createParagraphNode();
     if (paragraph !== existingNext) block.insertAfter(paragraph);

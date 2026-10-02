@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor, type LexicalEditor } from 'lexical';
 import { LayoutContainerNode, LayoutItemNode } from './LayoutNode';
+import { PoetryCoupletNode } from './PoetryCoupletNode';
 import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
 import {
   $deletePoetryCouplet,
@@ -11,13 +12,14 @@ import {
   $getMisraParagraphs,
   $getPoetryBlockFromSelection,
   $insertPoetryCouplet,
+  $setCoupletCentered,
   $setPoetryLayout,
 } from './poetryActions';
 
 function makeEditor(): LexicalEditor {
   return createEditor({
     namespace: 'test',
-    nodes: [PoetryBlockNode, LayoutContainerNode, LayoutItemNode],
+    nodes: [PoetryBlockNode, PoetryCoupletNode, LayoutContainerNode, LayoutItemNode],
     onError: (e) => {
       throw e;
     },
@@ -53,7 +55,7 @@ describe('$insertPoetryCouplet', () => {
       expect(block.getLayout()).toBe('single');
       expect(block.getAlign()).toBe('justify');
       expect($getCouplets(block)).toHaveLength(1);
-      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+      expect(block.getChildren().every((c) => c.getType() === 'poetry-couplet')).toBe(true);
       // Always leaves somewhere editable to click after a trailing block.
       expect(block.getNextSibling()?.getType()).toBe('paragraph');
     });
@@ -162,7 +164,7 @@ describe('$setPoetryLayout', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getLayout()).toBe('single');
-      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+      expect(block.getChildren().every((c) => c.getType() === 'poetry-couplet')).toBe(true);
     });
     expect(misraTexts(editor)).toEqual(['x', 'y']);
   });
@@ -597,5 +599,120 @@ describe('$deletePoetryOnBackspace', () => {
     withCaretInParagraph(editor, () => {
       expect($deletePoetryOnBackspace()).toBe(false);
     });
+  });
+});
+
+describe('$setCoupletCentered', () => {
+  it('toggles the centered flag on a single-column couplet', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(() => {
+      const block = getBlock();
+      $getMisraParagraphs(block)[0].selectEnd();
+      expect($setCoupletCentered(true)).toBe(true);
+      expect(block.getChildren()[0].getType()).toBe('poetry-couplet');
+    });
+  });
+
+  it('converts a two-column couplet into a centered single-column one, keeping its text', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
+        a.append($createTextNode('left'));
+        b.append($createTextNode('right'));
+        a.selectEnd();
+        expect($setCoupletCentered(true)).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren()[0].getType()).toBe('poetry-couplet');
+      expect($getCouplets(block)).toHaveLength(1);
+    });
+    expect(misraTexts(editor)).toEqual(['left', 'right']);
+  });
+
+  it('mixes a two-column couplet and a centered couplet in the same block ("one that is single, aligned centered")', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [, b] = $getMisraParagraphs(block);
+        b.append($createTextNode('needs content so Enter appends rather than exits'));
+        b.selectEnd();
+        $exitPoetryOnEnter(); // couplet 2, two-column (block default)
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[2].selectEnd(); // couplet 2's first misra
+        expect($setCoupletCentered(true)).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      const types = block.getChildren().map((c) => c.getType());
+      expect(types).toEqual(['layout-container', 'poetry-couplet']);
+      expect($getCouplets(block)).toHaveLength(2);
+    });
+  });
+
+  it('returns false outside a block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => {
+      expect($setCoupletCentered(true)).toBe(false);
+    });
+  });
+});
+
+describe('$setPoetryLayout with alternating', () => {
+  it('is a pure attribute change between single and alternating (no restructuring)', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    editor.update(() => {
+      const block = getBlock();
+      const coupletNode = block.getChildren()[0];
+      $setPoetryLayout(block, 'alternating');
+      expect(block.getLayout()).toBe('alternating');
+      // Same node, not rebuilt.
+      expect(block.getChildren()[0].getKey()).toBe(coupletNode.getKey());
+    });
+  });
+
+  it('converts two-column into alternating (PoetryCoupletNode shape)', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
+        a.append($createTextNode('x'));
+        b.append($createTextNode('y'));
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'alternating');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('alternating');
+      expect(block.getChildren()[0].getType()).toBe('poetry-couplet');
+    });
+    expect(misraTexts(editor)).toEqual(['x', 'y']);
   });
 });

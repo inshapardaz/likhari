@@ -407,42 +407,75 @@
 /* Misra lines sit tight against each other within a couplet — the generic
    .likhari-paragraph margin would otherwise add the same gap between a
    couplet's own two lines as between separate couplets within the same
-   block, losing the pairing entirely. Re-added below on every *second*
-   line (nth-child(2n)) — one couplet's worth of lines — so the extra space
-   falls after every couplet, not after every single line. */
+   block, losing the pairing entirely. A block's children are a free mix of
+   .likhari-poetry-couplet (single-column/alternating/centered) and
+   .likhari-layout-container (two-column) — one wrapper box per couplet,
+   regardless of type — so "extra space after every couplet" is just
+   margin-bottom on every non-last couplet of either kind. */
 .likhari-poetry .likhari-paragraph {
   margin: 0;
 }
 
-.likhari-poetry--single .likhari-paragraph:nth-child(2n):not(:last-child) {
+.likhari-poetry > .likhari-poetry-couplet:not(:last-child),
+.likhari-poetry > .likhari-layout-container:not(:last-child) {
   margin-bottom: 1em;
 }
 
-.likhari-poetry--two-column .likhari-layout-container {
+.likhari-poetry-couplet {
+  box-sizing: border-box;
+}
+
+/* "Two columns with a couplet that is single, aligned centered": a couplet
+   can individually override to a narrower, page-centered box regardless of
+   the block's own layout — the same capped-width + auto-margin centering
+   .likhari-poetry itself uses, scoped to just this one couplet. */
+.likhari-poetry-couplet--centered {
+  width: fit-content;
+  max-width: 70%;
+  margin-inline: auto;
+}
+
+/* "Aligned alternative": every couplet is the same fixed width, but
+   consecutive couplets alternate which edge they're pinned to — since both
+   widths overlap past the midpoint, the couplets visually stagger with
+   some overlap toward the center, rather than all stacking flush to one
+   side or centered identically. */
+.likhari-poetry--alternating .likhari-poetry-couplet {
+  width: 65%;
+  max-width: none;
+}
+
+.likhari-poetry--alternating .likhari-poetry-couplet:nth-of-type(odd) {
+  margin-inline-end: auto;
+}
+
+.likhari-poetry--alternating .likhari-poetry-couplet:nth-of-type(even) {
+  margin-inline-start: auto;
+}
+
+/* Only inside a poetry block's own two-column couplets: no block margin
+   (the generic .likhari-layout-container rule's margin is for a
+   stand-alone Columns insert, not one couplet of several in a poetry
+   block — spacing between couplets is the margin-bottom rule above
+   instead) and no grid gap — the divider below sits exactly on the track
+   boundary, so spacing instead comes from matching padding on each side
+   of it, which keeps the gutter visually even on both sides of the line. */
+.likhari-poetry > .likhari-layout-container {
   margin: 0;
-  /* No grid gap — the divider below sits exactly on the track boundary, so
-     spacing instead comes from matching padding on each side of it, which
-     keeps the gutter visually even on both sides of the line. */
   gap: 0;
 }
 
-/* One row per couplet in two-column layout — same "extra space after every
-   couplet" rhythm as the single-column rule above. */
-.likhari-poetry--two-column .likhari-layout-container:not(:last-child) {
-  margin-bottom: 1em;
-}
-
-.likhari-poetry--two-column .likhari-layout-item {
+.likhari-poetry .likhari-layout-item {
   text-align: inherit;
 }
 
-.likhari-poetry--two-column .likhari-layout-item:first-child {
+.likhari-poetry .likhari-layout-item:first-child {
   padding-inline-end: 20px;
 }
 
 /* A visible divider between misra columns, same dashed language as the
    couplet's own border — matches a table's internal cell borders. */
-.likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
+.likhari-poetry .likhari-layout-item:not(:first-child) {
   border-inline-start: 1px dashed var(--editor-line-strong);
   padding-inline-start: 20px;
 }
