@@ -144,6 +144,7 @@ export interface Strings {
     menuLabel: string;
     singleColumn: string;
     twoColumn: string;
+    deleteCouplet: string;
   };
   link: {
     menuLabel: string;
@@ -352,6 +353,7 @@ const en: Strings = {
     menuLabel: 'Poetry',
     singleColumn: 'Single column',
     twoColumn: 'Two column',
+    deleteCouplet: 'Delete couplet',
   },
   link: {
     menuLabel: 'Link',
@@ -561,6 +563,7 @@ const ur: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'ایک کالم',
     twoColumn: 'دو کالم',
+    deleteCouplet: 'شعر حذف کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -770,6 +773,7 @@ const paShahmukhi: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'اک کالم',
     twoColumn: 'دو کالم',
+    deleteCouplet: 'شعر مٹاؤ',
   },
   link: {
     menuLabel: 'لنک',

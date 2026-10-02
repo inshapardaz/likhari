@@ -44,7 +44,7 @@ import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
-import { $getPoetryBlockFromSelection, $setPoetryLayout } from '../blocks/poetryActions';
+import { $deletePoetryCouplet, $getPoetryBlockFromSelection, $setPoetryLayout } from '../blocks/poetryActions';
 import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
@@ -127,6 +127,7 @@ import {
   IconRowRemove,
   IconTable,
   IconTableMinus,
+  IconTrash,
   IconTableOptions,
   IconTextSize,
   IconTypography,
@@ -524,10 +525,11 @@ function PoetryMenuItems({
 }) {
   const t = strings.poetryMenu;
   const a = strings.toolbar.alignOptions;
-  const item = (icon: TablerIcon, label: string, action: () => void, active: boolean) => {
+  const item = (icon: TablerIcon, label: string, action: () => void, active = false, color?: string) => {
     const Icon = icon;
     return (
       <Menu.Item
+        color={color}
         disabled={active}
         leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
         onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
@@ -554,6 +556,8 @@ function PoetryMenuItems({
       {item(alignIcons.start ?? IconAlignLeft, a.start, setAlign('start'), align === 'start')}
       {item(IconAlignLeft, a.left, setAlign('left'), align === 'left')}
       {item(IconAlignRight, a.right, setAlign('right'), align === 'right')}
+      <Menu.Divider />
+      {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { $findMatchingParent } from '@lexical/utils';
-import { $createParagraphNode, $getSelection, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
+import { $createParagraphNode, $getSelection, $isElementNode, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
 import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode } from './LayoutNode';
 import { $createPoetryBlockNode, $isPoetryBlockNode, type PoetryAlign, type PoetryLayout, type PoetryBlockNode } from './PoetryNode';
 
@@ -86,6 +86,47 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
   anchorTopLevel.insertAfter(node);
   $ensureTrailingParagraph(node);
   misraA.selectStart();
+  return true;
+}
+
+/** Removes the whole couplet the selection is inside, if any — the explicit,
+ * always-available counterpart to $deletePoetryOnBackspace's empty-couplet
+ * shortcut (mirrors the table menu's own "Delete table" action). */
+export function $deletePoetryCouplet(): boolean {
+  const couplet = $getPoetryBlockFromSelection();
+  if (!couplet) return false;
+  couplet.remove();
+  return true;
+}
+
+/**
+ * Backspace at the very start of an empty couplet's first misra removes the
+ * whole block — the natural keystroke to try first, and otherwise there was
+ * no way to get rid of an empty couplet created by mistake (its two misra
+ * paragraphs each have their own default canBeEmpty, so Lexical's usual
+ * "delete the empty block" handling never reaches the couplet itself).
+ * Returns false for every other caret position, including a non-empty
+ * couplet, so normal Backspace handling (e.g. deleting within text) proceeds.
+ */
+export function $deletePoetryOnBackspace(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const couplet = $getPoetryBlockFromSelection();
+  if (!couplet) return false;
+
+  const misras = $getMisraParagraphs(couplet);
+  const firstMisra = misras[0];
+  if (!firstMisra) return false;
+  if (misras.some((m) => !m.isEmpty())) return false;
+
+  const anchor = selection.anchor;
+  const isAtStart = anchor.key === firstMisra.getKey() && anchor.offset === 0;
+  if (!isAtStart) return false;
+
+  const previous = couplet.getPreviousSibling();
+  couplet.remove();
+  if ($isElementNode(previous)) previous.selectEnd();
   return true;
 }
 
