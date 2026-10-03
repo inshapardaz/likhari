@@ -8,3 +8,5 @@ export { DEFAULT_FONT_OPTIONS, URDU_WEB_FONT_OPTIONS, FONT_SIZES_PX } from './fo
 export type { FontOption } from './fonts';
 export { STRINGS, getStrings, useStrings, useUiStrings, UiStringsContext } from './i18n';
 export type { Locale, Strings } from './i18n';
+
+export { registerSpellDictionary, hasSpellDictionary, type HunspellFiles, type SpellLanguage } from './spellcheck/spellDictionaries';
