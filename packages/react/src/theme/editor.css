@@ -963,3 +963,10 @@
 .likhari-spell-suggestion {
   font-size: 12px;
 }
+
+/* Misspelled words, underlined like the browser's own spellcheck. Styled
+   through the CSS Custom Highlight API by SpellHighlightPlugin. */
+::highlight(likhari-spelling) {
+  text-decoration: red wavy underline;
+  text-decoration-skip-ink: none;
+}

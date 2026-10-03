@@ -39,7 +39,7 @@ export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClos
     if (!speller) return;
     setChecking(true);
     const resolved = await speller;
-    const found = editor.getEditorState().read(() => $collectMisspellings(resolved));
+    const found = editor.getEditorState().read(() => $collectMisspellings({ ltr: resolved, rtl: resolved }));
     setItems(
       found.map((m) => ({
         ...m,
@@ -64,7 +64,7 @@ export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClos
       () => {
         // The list can be stale if the document changed since it was checked:
         // only replace if the same word is still at the same place.
-        const current = $collectMisspellings(resolved).find(
+        const current = $collectMisspellings({ ltr: resolved, rtl: resolved }).find(
           (m) => m.word === item.word && m.match.anchorKey === item.match.anchorKey && m.match.anchorOffset === item.match.anchorOffset,
         );
         if (current) $replaceMatch(current.match, suggestion);

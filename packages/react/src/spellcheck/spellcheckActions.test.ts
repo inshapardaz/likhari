@@ -33,7 +33,7 @@ describe('$collectMisspellings', () => {
       },
       { discrete: true },
     );
-    const found = editor.getEditorState().read(() => $collectMisspellings(checker));
+    const found = editor.getEditorState().read(() => $collectMisspellings({ ltr: checker, rtl: checker }));
     expect(found.map((m) => m.word)).toEqual(['غلط', 'غلط']);
   });
 
@@ -49,7 +49,7 @@ describe('$collectMisspellings', () => {
     );
     editor.update(
       () => {
-        const [first] = $collectMisspellings(checker);
+        const [first] = $collectMisspellings({ ltr: checker, rtl: checker });
         $replaceMatch(first.match, 'کمرہ');
       },
       { discrete: true },
