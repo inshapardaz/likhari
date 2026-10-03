@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor, type LexicalEditor } from 'lexical';
+import {
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  createEditor,
+  type ElementNode,
+  type LexicalEditor,
+  type TextNode,
+} from 'lexical';
 import { LayoutContainerNode, LayoutItemNode } from './LayoutNode';
 import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
 import {
@@ -69,7 +79,7 @@ describe('$insertPoetryCouplet', () => {
 
   it('inserts a two-column block built on the layout primitive', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'start'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
 
     editor.getEditorState().read(() => {
       const block = getBlock();
@@ -598,7 +608,7 @@ describe('$deletePoetryOnBackspace', () => {
       const block = getBlock();
       const [first] = $getMisraParagraphs(block);
       first.append($createTextNode('abc'));
-      first.getFirstChild()!.select(1, 1);
+      (first.getFirstChild() as TextNode).select(1, 1);
       expect($deletePoetryOnBackspace()).toBe(false);
     });
   });
@@ -768,7 +778,7 @@ describe('$setCoupletCentered', () => {
       const block = getBlock();
       const [couplet] = $getCouplets(block);
       expect(couplet.map((p) => p.getTextContent())).toEqual(['A1', 'B1']);
-      expect(block.getChildren()[0].getChildren()).toHaveLength(1);
+      expect((block.getChildren()[0] as ElementNode).getChildren()).toHaveLength(1);
     });
     editor.update(() => {
       $getCouplets(getBlock())[0][0].selectEnd();
@@ -778,7 +788,7 @@ describe('$setCoupletCentered', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['A1', 'B1']);
-      expect(block.getChildren()[0].getChildren()).toHaveLength(2);
+      expect((block.getChildren()[0] as ElementNode).getChildren()).toHaveLength(2);
     });
   });
 
