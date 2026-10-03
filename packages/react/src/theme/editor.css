@@ -878,9 +878,11 @@
   z-index: 5;
   top: 8px;
   right: 16px;
-  width: 260px;
+  width: max-content;
+  max-width: min(360px, calc(100% - 32px));
   max-height: 60%;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
   border: 1px solid var(--editor-line);
   border-radius: 6px;
@@ -897,10 +899,16 @@
 .likhari-spell-header,
 .likhari-spell-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
   margin-bottom: 6px;
+}
+
+.likhari-spell-controls select {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .likhari-spell-panel button {
