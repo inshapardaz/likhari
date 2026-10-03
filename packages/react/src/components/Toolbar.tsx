@@ -44,13 +44,7 @@ import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
-import {
-  $deletePoetryCouplet,
-  $getCoupletCenteredFromSelection,
-  $getPoetryBlockFromSelection,
-  $setCoupletCentered,
-  $setPoetryLayout,
-} from '../blocks/poetryActions';
+import { $deletePoetryCouplet, $getPoetryBlockFromSelection, $insertCoupletRelativeToSelection, $setPoetryLayout } from '../blocks/poetryActions';
 import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
@@ -125,7 +119,6 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
-  IconArrowsShuffle,
   IconColumns1,
   IconColumns2,
   IconNumber1Small,
@@ -175,9 +168,6 @@ interface ToolbarState {
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
   poetryAlign: PoetryAlign;
-  /** Whether the specific couplet the caret is in overrides to the
-   * narrower, centered box — independent of the block's own layout. */
-  coupletCentered: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -204,7 +194,6 @@ const INITIAL_STATE: ToolbarState = {
   inPoetry: false,
   poetryLayout: 'single',
   poetryAlign: 'justify',
-  coupletCentered: false,
   canUndo: false,
   canRedo: false,
 };
@@ -518,26 +507,24 @@ function TableMenuItems({
   );
 }
 
-/** The poetry couplet menu's contents — block layout (single/two-column/
- * alternating), literal alignment (both per-block overrides, requirements
- * doc §4.11: "set per CoupletNode, not inherited from a document-wide
- * setting"), and a per-couplet "centered" toggle independent of either —
- * "two columns with a couplet that is single, aligned centered" mixes a
- * centered couplet into an otherwise two-column block. */
+/** The poetry couplet menu's contents — layout (single/two-column) and
+ * literal alignment, both per-instance overrides (requirements doc §4.11:
+ * "set per CoupletNode, not inherited from a document-wide setting"), plus
+ * table-row-style structural actions (insert a couplet above/below the one
+ * the caret is in, delete it) — a poetry block is "one object with multiple
+ * couplets, add/remove like table rows", so these mirror TableMenuItems'
+ * own insert-before/insert-after/delete-row actions. */
 function PoetryMenuItems({
   strings,
   alignIcons,
   layout,
   align,
-  centered,
   onAction,
 }: {
   strings: Strings;
   alignIcons: Record<string, TablerIcon>;
   layout: PoetryLayout;
   align: PoetryAlign;
-  /** Whether the specific couplet under the caret is centered. */
-  centered: boolean;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
@@ -568,15 +555,14 @@ function PoetryMenuItems({
       <Menu.Label>{t.menuLabel}</Menu.Label>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
-      {item(IconArrowsShuffle, t.alternating, setLayout('alternating'), layout === 'alternating')}
       <Menu.Divider />
       {item(alignIcons.justify ?? IconAlignJustified, a.justify, setAlign('justify'), align === 'justify')}
       {item(alignIcons.start ?? IconAlignLeft, a.start, setAlign('start'), align === 'start')}
       {item(IconAlignLeft, a.left, setAlign('left'), align === 'left')}
       {item(IconAlignRight, a.right, setAlign('right'), align === 'right')}
       <Menu.Divider />
-      {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
-      <Menu.Divider />
+      {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
+      {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
     </>
   );
@@ -623,16 +609,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       if ($isTableSelection(selection)) {
         const { rows, columns } = $getTableSelectionSize();
         const canMergeCells = $canMergeSelectedCells();
-        setState((s) => ({
-          ...s,
-          inTable: true,
-          tableRows: rows,
-          tableColumns: columns,
-          canMergeCells,
-          canUnmergeCell: false,
-          inPoetry: false,
-          coupletCentered: false,
-        }));
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false, inPoetry: false }));
         return;
       }
       if (!$isRangeSelection(selection)) return;
@@ -674,7 +651,6 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const poetryLayout = poetryBlock?.getLayout();
       const poetryAlign = poetryBlock?.getAlign();
-      const coupletCentered = $getCoupletCenteredFromSelection();
 
       setState((s) => ({
         ...s,
@@ -694,7 +670,6 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
         poetryAlign: poetryAlign ?? s.poetryAlign,
-        coupletCentered: coupletCentered ?? false,
       }));
     });
   }, [editor]);
@@ -1506,7 +1481,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             </button>
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} centered={state.coupletCentered} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1649,7 +1624,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             />
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} centered={state.coupletCentered} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}

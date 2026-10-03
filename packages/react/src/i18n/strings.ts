@@ -144,9 +144,8 @@ export interface Strings {
     menuLabel: string;
     singleColumn: string;
     twoColumn: string;
-    alternating: string;
-    centerCouplet: string;
-    uncenterCouplet: string;
+    insertCoupletBefore: string;
+    insertCoupletAfter: string;
     deleteCouplet: string;
   };
   link: {
@@ -356,9 +355,8 @@ const en: Strings = {
     menuLabel: 'Poetry',
     singleColumn: 'Single column',
     twoColumn: 'Two column',
-    alternating: 'Alternating',
-    centerCouplet: 'Center this couplet',
-    uncenterCouplet: 'Un-center this couplet',
+    insertCoupletBefore: 'Insert couplet above',
+    insertCoupletAfter: 'Insert couplet below',
     deleteCouplet: 'Delete couplet',
   },
   link: {
@@ -569,9 +567,8 @@ const ur: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'ایک کالم',
     twoColumn: 'دو کالم',
-    alternating: 'باری باری',
-    centerCouplet: 'یہ شعر وسط میں رکھیں',
-    uncenterCouplet: 'وسط میں رکھنا ختم کریں',
+    insertCoupletBefore: 'اوپر شعر شامل کریں',
+    insertCoupletAfter: 'نیچے شعر شامل کریں',
     deleteCouplet: 'شعر حذف کریں',
   },
   link: {
@@ -782,9 +779,8 @@ const paShahmukhi: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'اک کالم',
     twoColumn: 'دو کالم',
-    alternating: 'واری واری',
-    centerCouplet: 'ایہ شعر وچکار رکھو',
-    uncenterCouplet: 'وچکار رکھنا بند کرو',
+    insertCoupletBefore: 'اُتے شعر شامل کرو',
+    insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
     deleteCouplet: 'شعر مٹاؤ',
   },
   link: {
