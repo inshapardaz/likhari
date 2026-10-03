@@ -26,7 +26,7 @@ const SUGGESTIONS_PER_WORD = 3;
  * can replace it. Checking reads the document on demand, so it never flags
  * words while the user is still typing.
  */
-export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClose: () => void }) {
+export function SpellcheckPanel({ strings, dir, onClose }: { strings: Strings; dir: 'ltr' | 'rtl'; onClose: () => void }) {
   const [editor] = useLexicalComposerContext();
   const t = strings.spellcheck;
   const [language, setLanguage] = useState<SpellLanguage>('en');
@@ -92,7 +92,7 @@ export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClos
   const status = items === null ? '' : items.length === 0 ? t.noMisspellings : `${index + 1} / ${items.length}`;
 
   return (
-    <div className="likhari-spell-panel" role="region" aria-label={t.title} dir={language === 'en' ? 'ltr' : 'rtl'}>
+    <div className="likhari-spell-panel" role="region" aria-label={t.title} dir={dir}>
       <div className="likhari-spell-header">
         <strong>{t.title}</strong>
         <button type="button" className="likhari-spell-icon" onClick={onClose} aria-label={t.close} title={t.close}>

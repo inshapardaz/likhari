@@ -521,7 +521,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           )}
           <div className="likhari-canvas-frame">
             {config.findReplace && findOpen && <FindReplaceBar strings={strings} dir={dir} onClose={() => setFindOpen(false)} />}
-            {config.language.spellCheck && spellOpen && <SpellcheckPanel strings={strings} onClose={() => setSpellOpen(false)} />}
+            {config.language.spellCheck && spellOpen && <SpellcheckPanel strings={strings} dir={dir} onClose={() => setSpellOpen(false)} />}
             <div className="likhari-canvas">
               <RichTextPlugin
                 contentEditable={
