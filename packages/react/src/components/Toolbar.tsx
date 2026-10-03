@@ -43,6 +43,29 @@ import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
+import {
+  $isPoetryBlockNode,
+  POETRY_GUTTERS,
+  POETRY_SPACINGS,
+  POETRY_STAGGERS,
+  type PoetryGutter,
+  type PoetryLayout,
+  type PoetrySpacing,
+  type PoetryStagger,
+} from '../blocks/PoetryNode';
+import {
+  $adjustPoetryGutter,
+  $getCoupletCenteredFromSelection,
+  $setCoupletCentered,
+  $adjustPoetryStagger,
+  $adjustPoetrySpacing,
+  $deletePoetryBlock,
+  $deletePoetryCouplet,
+  $getPoetryBlockFromSelection,
+  $insertCoupletRelativeToSelection,
+  $setPoetryLayout,
+} from '../blocks/poetryActions';
+import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
 import { $getTableCellNodeFromLexicalNode, $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
@@ -116,12 +139,18 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconColumns1,
+  IconColumns2,
   IconNumber1Small,
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
+  IconArrowsMaximize,
+  IconArrowsMinimize,
+  IconArrowsShuffle,
   IconTable,
   IconTableMinus,
+  IconTrash,
   IconTableOptions,
   IconTextSize,
   IconTypography,
@@ -158,6 +187,11 @@ interface ToolbarState {
   canMergeCells: boolean;
   /** A caret in a single table cell that already spans more than one row/column. */
   canUnmergeCell: boolean;
+  /** The caret is inside a poetry couplet; layout mirrors that couplet's own. */
+  inPoetry: boolean;
+  poetryLayout: PoetryLayout;
+  poetryScale: PoetryScale;
+  poetryCentered: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -181,6 +215,10 @@ const INITIAL_STATE: ToolbarState = {
   tableColumns: 1,
   canMergeCells: false,
   canUnmergeCell: false,
+  inPoetry: false,
+  poetryLayout: 'single',
+  poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal' },
+  poetryCentered: false,
   canUndo: false,
   canRedo: false,
 };
@@ -494,6 +532,90 @@ function TableMenuItems({
   );
 }
 
+/** The poetry couplet menu's contents — layout (single/two-column) and
+ * literal alignment, both per-instance overrides (requirements doc §4.11:
+ * "set per CoupletNode, not inherited from a document-wide setting"), plus
+ * table-row-style structural actions (insert a couplet above/below the one
+ * the caret is in, delete it) — a poetry block is "one object with multiple
+ * couplets, add/remove like table rows", so these mirror TableMenuItems'
+ * own insert-before/insert-after/delete-row actions. */
+/** The poetry block's current position on each adjustable scale. */
+interface PoetryScale {
+  spacing: PoetrySpacing;
+  gutter: PoetryGutter;
+  stagger: PoetryStagger;
+}
+
+/** Whether a one-notch step from `value` stays on the scale — a step that
+ * would fall off either end is disabled rather than silently clamped. */
+function canStep<T extends string>(scale: readonly T[], value: T, step: 1 | -1): boolean {
+  const next = scale.indexOf(value) + step;
+  return next >= 0 && next < scale.length;
+}
+
+function PoetryMenuItems({
+  strings,
+  layout,
+  scale,
+  centered,
+  onAction,
+}: {
+  strings: Strings;
+  layout: PoetryLayout;
+  scale: PoetryScale;
+  centered: boolean;
+  onAction: (action: () => void) => () => void;
+}) {
+  const t = strings.poetryMenu;
+  const item = (icon: TablerIcon, label: string, action: () => void, active = false, color?: string) => {
+    const Icon = icon;
+    return (
+      <Menu.Item
+        color={color}
+        disabled={active}
+        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onAction(action)}
+      >
+        {label}
+      </Menu.Item>
+    );
+  };
+  const setLayout = (next: PoetryLayout) => () => {
+    const node = $getPoetryBlockFromSelection();
+    if (node) $setPoetryLayout(node, next);
+  };
+  return (
+    <>
+      <Menu.Label>{t.menuLabel}</Menu.Label>
+      {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
+      {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
+      <Menu.Divider />
+      <Menu.Divider />
+      {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
+      {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
+      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
+      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
+      {layout === 'staggered' && (
+        <>
+          {item(IconArrowsMinimize, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
+          {item(IconArrowsMaximize, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
+        </>
+      )}
+      {layout === 'two-column' && (
+        <>
+          {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
+          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
+          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
+        </>
+      )}
+      {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
+      {item(IconTrash, t.deletePoetry, $deletePoetryBlock, false, 'red')}
+    </>
+  );
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   onSave?: () => void;
@@ -535,7 +657,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       if ($isTableSelection(selection)) {
         const { rows, columns } = $getTableSelectionSize();
         const canMergeCells = $canMergeSelectedCells();
-        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false }));
+        setState((s) => ({ ...s, inTable: true, tableRows: rows, tableColumns: columns, canMergeCells, canUnmergeCell: false, inPoetry: false }));
         return;
       }
       if (!$isRangeSelection(selection)) return;
@@ -544,6 +666,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       const inTable = $getTableCellNodeFromLexicalNode(anchorNode) !== null;
       const tableSize = inTable ? $getTableSelectionSize() : { rows: 1, columns: 1 };
       const canUnmergeCell = inTable && $canUnmergeSelectedCell();
+      const poetryBlock = $getPoetryBlockFromSelection();
       const element = anchorNode.getKey() === 'root' ? anchorNode : (anchorNode.getTopLevelElement() ?? anchorNode);
 
       const listParent = $findMatchingParent(anchorNode, $isListNode);
@@ -574,6 +697,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // Lexical's read/update context has already closed, so any $-prefixed
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
+      const poetryLayout = poetryBlock?.getLayout();
+      const poetryCentered = $getCoupletCenteredFromSelection();
+      const poetryScale = poetryBlock
+        ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger() }
+        : null;
 
       setState((s) => ({
         ...s,
@@ -590,6 +718,10 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         tableColumns: tableSize.columns,
         canMergeCells: false,
         canUnmergeCell,
+        inPoetry: poetryBlock !== null,
+        poetryLayout: poetryLayout ?? s.poetryLayout,
+        poetryScale: poetryScale ?? s.poetryScale,
+        poetryCentered: poetryCentered ?? false,
       }));
     });
   }, [editor]);
@@ -850,9 +982,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
     });
   }, [editor, config.links]);
 
-  // Table actions. The menu takes focus, so the selection is snapshotted when it
-  // opens and restored before an action runs.
-  const runTableAction = (action: () => void) => () => {
+  // Table/poetry contextual-menu actions. The menu takes focus, so the
+  // selection is snapshotted when it opens and restored before an action runs.
+  const runMenuAction = (action: () => void) => () => {
     restoreSelection();
     editor.update(action);
     editor.focus();
@@ -894,6 +1026,37 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       root?.addEventListener('contextmenu', onContextMenu);
     });
   }, [editor, config.tables]);
+
+  // Right-clicking a poetry couplet opens the same options menu at the pointer.
+  const [poetryContext, setPoetryContext] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!config.poetry.enabled) return;
+    const onContextMenu = (event: MouseEvent) => {
+      if (event.defaultPrevented) return; // a link inside the couplet already took it
+      const coupletElement = (event.target as HTMLElement | null)?.closest?.('.likhari-poetry');
+      if (!coupletElement) return;
+      let handled = false;
+      editor.update(
+        () => {
+          const node = $getNearestNodeFromDOMNode(coupletElement);
+          const couplet = node ? $findMatchingParent(node, $isPoetryBlockNode) : null;
+          if (!couplet) return;
+          handled = true;
+          if (!$getPoetryBlockFromSelection()) couplet.selectStart();
+        },
+        { discrete: true },
+      );
+      if (!handled) return;
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      setPoetryContext({ x: event.clientX, y: event.clientY });
+    };
+    return editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('contextmenu', onContextMenu);
+      root?.addEventListener('contextmenu', onContextMenu);
+    });
+  }, [editor, config.poetry.enabled]);
 
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
@@ -1308,7 +1471,17 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
           />
         )}
-        {config.poetry.enabled && <StubButton icon={IconFeather} title={strings.toolbar.poetryBlocks} comingSoon={strings.toolbar.comingSoon} />}
+        {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
+            outside an Urdu/Punjabi editing context, not just when the feature is off. */}
+        {config.poetry.enabled && locale !== 'en' && (
+          <ToolbarButton
+            icon={IconFeather}
+            title={strings.toolbar.insertPoetryCouplet}
+            onClick={() =>
+              editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })
+            }
+          />
+        )}
       </div>
     ),
     config.tables && state.inTable && (
@@ -1336,8 +1509,31 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               columns={state.tableColumns}
               canMergeCells={state.canMergeCells}
               canUnmergeCell={state.canUnmergeCell}
-              onAction={runTableAction}
+              onAction={runMenuAction}
             />
+          </Menu.Dropdown>
+        </Menu>
+      </div>
+    ),
+    config.poetry.enabled && state.inPoetry && (
+      <div className="likhari-toolbar-group" key="poetryActions">
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200} onOpen={snapshotSelection}>
+          <Menu.Target>
+            <button
+              type="button"
+              className="likhari-toolbar-button"
+              data-active="true"
+              aria-pressed="true"
+              aria-haspopup="menu"
+              aria-label={strings.toolbar.poetryOptions}
+              title={strings.toolbar.poetryOptions}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1454,8 +1650,33 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
               columns={tableContext?.columns ?? 1}
               canMergeCells={state.canMergeCells}
               canUnmergeCell={state.canUnmergeCell}
-              onAction={runTableAction}
+              onAction={runMenuAction}
             />
+          </Menu.Dropdown>
+        </Menu>
+      )}
+
+      {config.poetry.enabled && (
+        <Menu
+          opened={poetryContext !== null}
+          onChange={(opened) => {
+            if (!opened) setPoetryContext(null);
+          }}
+          position="bottom-start"
+          withinPortal
+          portalProps={{ target: portalTarget }}
+          shadow="sm"
+          width={200}
+        >
+          <Menu.Target>
+            {/* Invisible 1px anchor positioned at the right-click */}
+            <span
+              aria-hidden="true"
+              style={{ position: 'fixed', left: poetryContext?.x ?? -9999, top: poetryContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+            />
+          </Menu.Target>
+          <Menu.Dropdown>
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}

@@ -7,9 +7,10 @@ import type { ConverterContext } from '../types';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE,
-  elementBase, makeState, paragraph, textNode, type SNode,
+  elementBase, makeState, paragraph, rootChildren, textNode, type SNode,
 } from '../shared/serialized';
-import { safeImageSrc, safeUrl } from '../html/parse';
+import { parseHtml, safeImageSrc, safeUrl } from '../html/parse';
+import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
 import type { MdNode } from './mdast';
 
 const processor = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
@@ -229,6 +230,9 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
       case 'table':
         out.push(tableBlock(node));
         break;
+      case 'html':
+        out.push(...rootChildren(parseHtml(node.value ?? '')).filter((n) => n.type === 'table'));
+        break;
       case 'containerDirective':
         if (node.name === 'columns') {
           const columns = (node.children ?? [])
@@ -240,6 +244,17 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
           if (columns.length > 0) {
             out.push(elementBase('layout-container', columns, { templateColumns: `repeat(${columns.length}, 1fr)` }));
           }
+        } else if (node.name === 'poetry') {
+          const attrs = node.attributes ?? {};
+          const settings = {
+            layout: layoutOrDefault(attrs.layout),
+            spacing: scaleOrDefault(attrs.spacing),
+            gutter: scaleOrDefault(attrs.gutter),
+            stagger: scaleOrDefault(attrs.stagger),
+            ...(Number(attrs.width) > 0 ? { width: Number(attrs.width) } : {}),
+          };
+          const children = blocks(node.children ?? []);
+          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], settings));
         } else {
           // Unknown containers (including a stray "column" outside "columns")
           // are transparent: their content is kept.

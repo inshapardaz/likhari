@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
 import { EditorRoot, type DraftRestoreMode, type EditorRef, type NavigationGuardMode } from '@inshapardaz/likhari-react';
@@ -54,6 +54,37 @@ const STRINGS: Record<
  * editor's built-in default, used as this control's initial value. */
 const DEFAULT_ACCENT_COLOR = '#2B6E6E';
 const ACCENT_SWATCHES = ['#2B6E6E', '#6741D9', '#E8590C', '#C2255C', '#2F9E44', '#1971C2', '#F08C00', '#495057'];
+
+const VALID_LOCALES: Locale[] = ['en', 'ur', 'pa-shahmukhi'];
+const VALID_PRESETS: FeatureConfigPresetName[] = ['minimal', 'standard', 'full', 'poetry'];
+
+/** Persists the demo's own chrome preferences (not editor content) across
+ * reloads — a convenience for trying the demo, not a feature of the editor
+ * itself, so it lives here rather than in packages/react. */
+const PREFS_KEY = 'likhari-demo-prefs';
+
+interface DemoPrefs {
+  locale: Locale;
+  colorScheme: 'light' | 'dark';
+  accentColor: string;
+  preset: FeatureConfigPresetName;
+}
+
+function loadPrefs(): Partial<DemoPrefs> {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Partial<DemoPrefs>;
+    return {
+      locale: VALID_LOCALES.includes(parsed.locale as Locale) ? parsed.locale : undefined,
+      colorScheme: parsed.colorScheme === 'dark' || parsed.colorScheme === 'light' ? parsed.colorScheme : undefined,
+      accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : undefined,
+      preset: VALID_PRESETS.includes(parsed.preset as FeatureConfigPresetName) ? parsed.preset : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
 
 function toEditorFeatureConfig(resolved: ReturnType<typeof resolveFeatureConfig>): EditorFeatureConfig {
   // ResolvedEditorFeatureConfig has every field populated, so it's already a
@@ -171,10 +202,11 @@ function OutputPopup({ title, content, dark, onClose }: { title: string; content
 
 export function App() {
   const editorRef = useRef<EditorRef>(null);
-  const [preset, setPreset] = useState<FeatureConfigPresetName>('standard');
-  const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, 'standard')));
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
-  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
+  const [savedPrefs] = useState(loadPrefs);
+  const [preset, setPreset] = useState<FeatureConfigPresetName>(savedPrefs.preset ?? 'standard');
+  const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, savedPrefs.preset ?? 'standard')));
+  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(savedPrefs.colorScheme ?? 'light');
+  const [accentColor, setAccentColor] = useState(savedPrefs.accentColor ?? DEFAULT_ACCENT_COLOR);
   const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
@@ -182,13 +214,22 @@ export function App() {
   const [autosave, setAutosave] = useState(true);
   const [restoreDraft, setRestoreDraft] = useState<DraftRestoreMode>('prompt');
   const [navigationGuard, setNavigationGuard] = useState<NavigationGuardMode>('confirm');
-  const [locale, setLocale] = useState<Locale>('en');
+  const [locale, setLocale] = useState<Locale>(savedPrefs.locale ?? 'en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [popup, setPopup] = useState<{ title: string; content: string } | null>(null);
 
   const dark = colorScheme === 'dark';
   const t = STRINGS[locale];
   const headerDir = LOCALE_DIR[locale];
+
+  useEffect(() => {
+    try {
+      const prefs: DemoPrefs = { locale, colorScheme, accentColor, preset };
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      // Private browsing / storage disabled: preferences just won't persist.
+    }
+  }, [locale, colorScheme, accentColor, preset]);
 
   const applyPreset = (name: FeatureConfigPresetName) => {
     setPreset(name);

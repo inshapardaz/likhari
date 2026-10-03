@@ -1,6 +1,9 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
+  POETRY_CENTERED_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, layoutOrDefault, scaleOrDefault,
+} from '../shared/poetry';
+import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX, collectFootnoteOrder, rootChildren, type SNode,
 } from '../shared/serialized';
@@ -76,6 +79,14 @@ function listItemToHtml(item: SNode, listType: string, ctx?: ConverterContext): 
   return `<li${blockAttrs(item, checked)}>${inlineChildren(item, ctx)}</li>`;
 }
 
+/** Table and footnote styling matching editor.css, written inline so exported HTML keeps it. */
+const TABLE_BORDER = '#cfcac0';
+const TABLE_HEADER_BG = '#f1efe9';
+const TABLE_STYLE = 'border-collapse: collapse; margin: 1em 0; width: 100%';
+const CELL_STYLE = `border: 1px solid ${TABLE_BORDER}; padding: 6px 10px; min-width: 72px; vertical-align: top`;
+const HEADER_CELL_STYLE = `background: ${TABLE_HEADER_BG}; font-weight: 600; text-align: start`;
+const FOOTNOTE_LIST_STYLE = `list-style: none; margin: 2em 0 0 0; padding: 0.75em 0 0 1.5em; border-top: 1px solid ${TABLE_BORDER}; font-size: 0.9em`;
+
 function tableToHtml(node: SNode, ctx?: ConverterContext): string {
   const rows = (node.children ?? [])
     .map((row) => {
@@ -87,13 +98,14 @@ function tableToHtml(node: SNode, ctx?: ConverterContext): string {
             (Number(cell.colSpan) > 1 ? ` colspan="${Number(cell.colSpan)}"` : '') +
             (Number(cell.rowSpan) > 1 ? ` rowspan="${Number(cell.rowSpan)}"` : '');
           const content = (cell.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
-          return `<${tag}${span}>${content}</${tag}>`;
+          const style = header ? `${CELL_STYLE}; ${HEADER_CELL_STYLE}` : CELL_STYLE;
+          return `<${tag}${span} style="${escapeAttr(style)}">${content}</${tag}>`;
         })
         .join('');
       return `<tr>${cells}</tr>`;
     })
     .join('');
-  return `<table><tbody>${rows}</tbody></table>`;
+  return `<table style="${escapeAttr(TABLE_STYLE)}"><tbody>${rows}</tbody></table>`;
 }
 
 /** Set once per serializeHtml() call and read by the footnote cases below —
@@ -113,10 +125,11 @@ function footnoteListToHtml(node: SNode, ctx?: ConverterContext): string {
     .map((item) => {
       const id = String(item.footnoteId ?? '');
       const body = (item.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
-      return `<li id="fn-${escapeAttr(id)}" data-likhari-footnote-item="${escapeAttr(id)}">${body} <a href="#fnref-${escapeAttr(id)}">↩</a></li>`;
+      const number = `<span data-likhari-footnote-number style="font-weight: 600">[${footnoteOrder.get(id) ?? '?'}] </span>`;
+      return `<li id="fn-${escapeAttr(id)}" data-likhari-footnote-item="${escapeAttr(id)}" style="margin: 0.3em 0">${number}${body} <a href="#fnref-${escapeAttr(id)}">↩</a></li>`;
     })
     .join('');
-  return `<ol data-likhari-footnote-list>${items}</ol>`;
+  return `<ol data-likhari-footnote-list style="${escapeAttr(FOOTNOTE_LIST_STYLE)}">${items}</ol>`;
 }
 
 function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
@@ -126,6 +139,93 @@ function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
     .map((item) => `<div data-likhari-layout-item>${(item.children ?? []).map((child) => nodeToHtml(child, ctx)).join('')}</div>`)
     .join('');
   return `<div data-likhari-layout-container style="display: grid; grid-template-columns: ${escapeAttr(templateColumns)}">${columns}</div>`;
+}
+
+function firstDirection(nodes: SNode[]): 'rtl' | 'ltr' {
+  for (const node of nodes) {
+    if (node.direction === 'rtl' || node.direction === 'ltr') return node.direction;
+    const inner = firstDirection(node.children ?? []);
+    if (inner) return inner;
+  }
+  return 'ltr';
+}
+
+/** One misra line; styles are inline so the exported page keeps the editor's look. */
+function poetryLineToHtml(line: SNode, extraStyle: string, ctx?: ConverterContext): string {
+  const dir = line.direction === 'rtl' || line.direction === 'ltr' ? ` dir="${line.direction}"` : '';
+  const style = ['margin: 0', extraStyle].filter(Boolean).join('; ');
+  return `<p${dir} style="${escapeAttr(style)}">${inlineChildren(line, ctx)}</p>`;
+}
+
+function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
+  const layout = layoutOrDefault(node.layout);
+  const spacing = scaleOrDefault(node.spacing);
+  const gutter = scaleOrDefault(node.gutter);
+  const stagger = scaleOrDefault(node.stagger);
+  const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
+  const children = node.children ?? [];
+  const dir = firstDirection(children);
+  const gap = POETRY_COUPLET_GAP[spacing];
+  const separator = `border-top: ${POETRY_RULE}; margin-top: ${gap}; padding-top: calc(${gap} * 0.6)`;
+
+  let body: string;
+  if (layout === 'two-column') {
+    body = children
+      .map((row, r) => {
+        const items = row.children ?? [];
+        const centered = items.length === 1;
+        const templateColumns = typeof row.templateColumns === 'string' ? row.templateColumns : `repeat(${Math.max(items.length, 1)}, 1fr)`;
+        const rowStyle = [
+          'display: grid',
+          'gap: 0',
+          `grid-template-columns: ${templateColumns}`,
+          'margin: 0',
+          ...(r > 0 ? [separator] : []),
+          ...(centered ? [`width: ${POETRY_CENTERED_WIDTH}`, 'margin-inline: auto'] : []),
+        ].join('; ');
+        const px = POETRY_GUTTER_PX[gutter];
+        const cells = items
+          .map((item, i) => {
+            const cellStyle = centered
+              ? 'padding-inline: 0'
+              : i === 0
+                ? `padding-inline-end: ${px}px`
+                : `border-inline-start: ${POETRY_RULE}; padding-inline-start: ${px}px`;
+            const lines = (item.children ?? []).map((line) => poetryLineToHtml(line, '', ctx)).join('');
+            return `<div data-likhari-layout-item style="${escapeAttr(cellStyle)}">${lines}</div>`;
+          })
+          .join('');
+        return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}">${cells}</div>`;
+      })
+      .join('');
+  } else {
+    body = children
+      .map((line, i) => {
+        const couplet = Math.floor(i / 2);
+        const parts: string[] = [];
+        if (i % 2 === 0 && couplet > 0) parts.push(separator);
+        if (layout === 'staggered') {
+          parts.push(`width: ${POETRY_STAGGER_WIDTH[stagger]}`);
+          parts.push(couplet % 2 === 0 ? 'margin-inline-end: auto' : 'margin-inline-start: auto');
+        }
+        return poetryLineToHtml(line, parts.join('; '), ctx);
+      })
+      .join('');
+  }
+
+  const rtl = dir === 'rtl';
+  const blockStyle = [
+    'box-sizing: border-box',
+    'margin: 0 auto 1.4em auto',
+    `max-width: ${width !== undefined ? `${width}px` : '70%'}`,
+    'padding: 10px 16px',
+    'text-align: justify',
+    'text-align-last: justify',
+    `font-size: ${rtl ? '20px' : '15px'}`,
+    `line-height: ${rtl ? '2.1' : '1.6'}`,
+  ].join('; ');
+  const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {
@@ -180,14 +280,21 @@ export function nodeToHtml(node: SNode, ctx?: ConverterContext): string {
       return footnoteReferenceToHtml(node);
     case 'footnote-list':
       return footnoteListToHtml(node, ctx);
+    case 'poetry-couplet':
+      return poetryToHtml(node, ctx);
     default:
       // Unknown node (e.g. a future feature): keep its content, drop the wrapper.
       return inlineChildren(node, ctx);
   }
 }
 
+/** Lets another converter (Markdown's HTML-table fallback) number footnotes the same way. */
+export function setFootnoteOrder(blocks: SNode[]): void {
+  footnoteOrder = collectFootnoteOrder(blocks);
+}
+
 export function serializeHtml(state: SerializedEditorState, ctx?: ConverterContext): string {
   const blocks = rootChildren(state);
-  footnoteOrder = collectFootnoteOrder(blocks);
+  setFootnoteOrder(blocks);
   return blocks.map((node) => nodeToHtml(node, ctx)).join('\n');
 }

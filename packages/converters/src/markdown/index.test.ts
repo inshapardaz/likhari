@@ -132,6 +132,52 @@ describe('markdownConverter', () => {
     expect((backList.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'first note' });
   });
 
+  it('round-trips a single-column poetry couplet via the extended dialect', () => {
+    const couplet = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
+      layout: 'single',
+    });
+    const out = md([couplet]);
+    expect(out).toContain(':::poetry');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single' });
+    expect(back.children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
+  });
+
+  it('round-trips a two-column poetry couplet (approximate, builds on the columns dialect)', () => {
+    const container = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column' });
+    const out = md([couplet]);
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column' });
+    expect(back.children![0].type).toBe('layout-container');
+    expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
+  });
+
+  it('round-trips a poetry block with multiple couplets (single and two-column)', () => {
+    const singleBlock = elementBase(
+      'poetry-couplet',
+      [paragraph([textNode('a1')]), paragraph([textNode('b1')]), paragraph([textNode('a2')]), paragraph([textNode('b2')])],
+      { layout: 'single' },
+    );
+    const [backSingle] = parse(md([singleBlock]));
+    expect(backSingle.children!.map((p) => (p.children![0] as SNode).text)).toEqual(['a1', 'b1', 'a2', 'b2']);
+
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    const twoColumnBlock = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column' });
+    const [backTwoColumn] = parse(md([twoColumnBlock]));
+    expect(backTwoColumn.children).toHaveLength(2);
+    expect(backTwoColumn.children!.every((c) => c.type === 'layout-container')).toBe(true);
+  });
+
   it('is safe on hostile input and tolerant of plain Markdown', () => {
     const blocks = parse('[x](javascript:alert(1)) ![i](javascript:alert(1))\n\n<script>alert(1)</script>\n\n10:30 and a:b');
     expect(JSON.stringify(blocks)).not.toMatch(/javascript|alert/);
@@ -140,5 +186,50 @@ describe('markdownConverter', () => {
 
   it('parses empty input to one empty paragraph', () => {
     expect(parse('')).toHaveLength(1);
+  });
+});
+
+describe('poetry settings', () => {
+  it('keeps non-default spacing, gutter, stagger and width through a round trip', () => {
+    const block = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], {
+      layout: 'staggered',
+      spacing: 'loose',
+      stagger: 'compact',
+      width: 400,
+    });
+    const out = md([block]);
+    expect(out).toContain('spacing="loose"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ layout: 'staggered', spacing: 'loose', stagger: 'compact', width: 400 });
+  });
+});
+
+describe('markdown tables that Markdown cannot express', () => {
+  it('keeps a merged cell and a multi-paragraph cell through an HTML table fallback', () => {
+    const cell = (texts: string[], colSpan = 1) =>
+      elementBase('tablecell', texts.map((t) => paragraph([textNode(t)])), { colSpan, rowSpan: 1, headerState: 0 });
+    const table = elementBase('table', [
+      elementBase('tablerow', [cell(['wide'], 2)]),
+      elementBase('tablerow', [cell(['a', 'second paragraph']), cell(['b'])]),
+    ]);
+    const out = md([table]);
+    expect(out).toContain('<table');
+    const [back] = parse(out);
+    expect(back.type).toBe('table');
+    expect(back.children![0].children![0]).toMatchObject({ colSpan: 2 });
+    expect(back.children![1].children![0].children!.length).toBe(2);
+  });
+
+  it('keeps a plain table as Markdown', () => {
+    const table = elementBase('table', [elementBase('tablerow', [elementBase('tablecell', [paragraph([textNode('a')])], { colSpan: 1, rowSpan: 1, headerState: 0 })])]);
+    expect(md([table])).not.toContain('<table');
+  });
+});
+
+describe('markdown images', () => {
+  it('keeps size and caption through a round trip', () => {
+    const image = { type: 'image', version: 1, src: 'https://example.com/a.png', altText: 'alt', caption: 'cap', linkType: 'linked', width: 300, height: 200 } as SNode;
+    const [back] = parse(md([image]));
+    expect(back).toMatchObject({ type: 'image', caption: 'cap', width: 300, height: 200, altText: 'alt' });
   });
 });

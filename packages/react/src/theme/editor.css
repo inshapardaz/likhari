@@ -374,6 +374,169 @@
   content: '[' counter(likhari-footnote-item) '] ';
 }
 
+/* Poetry couplets (lexical-editor-spec.md §4.11, editor-ui-design-spec.md §4).
+   Own type scale and spacing, distinct from body text — the .likhari-ltr/
+   .likhari-rtl per-block classes (above) already switch font-family for this
+   element same as any other block; these rules layer poetry's own size/
+   line-height/gap on top, combined with those same classes.
+   Capped width + auto margins read verse as a centered block on the page —
+   conventional poetry typesetting — rather than a full-width paragraph where
+   a short line just hugs the start edge regardless of its own text-align. */
+.likhari-poetry {
+  box-sizing: border-box;
+  margin: 0 auto 1.4em auto;
+  max-width: 70%;
+  /* A visible boundary while editing, same affordance as a table's own
+     border — poetry couplets are a distinct structural block, not a plain
+     paragraph, and should read as one at a glance. */
+  border: 1px dashed var(--editor-line-strong);
+  border-radius: 6px;
+  padding: 10px 16px;
+}
+
+.likhari-poetry.likhari-ltr {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.likhari-poetry.likhari-rtl {
+  font-size: 20px;
+  line-height: 2.1;
+}
+
+/* Misra lines sit tight against each other within a couplet — the generic
+   .likhari-paragraph margin would otherwise add the same gap between a
+   couplet's own two lines as between separate couplets within the same
+   block, losing the pairing entirely. */
+.likhari-poetry .likhari-paragraph {
+  margin: 0;
+}
+
+/* A poetry block is "one object with multiple couplets, add/remove like
+   table rows" — so couplet boundaries get the same visible divider as a
+   table's internal row borders, not just extra space. Every couplet but
+   the first (nth-child(odd), since each couplet is two paragraph
+   children — its first misra always lands on an odd position) gets a
+   border-top in place of the previous couplet's margin-bottom. */
+.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child) {
+  border-top: 1px dashed var(--editor-line-strong);
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+.likhari-poetry--spacing-compact { --poetry-couplet-gap: 0.4em; }
+.likhari-poetry--spacing-normal { --poetry-couplet-gap: 1em; }
+.likhari-poetry--spacing-relaxed { --poetry-couplet-gap: 1.8em; }
+.likhari-poetry--spacing-loose { --poetry-couplet-gap: 2.8em; }
+
+.likhari-poetry--gutter-compact { --poetry-gutter: 8px; }
+.likhari-poetry--gutter-normal { --poetry-gutter: 20px; }
+.likhari-poetry--gutter-relaxed { --poetry-gutter: 32px; }
+.likhari-poetry--gutter-loose { --poetry-gutter: 48px; }
+
+.likhari-poetry--stagger-compact { --poetry-stagger-width: 50%; }
+.likhari-poetry--stagger-normal { --poetry-stagger-width: 65%; }
+.likhari-poetry--stagger-relaxed { --poetry-stagger-width: 75%; }
+.likhari-poetry--stagger-loose { --poetry-stagger-width: 85%; }
+
+/* Staggered: couplets are the same flat misra paragraphs as single column,
+   but each couplet's two misras are placed in a 65%-wide box that alternates
+   sides — the first couplet pushed to the start edge, the next to the end
+   edge, and so on. Logical properties keep the alternation mirrored for RTL. */
+.likhari-poetry--staggered .likhari-paragraph {
+  width: var(--poetry-stagger-width, 65%);
+}
+
+.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+1),
+.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+2) {
+  margin-inline-end: auto;
+}
+
+.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+3),
+.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+4) {
+  margin-inline-start: auto;
+}
+
+.likhari-poetry--staggered .likhari-paragraph:nth-child(odd):not(:first-child) {
+  border-top: 1px dashed var(--editor-line-strong);
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+.likhari-poetry--two-column .likhari-layout-container {
+  margin: 0;
+  /* No grid gap — the column divider sits exactly on the track boundary,
+     so spacing instead comes from matching padding on each side of it,
+     which keeps the gutter visually even on both sides of the line. */
+  gap: 0;
+}
+
+/* One row per couplet in two-column layout — same table-row-border
+   treatment as the single-column rule above, between couplets instead of
+   within one. */
+.likhari-poetry--two-column .likhari-layout-container:not(:first-child) {
+  border-top: 1px dashed var(--editor-line-strong);
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+.likhari-poetry--two-column .likhari-layout-item {
+  text-align: inherit;
+}
+
+/* A centered couplet: a two-column row holding one item (see poetryActions.ts's
+   $setCoupletCentered) — narrowed to the middle of the block, with no column
+   divider or gutter since there's only one column. */
+.likhari-poetry--two-column > .likhari-layout-container:has(> .likhari-layout-item:only-child) {
+  width: 60%;
+  margin-inline: auto;
+}
+
+.likhari-poetry--two-column .likhari-layout-item:only-child {
+  padding-inline-end: 0;
+}
+
+.likhari-poetry--two-column .likhari-layout-item:first-child {
+  padding-inline-end: var(--poetry-gutter, 20px);
+}
+
+/* A visible divider between misra columns, same dashed language as the
+   couplet's own border — matches a table's internal cell borders. */
+.likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
+  border-inline-start: 1px dashed var(--editor-line-strong);
+  padding-inline-start: var(--poetry-gutter, 20px);
+}
+
+/* PoetryResizer.tsx's drag handle — portaled to a fixed position over the
+   active couplet's inline-end edge, so top/left are set inline per drag. */
+.likhari-poetry-resize-handle {
+  position: fixed;
+  width: 10px;
+  /* Physical, not logical: PoetryResizer.tsx already computes `left` as the
+     couplet's actual edge in viewport coordinates for either direction, so
+     centering the handle on it must stay physical too. */
+  margin-left: -5px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 20;
+}
+
+.likhari-poetry-resize-handle::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 100%;
+  margin-inline: auto;
+  border-radius: 2px;
+  background: var(--editor-accent);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.likhari-poetry-resize-handle:hover::before {
+  opacity: 0.6;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;

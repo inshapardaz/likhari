@@ -9,6 +9,7 @@ import { PageBreakNode } from './blocks/PageBreakNode';
 import { LayoutContainerNode, LayoutItemNode } from './blocks/LayoutNode';
 import { FootnoteReferenceNode } from './blocks/FootnoteNode';
 import { FootnoteItemNode, FootnoteListNode } from './blocks/FootnoteListNode';
+import { PoetryBlockNode } from './blocks/PoetryNode';
 
 /**
  * Node types registered on the editor at construction time. Per
@@ -36,4 +37,5 @@ export const EDITOR_NODES: Klass<LexicalNode>[] = [
   FootnoteReferenceNode,
   FootnoteListNode,
   FootnoteItemNode,
+  PoetryBlockNode,
 ];

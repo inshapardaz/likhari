@@ -266,3 +266,22 @@ Borrowed from the sibling EPUB reader [qari](https://github.com/inshapardaz/qari
 - Feature toggles in `EditorFeatureConfig` control which controls are
   available. They do not unregister document node types, even with a custom
   toolbar.
+
+## Browser compatibility
+
+Supported in current stable releases of Chrome, Edge, Firefox and Safari.
+Older browsers are not targeted.
+
+| Feature | Requirement | If unsupported |
+| --- | --- | --- |
+| Centered poetry couplet (`:has()` selector) | Chrome 105+, Edge 105+, Safari 15.4+, Firefox 121+ | The couplet renders at full width instead of centered. Editing still works. |
+| Logical CSS properties (`margin-inline`, `padding-inline-start`, ...) | Chrome 87+, Edge 87+, Safari 14.1+, Firefox 66+ | Spacing and alignment in RTL content may be wrong. |
+| `text-align-last` (justified last line in poetry) | Chrome 47+, Edge 79+, Safari 16+, Firefox 49+ | Single-line poetry lines are not stretched. |
+| CSS grid `gap` (columns and two-column poetry) | Chrome 66+, Edge 66+, Safari 12+, Firefox 61+ | Spacing between columns falls back to zero. |
+| `ResizeObserver` (toolbar overflow) | Chrome 64+, Edge 79+, Safari 13.1+, Firefox 69+ | The toolbar does not collapse overflowing items. |
+
+Not supported: Internet Explorer and other legacy browsers.
+
+The HTML export writes its styles inline, so exported poetry keeps its
+layout outside the editor. It only depends on the logical properties and
+`text-align-last` listed above.
