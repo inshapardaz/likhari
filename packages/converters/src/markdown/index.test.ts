@@ -134,15 +134,14 @@ describe('markdownConverter', () => {
 
   it('round-trips a single-column poetry couplet via the extended dialect', () => {
     const couplet = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
-      centered: false,
+      layout: 'single',
+      align: 'right',
     });
-    const block = elementBase('poetry-block', [couplet], { layout: 'single', align: 'right' });
-    const out = md([block]);
+    const out = md([couplet]);
     expect(out).toContain(':::poetry');
     const [back] = parse(out);
-    expect(back).toMatchObject({ type: 'poetry-block', layout: 'single', align: 'right' });
-    expect(back.children![0].type).toBe('poetry-couplet');
-    expect(back.children![0].children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', align: 'right' });
+    expect(back.children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
   });
 
   it('round-trips a two-column poetry couplet (approximate, builds on the columns dialect)', () => {
@@ -151,24 +150,22 @@ describe('markdownConverter', () => {
       [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
       { templateColumns: 'repeat(2, 1fr)' },
     );
-    const block = elementBase('poetry-block', [container], { layout: 'two-column', align: 'justify' });
-    const out = md([block]);
+    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const out = md([couplet]);
     const [back] = parse(out);
-    expect(back).toMatchObject({ type: 'poetry-block', layout: 'two-column', align: 'justify' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', align: 'justify' });
     expect(back.children![0].type).toBe('layout-container');
     expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
   });
 
   it('round-trips a poetry block with multiple couplets (single and two-column)', () => {
-    const makeCouplet = (a: string, b: string) =>
-      elementBase('poetry-couplet', [paragraph([textNode(a)]), paragraph([textNode(b)])], { centered: false });
-    const singleBlock = elementBase('poetry-block', [makeCouplet('a1', 'b1'), makeCouplet('a2', 'b2')], { layout: 'single', align: 'justify' });
+    const singleBlock = elementBase(
+      'poetry-couplet',
+      [paragraph([textNode('a1')]), paragraph([textNode('b1')]), paragraph([textNode('a2')]), paragraph([textNode('b2')])],
+      { layout: 'single', align: 'justify' },
+    );
     const [backSingle] = parse(md([singleBlock]));
-    expect(backSingle.children!.every((c) => c.type === 'poetry-couplet')).toBe(true);
-    expect(backSingle.children!.map((c) => c.children!.map((p) => (p.children![0] as SNode).text))).toEqual([
-      ['a1', 'b1'],
-      ['a2', 'b2'],
-    ]);
+    expect(backSingle.children!.map((p) => (p.children![0] as SNode).text)).toEqual(['a1', 'b1', 'a2', 'b2']);
 
     const makeRow = (left: string, right: string) =>
       elementBase(
@@ -176,23 +173,10 @@ describe('markdownConverter', () => {
         [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
         { templateColumns: 'repeat(2, 1fr)' },
       );
-    const twoColumnBlock = elementBase('poetry-block', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const twoColumnBlock = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
     const [backTwoColumn] = parse(md([twoColumnBlock]));
     expect(backTwoColumn.children).toHaveLength(2);
     expect(backTwoColumn.children!.every((c) => c.type === 'layout-container')).toBe(true);
-  });
-
-  it('round-trips a poetry block mixing a centered couplet with a two-column couplet', () => {
-    const centered = elementBase('poetry-couplet', [paragraph([textNode('a1')]), paragraph([textNode('b1')])], { centered: true });
-    const row = elementBase(
-      'layout-container',
-      [elementBase('layout-item', [paragraph([textNode('a2')])]), elementBase('layout-item', [paragraph([textNode('b2')])])],
-      { templateColumns: 'repeat(2, 1fr)' },
-    );
-    const block = elementBase('poetry-block', [row, centered], { layout: 'two-column', align: 'justify' });
-    const [back] = parse(md([block]));
-    expect(back.children!.map((c) => c.type)).toEqual(['layout-container', 'poetry-couplet']);
-    expect(back.children![1]).toMatchObject({ centered: true });
   });
 
   it('is safe on hostile input and tolerant of plain Markdown', () => {

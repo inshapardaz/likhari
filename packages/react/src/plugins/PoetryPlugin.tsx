@@ -10,7 +10,6 @@ import {
 } from 'lexical';
 import { mergeRegister } from '@lexical/utils';
 import { LayoutContainerNode, LayoutItemNode } from '../blocks/LayoutNode';
-import { PoetryCoupletNode } from '../blocks/PoetryCoupletNode';
 import { PoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
 import { $deletePoetryOnBackspace, $ensureTrailingParagraph, $exitPoetryOnEnter, $insertPoetryCouplet } from '../blocks/poetryActions';
 
@@ -34,8 +33,8 @@ export function PoetryPlugin() {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    if (!editor.hasNodes([PoetryBlockNode, PoetryCoupletNode, LayoutContainerNode, LayoutItemNode])) {
-      throw new Error('PoetryPlugin: PoetryBlockNode/PoetryCoupletNode (and the columns nodes two-column composes) not registered on the editor');
+    if (!editor.hasNodes([PoetryBlockNode, LayoutContainerNode, LayoutItemNode])) {
+      throw new Error('PoetryPlugin: PoetryBlockNode (and the columns nodes it composes) not registered on the editor');
     }
 
     return mergeRegister(

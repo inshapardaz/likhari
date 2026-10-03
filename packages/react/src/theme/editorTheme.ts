@@ -48,7 +48,6 @@ export const editorTheme: EditorThemeClasses = {
   footnoteList: 'likhari-footnote-list',
   footnoteItem: 'likhari-footnote-item',
   poetry: 'likhari-poetry',
-  poetryCouplet: 'likhari-poetry-couplet',
   table: 'likhari-table',
   tableRow: 'likhari-table-row',
   tableCell: 'likhari-table-cell',

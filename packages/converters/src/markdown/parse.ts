@@ -242,20 +242,10 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
           }
         } else if (node.name === 'poetry') {
           const attrs = node.attributes ?? {};
-          const layout = attrs.layout === 'two-column' || attrs.layout === 'alternating' ? attrs.layout : 'single';
+          const layout = attrs.layout === 'two-column' ? 'two-column' : 'single';
           const align = ALIGNMENTS.has(attrs.align ?? '') ? (attrs.align as string) : 'justify';
-          let children = blocks(node.children ?? []);
-          // Legacy markup (no explicit couplet/column wrappers): treat the
-          // flat content as a single couplet, same as the import fallback.
-          const hasWrappers = children.some((c) => c.type === 'poetry-couplet' || c.type === 'layout-container');
-          if (!hasWrappers) {
-            children = [elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { centered: false })];
-          }
-          out.push(elementBase('poetry-block', children, { layout, align }));
-        } else if (node.name === 'couplet') {
-          const centered = (node.attributes ?? {}).centered === 'true';
           const children = blocks(node.children ?? []);
-          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { centered }));
+          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align }));
         } else {
           // Unknown containers (including a stray "column" outside "columns")
           // are transparent: their content is kept.

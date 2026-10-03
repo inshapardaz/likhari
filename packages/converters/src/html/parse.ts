@@ -263,14 +263,8 @@ function convertLayout(container: HTMLElement): SNode {
   return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
 }
 
-const POETRY_LAYOUTS = new Set(['single', 'two-column', 'alternating']);
+const POETRY_LAYOUTS = new Set(['single', 'two-column']);
 const POETRY_ALIGNS = new Set(['justify', 'left', 'right', 'start']);
-
-function convertPoetryCouplet(el: HTMLElement): SNode {
-  const centered = el.getAttribute('data-likhari-poetry-couplet-centered') === 'true';
-  const children = flowBlocks(el);
-  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { centered });
-}
 
 function convertPoetry(el: HTMLElement): SNode {
   const rawLayout = el.getAttribute('data-likhari-poetry-layout') ?? 'single';
@@ -278,38 +272,23 @@ function convertPoetry(el: HTMLElement): SNode {
   const rawAlign = el.getAttribute('data-likhari-poetry-align') ?? 'justify';
   const align = POETRY_ALIGNS.has(rawAlign) ? rawAlign : 'justify';
 
-  // Couplets may mix wrapper types within one block — a two-column layout
-  // row (data-likhari-layout-container) and a centered single couplet
-  // (data-likhari-poetry-couplet) can sit side by side — grab all of them,
-  // not just the first, or every couplet past the first silently disappears.
-  const couplets = Array.from(el.children)
-    .map((c) => {
-      if (c.hasAttribute('data-likhari-layout-container')) return convertLayout(c as HTMLElement);
-      if (c.hasAttribute('data-likhari-poetry-couplet')) return convertPoetryCouplet(c as HTMLElement);
-      return null;
-    })
-    .filter((n): n is SNode => n !== null);
-
-  if (couplets.length > 0) return elementBase('poetry-block', couplets, { layout, align });
-
-  // Fallback: legacy markup with no explicit couplet wrappers at all.
   if (layout === 'two-column') {
-    return elementBase(
-      'poetry-block',
-      [
-        elementBase('layout-container', [elementBase('layout-item', [paragraph()]), elementBase('layout-item', [paragraph()])], {
-          templateColumns: 'repeat(2, 1fr)',
-        }),
-      ],
-      { layout, align },
-    );
+    // One LayoutContainerNode row per couplet — grab all of them, not just
+    // the first, or every couplet past the first silently disappears.
+    const containerEls = Array.from(el.children).filter((c) => c.hasAttribute('data-likhari-layout-container')) as HTMLElement[];
+    const containers =
+      containerEls.length > 0
+        ? containerEls.map((c) => convertLayout(c))
+        : [
+            elementBase('layout-container', [elementBase('layout-item', [paragraph()]), elementBase('layout-item', [paragraph()])], {
+              templateColumns: 'repeat(2, 1fr)',
+            }),
+          ];
+    return elementBase('poetry-couplet', containers, { layout, align });
   }
+
   const children = flowBlocks(el);
-  return elementBase(
-    'poetry-block',
-    [elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { centered: false })],
-    { layout, align },
-  );
+  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align });
 }
 
 function convertFootnoteList(el: HTMLElement): SNode {
