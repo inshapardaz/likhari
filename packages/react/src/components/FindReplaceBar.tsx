@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { IconChevronDown, IconChevronRight, IconRepeat, IconReplace, IconX } from '@tabler/icons-react';
 import type { Strings } from '../i18n/strings';
@@ -18,7 +18,6 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
   const [showReplace, setShowReplace] = useState(false);
   const [index, setIndex] = useState(0);
   const [count, setCount] = useState(0);
-  const findInput = useRef<HTMLInputElement>(null);
 
   // Runs `action` against the current matches inside a committed update, then
   // syncs the count and index. Selecting a match is up to the action, so
@@ -37,8 +36,10 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
     setIndex(result.nextIndex);
     const match = result.matches[result.nextIndex];
     if (result.select && match) {
+      // Lexical only draws the selection while the editor has focus, so focus it
+      // here; the match stays selected and visible.
       editor.getElementByKey(match.anchorKey)?.scrollIntoView({ block: 'center' });
-      findInput.current?.focus();
+      editor.focus();
     }
   };
 
@@ -85,7 +86,6 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
           <Chevron size={14} stroke={1.75} />
         </button>
         <input
-          ref={findInput}
           aria-label={t.find}
           placeholder={t.findPlaceholder}
           value={query}
