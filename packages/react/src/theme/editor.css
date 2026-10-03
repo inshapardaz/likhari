@@ -974,8 +974,8 @@
 .likhari-spell-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 4px;
   margin-bottom: 6px;
 }
 

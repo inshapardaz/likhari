@@ -122,6 +122,9 @@ export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClos
       {!available && <p className="likhari-spell-note">{t.noDictionary}</p>}
       {items !== null && (
         <div className="likhari-spell-nav">
+          <span className="likhari-spell-status" aria-live="polite">
+            {status}
+          </span>
           <button
             type="button"
             className="likhari-spell-icon"
@@ -132,9 +135,6 @@ export function SpellcheckPanel({ strings, onClose }: { strings: Strings; onClos
           >
             <IconChevronDown size={14} stroke={1.75} style={{ transform: 'rotate(180deg)' }} />
           </button>
-          <span className="likhari-spell-status" aria-live="polite">
-            {status}
-          </span>
           <button
             type="button"
             className="likhari-spell-icon"
