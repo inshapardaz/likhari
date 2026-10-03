@@ -243,9 +243,8 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
         } else if (node.name === 'poetry') {
           const attrs = node.attributes ?? {};
           const layout = attrs.layout === 'two-column' ? 'two-column' : 'single';
-          const align = ALIGNMENTS.has(attrs.align ?? '') ? (attrs.align as string) : 'justify';
           const children = blocks(node.children ?? []);
-          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align }));
+          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout }));
         } else {
           // Unknown containers (including a stray "column" outside "columns")
           // are transparent: their content is kept.

@@ -264,13 +264,10 @@ function convertLayout(container: HTMLElement): SNode {
 }
 
 const POETRY_LAYOUTS = new Set(['single', 'two-column']);
-const POETRY_ALIGNS = new Set(['justify', 'left', 'right', 'start']);
 
 function convertPoetry(el: HTMLElement): SNode {
   const rawLayout = el.getAttribute('data-likhari-poetry-layout') ?? 'single';
   const layout = POETRY_LAYOUTS.has(rawLayout) ? rawLayout : 'single';
-  const rawAlign = el.getAttribute('data-likhari-poetry-align') ?? 'justify';
-  const align = POETRY_ALIGNS.has(rawAlign) ? rawAlign : 'justify';
 
   if (layout === 'two-column') {
     // One LayoutContainerNode row per couplet — grab all of them, not just
@@ -284,11 +281,11 @@ function convertPoetry(el: HTMLElement): SNode {
               templateColumns: 'repeat(2, 1fr)',
             }),
           ];
-    return elementBase('poetry-couplet', containers, { layout, align });
+    return elementBase('poetry-couplet', containers, { layout });
   }
 
   const children = flowBlocks(el);
-  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout, align });
+  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout });
 }
 
 function convertFootnoteList(el: HTMLElement): SNode {

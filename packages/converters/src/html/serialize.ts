@@ -130,9 +130,8 @@ function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
 
 function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const layout = node.layout === 'two-column' ? 'two-column' : 'single';
-  const align = typeof node.align === 'string' ? node.align : 'justify';
   const inner = (node.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-align="${align}" style="text-align: ${escapeAttr(align)}">${inner}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" style="text-align: justify">${inner}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

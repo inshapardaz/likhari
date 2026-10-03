@@ -49,12 +49,11 @@ const misraTexts = (editor: LexicalEditor): string[] =>
 describe('$insertPoetryCouplet', () => {
   it('inserts a single-column block with one couplet after the caret block', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
 
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getLayout()).toBe('single');
-      expect(block.getAlign()).toBe('justify');
       expect($getCouplets(block)).toHaveLength(1);
       expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
       // Always leaves somewhere editable to click after a trailing block.
@@ -79,7 +78,7 @@ describe('$insertPoetryCouplet', () => {
   it('does nothing without a usable selection', () => {
     const editor = makeEditor();
     editor.update(() => {
-      expect($insertPoetryCouplet('single', 'justify')).toBe(false);
+      expect($insertPoetryCouplet('single')).toBe(false);
     });
     editor.getEditorState().read(() => {
       expect($getRoot().getChildren().some($isPoetryBlockNode)).toBe(false);
@@ -95,12 +94,12 @@ describe('$insertPoetryCouplet', () => {
     // this and appends a couplet to the existing block, matching "one
     // poetry block can contain one or more couplets".
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
         $getMisraParagraphs(block)[0].selectStart();
-        $insertPoetryCouplet('single', 'justify');
+        $insertPoetryCouplet('single');
       },
       { discrete: true },
     );
@@ -116,7 +115,7 @@ describe('$insertPoetryCouplet', () => {
 describe('$setPoetryLayout', () => {
   it('moves misra content from single-column into two-column without losing text', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -144,7 +143,7 @@ describe('$setPoetryLayout', () => {
 
   it('moves misra content from two-column back into single-column', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
     editor.update(
       () => {
         const block = getBlock();
@@ -172,7 +171,7 @@ describe('$setPoetryLayout', () => {
 
   it('is a no-op when already in the target layout', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       $setPoetryLayout(block, 'single');
@@ -182,7 +181,7 @@ describe('$setPoetryLayout', () => {
 
   it('preserves couplet order and count across a two-couplet block', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -222,7 +221,7 @@ describe('$setPoetryLayout', () => {
 describe('$getPoetryBlockFromSelection', () => {
   it('finds the block the caret is inside, through a misra and through a layout item', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       $getMisraParagraphs(block)[0].selectEnd();
@@ -244,7 +243,7 @@ describe('$exitPoetryOnEnter', () => {
     // handling, which inserted a brand-new paragraph *between* the two
     // misras instead of moving into the existing second one.
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -267,7 +266,7 @@ describe('$exitPoetryOnEnter', () => {
 
   it('appends a new couplet when Enter is pressed at the end of a non-empty last couplet', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -291,7 +290,7 @@ describe('$exitPoetryOnEnter', () => {
 
   it('exits the block on a second Enter pressed on the fresh empty couplet ("double enter")', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -317,7 +316,7 @@ describe('$exitPoetryOnEnter', () => {
 
   it('moves to the next couplet when Enter is pressed at the end of a non-last couplet', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -348,7 +347,7 @@ describe('$exitPoetryOnEnter', () => {
 
   it('works for a two-column block too', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
     editor.update(
       () => {
         const block = getBlock();
@@ -378,7 +377,7 @@ describe('$exitPoetryOnEnter', () => {
 describe('$ensureTrailingParagraph', () => {
   it('appends an empty paragraph after a block with no next sibling', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -396,7 +395,7 @@ describe('$ensureTrailingParagraph', () => {
 
   it('is a no-op when a next sibling already exists', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       const sibling = block.getNextSibling();
@@ -409,7 +408,7 @@ describe('$ensureTrailingParagraph', () => {
 describe('PoetryBlockNode width', () => {
   it('is undefined (falls back to the CSS default) until set', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getWidth()).toBeUndefined();
@@ -419,7 +418,7 @@ describe('PoetryBlockNode width', () => {
 
   it('round-trips a drag-resized width through setWidth and JSON', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         getBlock().setWidth(420);
@@ -438,7 +437,7 @@ describe('PoetryBlockNode width', () => {
 describe('$deletePoetryCouplet', () => {
   it('removes the whole block when it has only one couplet', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -454,7 +453,7 @@ describe('$deletePoetryCouplet', () => {
 
   it('removes just the targeted couplet when the block has more than one', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -484,7 +483,7 @@ describe('$deletePoetryCouplet', () => {
 
   it('removes a targeted couplet from a two-column block (its own LayoutContainerNode row)', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
     editor.update(
       () => {
         const block = getBlock();
@@ -523,7 +522,7 @@ describe('$deletePoetryCouplet', () => {
 describe('$deletePoetryOnBackspace', () => {
   it('removes the whole block when its only (empty) couplet is backspaced at the start', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -539,7 +538,7 @@ describe('$deletePoetryOnBackspace', () => {
 
   it('merges an empty couplet into the end of the previous one, keeping the block', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(
       () => {
         const block = getBlock();
@@ -575,7 +574,7 @@ describe('$deletePoetryOnBackspace', () => {
 
   it('does nothing when the couplet has content', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       const [first] = $getMisraParagraphs(block);
@@ -587,7 +586,7 @@ describe('$deletePoetryOnBackspace', () => {
 
   it('does nothing when the caret is not at the very start of a couplet\'s first misra', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       $getMisraParagraphs(block)[1].selectStart(); // second misra, not the first
@@ -606,7 +605,7 @@ describe('$deletePoetryOnBackspace', () => {
 describe('$insertCoupletRelativeToSelection', () => {
   it('inserts a couplet above the current one in single layout', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const first = $getCouplets(getBlock())[0][0];
       first.selectStart();
@@ -621,7 +620,7 @@ describe('$insertCoupletRelativeToSelection', () => {
     editor.update(() => {
       $getRoot().append($createParagraphNode().append($createTextNode('x')));
       $getRoot().getFirstChild()!.selectEnd();
-      $insertPoetryCouplet('two-column', 'justify');
+      $insertPoetryCouplet('two-column');
     }, { discrete: true });
     editor.update(() => {
       const [a, b] = $getCouplets(getBlock())[0];
@@ -651,7 +650,7 @@ describe('$insertCoupletRelativeToSelection', () => {
 describe('$adjustPoetrySpacing', () => {
   it('steps spacing looser and tighter and clamps at both ends', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     const spacingNow = () => editor.getEditorState().read(() => getBlock().getSpacing());
     const step = (delta: 1 | -1) =>
       editor.update(
@@ -675,7 +674,7 @@ describe('$adjustPoetrySpacing', () => {
 describe('$adjustPoetryGutter', () => {
   it('steps the gutter wider and narrower and clamps at both ends', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
     const gutterNow = () => editor.getEditorState().read(() => getBlock().getGutter());
     const step = (delta: 1 | -1) =>
       editor.update(

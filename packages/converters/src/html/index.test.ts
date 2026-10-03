@@ -101,10 +101,9 @@ describe('htmlConverter', () => {
   it('round-trips a single-column poetry couplet', () => {
     const couplet = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
       layout: 'single',
-      align: 'right',
     });
     const [back] = blocksOf(roundTrip([couplet]));
-    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', align: 'right' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single' });
     expect(back.children!.map((c) => (c.children![0] as SNode).text)).toEqual(['first misra', 'second misra']);
   });
 
@@ -114,9 +113,9 @@ describe('htmlConverter', () => {
       [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
       { templateColumns: 'repeat(2, 1fr)' },
     );
-    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const couplet = elementBase('poetry-couplet', [container], { layout: 'two-column' });
     const [back] = blocksOf(roundTrip([couplet]));
-    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', align: 'justify' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column' });
     expect(back.children![0].type).toBe('layout-container');
     expect(back.children![0].children!.map((item) => (item.children![0].children![0] as SNode).text)).toEqual(['left misra', 'right misra']);
   });
@@ -130,7 +129,7 @@ describe('htmlConverter', () => {
         paragraph([textNode('a2')]),
         paragraph([textNode('b2')]),
       ],
-      { layout: 'single', align: 'justify' },
+      { layout: 'single' },
     );
     const [back] = blocksOf(roundTrip([block]));
     expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single' });
@@ -144,7 +143,7 @@ describe('htmlConverter', () => {
         [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
         { templateColumns: 'repeat(2, 1fr)' },
       );
-    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column' });
     const [back] = blocksOf(roundTrip([block]));
     expect(back.children).toHaveLength(2);
     expect(back.children!.every((c) => c.type === 'layout-container')).toBe(true);

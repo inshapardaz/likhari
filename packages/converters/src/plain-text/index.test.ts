@@ -60,7 +60,6 @@ describe('plainTextConverter', () => {
   it('linearizes a poetry couplet as two lines, regardless of single/two-column layout', () => {
     const single = elementBase('poetry-couplet', [paragraph([textNode('first misra')]), paragraph([textNode('second misra')])], {
       layout: 'single',
-      align: 'justify',
     });
     const singleState = makeState([single]) as unknown as SerializedEditorState;
     expect(plainTextConverter.serialize(singleState)).toBe('first misra\nsecond misra');
@@ -70,7 +69,7 @@ describe('plainTextConverter', () => {
       [elementBase('layout-item', [paragraph([textNode('left misra')])]), elementBase('layout-item', [paragraph([textNode('right misra')])])],
       { templateColumns: 'repeat(2, 1fr)' },
     );
-    const twoColumn = elementBase('poetry-couplet', [container], { layout: 'two-column', align: 'justify' });
+    const twoColumn = elementBase('poetry-couplet', [container], { layout: 'two-column' });
     const twoColumnState = makeState([twoColumn]) as unknown as SerializedEditorState;
     expect(plainTextConverter.serialize(twoColumnState)).toBe('left misra\nright misra');
   });
@@ -82,7 +81,7 @@ describe('plainTextConverter', () => {
         [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
         { templateColumns: 'repeat(2, 1fr)' },
       );
-    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column', align: 'justify' });
+    const block = elementBase('poetry-couplet', [makeRow('a1', 'b1'), makeRow('a2', 'b2')], { layout: 'two-column' });
     const state = makeState([block]) as unknown as SerializedEditorState;
     expect(plainTextConverter.serialize(state)).toBe('a1\nb1\na2\nb2');
   });

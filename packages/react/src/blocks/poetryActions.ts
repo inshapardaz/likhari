@@ -6,7 +6,6 @@ import {
   $isPoetryBlockNode,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
-  type PoetryAlign,
   type PoetryBlockNode,
   type PoetryLayout,
 } from './PoetryNode';
@@ -182,10 +181,10 @@ export function $ensureTrailingParagraph(node: PoetryBlockNode): void {
  * semantics, in its existing layout: "one poetry block can contain one or
  * more couplets, in one or two column layout", so a block's layout is
  * fixed once it has couplets, not chosen per couplet) and focuses its first
- * misra. Otherwise creates a new block (in `layout`/`align`) with one
+ * misra. Otherwise creates a new block (in `layout`) with one
  * couplet, after the selection's top-level element.
  */
-export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): boolean {
+export function $insertPoetryCouplet(layout: PoetryLayout): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
 
@@ -195,7 +194,7 @@ export function $insertPoetryCouplet(layout: PoetryLayout, align: PoetryAlign): 
   }
 
   const anchorTopLevel = selection.anchor.getNode().getTopLevelElementOrThrow();
-  const node = $createPoetryBlockNode(layout, align);
+  const node = $createPoetryBlockNode(layout);
   const [misraA] = $appendCoupletTo(node);
 
   anchorTopLevel.insertAfter(node);

@@ -254,9 +254,8 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
   const layout = node.layout === 'two-column' ? 'two-column' : 'single';
-  const align = typeof node.align === 'string' ? node.align : 'justify';
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
-  return directive('containerDirective', 'poetry', { layout, align }, inner);
+  return directive('containerDirective', 'poetry', { layout }, inner);
 }
 
 function tableToMd(node: SNode, ctx?: ConverterContext): MdNode {

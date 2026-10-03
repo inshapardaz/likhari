@@ -43,7 +43,7 @@ import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
-import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
+import { $isPoetryBlockNode, type PoetryLayout } from '../blocks/PoetryNode';
 import {
   $adjustPoetryGutter,
   $adjustPoetrySpacing,
@@ -173,10 +173,9 @@ interface ToolbarState {
   canMergeCells: boolean;
   /** A caret in a single table cell that already spans more than one row/column. */
   canUnmergeCell: boolean;
-  /** The caret is inside a poetry couplet; layout/align mirror that couplet's own. */
+  /** The caret is inside a poetry couplet; layout mirrors that couplet's own. */
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
-  poetryAlign: PoetryAlign;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -202,7 +201,6 @@ const INITIAL_STATE: ToolbarState = {
   canUnmergeCell: false,
   inPoetry: false,
   poetryLayout: 'single',
-  poetryAlign: 'justify',
   canUndo: false,
   canRedo: false,
 };
@@ -525,19 +523,14 @@ function TableMenuItems({
  * own insert-before/insert-after/delete-row actions. */
 function PoetryMenuItems({
   strings,
-  alignIcons,
   layout,
-  align,
   onAction,
 }: {
   strings: Strings;
-  alignIcons: Record<string, TablerIcon>;
   layout: PoetryLayout;
-  align: PoetryAlign;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
-  const a = strings.toolbar.alignOptions;
   const item = (icon: TablerIcon, label: string, action: () => void, active = false, color?: string) => {
     const Icon = icon;
     return (
@@ -556,26 +549,23 @@ function PoetryMenuItems({
     const node = $getPoetryBlockFromSelection();
     if (node) $setPoetryLayout(node, next);
   };
-  const setAlign = (next: PoetryAlign) => () => {
-    $getPoetryBlockFromSelection()?.setAlign(next);
-  };
   return (
     <>
       <Menu.Label>{t.menuLabel}</Menu.Label>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
       <Menu.Divider />
-      {item(alignIcons.justify ?? IconAlignJustified, a.justify, setAlign('justify'), align === 'justify')}
-      {item(alignIcons.start ?? IconAlignLeft, a.start, setAlign('start'), align === 'start')}
-      {item(IconAlignLeft, a.left, setAlign('left'), align === 'left')}
-      {item(IconAlignRight, a.right, setAlign('right'), align === 'right')}
       <Menu.Divider />
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
       {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1))}
       {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1))}
-      {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1))}
-      {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1))}
+      {layout === 'two-column' && (
+        <>
+          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1))}
+          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1))}
+        </>
+      )}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
     </>
   );
@@ -663,7 +653,6 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const poetryLayout = poetryBlock?.getLayout();
-      const poetryAlign = poetryBlock?.getAlign();
 
       setState((s) => ({
         ...s,
@@ -682,7 +671,6 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         canUnmergeCell,
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
-        poetryAlign: poetryAlign ?? s.poetryAlign,
       }));
     });
   }, [editor]);
@@ -1439,7 +1427,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             icon={IconFeather}
             title={strings.toolbar.insertPoetryCouplet}
             onClick={() =>
-              editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, align: 'justify' })
+              editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })
             }
           />
         )}
@@ -1494,7 +1482,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             </button>
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1637,7 +1625,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             />
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} alignIcons={ALIGN_ICONS} layout={state.poetryLayout} align={state.poetryAlign} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}
