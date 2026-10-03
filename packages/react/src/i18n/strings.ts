@@ -182,6 +182,19 @@ export interface Strings {
     next: string;
     noSuggestions: string;
   },
+  autoCorrect: {
+    title: string;
+    language: string;
+    from: string;
+    fromPlaceholder: string;
+    to: string;
+    toPlaceholder: string;
+    save: string;
+    saved: string;
+    noWritableStore: string;
+    failed: string;
+    close: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -426,6 +439,19 @@ const en: Strings = {
     previous: 'Previous',
     next: 'Next',
     noSuggestions: 'No suggestions',
+  },
+  autoCorrect: {
+    title: 'Auto-correct',
+    language: 'Language',
+    from: 'Typed word',
+    fromPlaceholder: 'Word as typed',
+    to: 'Corrected word',
+    toPlaceholder: 'Correct it to',
+    save: 'Save correction',
+    saved: 'Saved. It applies to the next word typed.',
+    noWritableStore: 'No store accepts new corrections',
+    failed: 'Could not save the correction',
+    close: 'Close',
   },
   link: {
     menuLabel: 'Link',
@@ -673,6 +699,19 @@ const ur: Strings = {
     next: 'اگلا',
     noSuggestions: 'کوئی تجویز نہیں',
   },
+  autoCorrect: {
+    title: 'خودکار تصحیح',
+    language: 'زبان',
+    from: 'لکھا ہوا لفظ',
+    fromPlaceholder: 'جو لفظ لکھا جاتا ہے',
+    to: 'درست لفظ',
+    toPlaceholder: 'اسے درست کریں',
+    save: 'تصحیح محفوظ کریں',
+    saved: 'محفوظ ہو گئی۔ اگلے لفظ پر لاگو ہوگی۔',
+    noWritableStore: 'کوئی ذخیرہ نئی تصحیح قبول نہیں کرتا',
+    failed: 'تصحیح محفوظ نہیں ہو سکی',
+    close: 'بند کریں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -897,16 +936,16 @@ const paShahmukhi: Strings = {
   },
   findReplace: {
     toggle: 'لبھو تے بدلو',
-    find: 'لبھo',
-    replace: 'بدلo',
+    find: 'لبھو',
+    replace: 'بدلو',
     findPlaceholder: 'جو لبھنا اے',
     replacePlaceholder: 'بدلن والا متن',
     previous: 'پچھلا',
     next: 'اگلا',
-    replaceOne: 'بدلo',
-    replaceAll: 'سارے بدلo',
+    replaceOne: 'بدلو',
+    replaceAll: 'سارے بدلو',
     noMatches: 'کوئی ملدا نئیں',
-    close: 'بند کرo',
+    close: 'بند کرو',
   },
   spellcheck: {
     title: 'ہجے دی جانچ',
@@ -918,6 +957,19 @@ const paShahmukhi: Strings = {
     previous: 'پچھلا',
     next: 'اگلا',
     noSuggestions: 'کوئی تجویز نئیں',
+  },
+  autoCorrect: {
+    title: 'خودکار درستی',
+    language: 'بولی',
+    from: 'لکھیا ہویا لفظ',
+    fromPlaceholder: 'جو لفظ لکھیا جاندا اے',
+    to: 'ٹھیک لفظ',
+    toPlaceholder: 'ایس نوں ٹھیک کرو',
+    save: 'درستی سانبھو',
+    saved: 'سانبھ لیا۔ اگلے لفظ تے لاگو ہووے گی۔',
+    noWritableStore: 'کوئی ذخیرہ نویں درستی نئیں منّدا',
+    failed: 'درستی سانبھی نئیں جا سکی',
+    close: 'بند کرو',
   },
   link: {
     menuLabel: 'لنک',

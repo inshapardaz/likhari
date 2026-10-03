@@ -10,3 +10,5 @@ export { STRINGS, getStrings, useStrings, useUiStrings, UiStringsContext } from 
 export type { Locale, Strings } from './i18n';
 
 export { registerSpellDictionary, hasSpellDictionary, type HunspellFiles, type SpellLanguage } from './spellcheck/spellDictionaries';
+export { localStorageAutoCorrectStore, apiAutoCorrectStore, fileAutoCorrectStore } from './autocorrect/autoCorrectStores';
+export type { AutoCorrectStore, AutoCorrectEntry } from './autocorrect/autoCorrectStores';
