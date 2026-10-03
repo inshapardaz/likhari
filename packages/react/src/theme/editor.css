@@ -783,12 +783,12 @@
   font-size: 13px;
 }
 
-/* Both rows share one grid. The replace input sits under the search input and
-   its two buttons follow it directly. Columns are chevron, input, status, prev,
-   next, close. */
+/* Both rows share one grid. Columns: chevron, input, then two narrow tracks
+   that hold either the match count (search row) or the two replace buttons
+   (replace row), then prev, next and close. */
 .likhari-find-row {
   display: grid;
-  grid-template-columns: 24px 180px 56px 24px 24px 24px;
+  grid-template-columns: 24px 180px 24px 24px 24px 24px 24px;
   align-items: center;
   column-gap: 4px;
 }
@@ -797,14 +797,28 @@
   grid-column: 2;
 }
 
+.likhari-find-status {
+  grid-column: 3 / span 2;
+}
+
+.likhari-find-prev {
+  grid-column: 5;
+}
+
+.likhari-find-next {
+  grid-column: 6;
+}
+
+.likhari-find-close {
+  grid-column: 7;
+}
+
 .likhari-find-replace-one {
   grid-column: 3;
-  justify-self: start;
 }
 
 .likhari-find-replace-all {
   grid-column: 4;
-  justify-self: start;
 }
 
 .likhari-find-widget[dir='rtl'] {
@@ -852,7 +866,7 @@
 }
 
 .likhari-find-status {
-  min-width: 56px;
   text-align: end;
   opacity: 0.8;
+  white-space: nowrap;
 }

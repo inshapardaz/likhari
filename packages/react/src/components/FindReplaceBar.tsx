@@ -99,13 +99,13 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
         <span className="likhari-find-status" aria-live="polite">
           {status}
         </span>
-        <button type="button" className="likhari-find-icon" onClick={() => step(-1)} disabled={count === 0} aria-label={t.previous} title={t.previous}>
+        <button type="button" className="likhari-find-icon likhari-find-prev" onClick={() => step(-1)} disabled={count === 0} aria-label={t.previous} title={t.previous}>
           <IconChevronDown size={14} stroke={1.75} style={{ transform: 'rotate(180deg)' }} />
         </button>
-        <button type="button" className="likhari-find-icon" onClick={() => step(1)} disabled={count === 0} aria-label={t.next} title={t.next}>
+        <button type="button" className="likhari-find-icon likhari-find-next" onClick={() => step(1)} disabled={count === 0} aria-label={t.next} title={t.next}>
           <IconChevronDown size={14} stroke={1.75} />
         </button>
-        <button type="button" className="likhari-find-icon" onClick={onClose} aria-label={t.close} title={t.close}>
+        <button type="button" className="likhari-find-icon likhari-find-close" onClick={onClose} aria-label={t.close} title={t.close}>
           <IconX size={14} stroke={1.75} />
         </button>
       </div>
