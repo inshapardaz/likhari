@@ -145,6 +145,8 @@ export interface Strings {
     singleColumn: string;
     twoColumn: string;
     staggered: string;
+    narrowerCouplets: string;
+    widerCouplets: string;
     insertCoupletBefore: string;
     insertCoupletAfter: string;
     tighterSpacing: string;
@@ -361,6 +363,8 @@ const en: Strings = {
     singleColumn: 'Single column',
     twoColumn: 'Two column',
     staggered: 'Alternating sides',
+    narrowerCouplets: 'Narrower couplets',
+    widerCouplets: 'Wider couplets',
     insertCoupletBefore: 'Insert couplet above',
     insertCoupletAfter: 'Insert couplet below',
     tighterSpacing: 'Tighter couplet spacing',
@@ -578,6 +582,8 @@ const ur: Strings = {
     singleColumn: 'ایک کالم',
     twoColumn: 'دو کالم',
     staggered: 'کالم متبادل',
+    narrowerCouplets: 'شعر کی چوڑائی کم',
+    widerCouplets: 'شعر کی چوڑائی زیادہ',
     insertCoupletBefore: 'اوپر شعر شامل کریں',
     insertCoupletAfter: 'نیچے شعر شامل کریں',
     tighterSpacing: 'شعروں کے درمیان کم جگہ',
@@ -795,6 +801,8 @@ const paShahmukhi: Strings = {
     singleColumn: 'اک کالم',
     twoColumn: 'دو کالم',
     staggered: 'وارو وار پاسے',
+    narrowerCouplets: 'شعر دی چوڑائی گھٹ',
+    widerCouplets: 'شعر دی چوڑائی ودھ',
     insertCoupletBefore: 'اُتے شعر شامل کرو',
     insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
     tighterSpacing: 'شعراں وچکار گھٹ جگہ',

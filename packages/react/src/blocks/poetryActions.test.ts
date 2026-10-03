@@ -12,6 +12,7 @@ import {
   $getPoetryBlockFromSelection,
   $adjustPoetryGutter,
   $adjustPoetrySpacing,
+  $adjustPoetryStagger,
   $insertCoupletRelativeToSelection,
   $insertPoetryCouplet,
   $setPoetryLayout,
@@ -712,5 +713,30 @@ describe('staggered layout', () => {
       expect($getCouplets(block)).toHaveLength(2);
       expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
     });
+  });
+});
+
+describe('$adjustPoetryStagger', () => {
+  it('steps the staggered couplet width narrower and wider and clamps at both ends', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('staggered'));
+    const staggerNow = () => editor.getEditorState().read(() => getBlock().getStagger());
+    const step = (delta: 1 | -1) =>
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          $adjustPoetryStagger(delta);
+        },
+        { discrete: true },
+      );
+    expect(staggerNow()).toBe('normal');
+    step(-1);
+    expect(staggerNow()).toBe('compact');
+    step(-1);
+    expect(staggerNow()).toBe('compact');
+    step(1);
+    step(1);
+    step(1);
+    expect(staggerNow()).toBe('loose');
   });
 });

@@ -21,10 +21,15 @@ export const DEFAULT_POETRY_SPACING: PoetrySpacing = 'normal';
 export const POETRY_GUTTERS = ['compact', 'normal', 'relaxed', 'loose'] as const;
 export type PoetryGutter = (typeof POETRY_GUTTERS)[number];
 export const DEFAULT_POETRY_GUTTER: PoetryGutter = 'normal';
+/** Width of each couplet box in staggered layout, as a share of the block. */
+export const POETRY_STAGGERS = ['compact', 'normal', 'relaxed', 'loose'] as const;
+export type PoetryStagger = (typeof POETRY_STAGGERS)[number];
+export const DEFAULT_POETRY_STAGGER: PoetryStagger = 'normal';
 
 const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'staggered']);
 const VALID_SPACINGS = new Set<PoetrySpacing>(POETRY_SPACINGS);
 const VALID_GUTTERS = new Set<PoetryGutter>(POETRY_GUTTERS);
+const VALID_STAGGERS = new Set<PoetryStagger>(POETRY_STAGGERS);
 
 /** Poetry is always justified: `text-align-last: justify` stretches a
  * one-line misra across the full column width too, not just wrapped lines,
@@ -43,7 +48,7 @@ function applyWidthStyle(element: HTMLElement, width: number | undefined): void 
 }
 
 export type SerializedPoetryBlockNode = Spread<
-  { layout: PoetryLayout; width?: number; spacing?: PoetrySpacing; gutter?: PoetryGutter },
+  { layout: PoetryLayout; width?: number; spacing?: PoetrySpacing; gutter?: PoetryGutter; stagger?: PoetryStagger },
   SerializedElementNode
 >;
 
@@ -67,12 +72,14 @@ export class PoetryBlockNode extends ElementNode {
   __width?: number;
   __spacing: PoetrySpacing;
   __gutter: PoetryGutter;
+  __stagger: PoetryStagger;
 
   constructor(
     layout: PoetryLayout = 'single',
     width?: number,
     spacing: PoetrySpacing = DEFAULT_POETRY_SPACING,
     gutter: PoetryGutter = DEFAULT_POETRY_GUTTER,
+    stagger: PoetryStagger = DEFAULT_POETRY_STAGGER,
     key?: NodeKey,
   ) {
     super(key);
@@ -80,6 +87,7 @@ export class PoetryBlockNode extends ElementNode {
     this.__width = width;
     this.__spacing = spacing;
     this.__gutter = gutter;
+    this.__stagger = stagger;
   }
 
   static getType(): string {
@@ -87,7 +95,7 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static clone(node: PoetryBlockNode): PoetryBlockNode {
-    return new PoetryBlockNode(node.__layout, node.__width, node.__spacing, node.__gutter, node.__key);
+    return new PoetryBlockNode(node.__layout, node.__width, node.__spacing, node.__gutter, node.__stagger, node.__key);
   }
 
   getLayout(): PoetryLayout {
@@ -133,8 +141,18 @@ export class PoetryBlockNode extends ElementNode {
     return writable;
   }
 
+  getStagger(): PoetryStagger {
+    return this.getLatest().__stagger;
+  }
+
+  setStagger(stagger: PoetryStagger): this {
+    const writable = this.getWritable();
+    writable.__stagger = stagger;
+    return writable;
+  }
+
   static importJSON(serializedNode: SerializedPoetryBlockNode): PoetryBlockNode {
-    return $createPoetryBlockNode(serializedNode.layout, serializedNode.width, serializedNode.spacing, serializedNode.gutter);
+    return $createPoetryBlockNode(serializedNode.layout, serializedNode.width, serializedNode.spacing, serializedNode.gutter, serializedNode.stagger);
   }
 
   exportJSON(): SerializedPoetryBlockNode {
@@ -146,6 +164,7 @@ export class PoetryBlockNode extends ElementNode {
       layout: this.getLayout(),
       spacing: this.getSpacing(),
       gutter: this.getGutter(),
+      stagger: this.getStagger(),
       ...(width !== undefined ? { width } : {}),
     };
   }
@@ -162,7 +181,9 @@ export class PoetryBlockNode extends ElementNode {
         const spacing = VALID_SPACINGS.has(rawSpacing as PoetrySpacing) ? (rawSpacing as PoetrySpacing) : DEFAULT_POETRY_SPACING;
         const rawGutter = domNode.getAttribute('data-likhari-poetry-gutter');
         const gutter = VALID_GUTTERS.has(rawGutter as PoetryGutter) ? (rawGutter as PoetryGutter) : DEFAULT_POETRY_GUTTER;
-        return { conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter) }), priority: 2 };
+        const rawStagger = domNode.getAttribute('data-likhari-poetry-stagger');
+        const stagger = VALID_STAGGERS.has(rawStagger as PoetryStagger) ? (rawStagger as PoetryStagger) : DEFAULT_POETRY_STAGGER;
+        return { conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter, stagger) }), priority: 2 };
       },
     };
   }
@@ -172,6 +193,7 @@ export class PoetryBlockNode extends ElementNode {
     element.setAttribute('data-likhari-poetry-layout', this.getLayout());
     element.setAttribute('data-likhari-poetry-spacing', this.getSpacing());
     element.setAttribute('data-likhari-poetry-gutter', this.getGutter());
+    element.setAttribute('data-likhari-poetry-stagger', this.getStagger());
     const width = this.getWidth();
     if (width !== undefined) element.setAttribute('data-likhari-poetry-width', String(width));
     applyJustifyStyle(element);
@@ -182,7 +204,7 @@ export class PoetryBlockNode extends ElementNode {
   createDOM(config: EditorConfig): HTMLElement {
     const element = document.createElement('div');
     const base = config.theme.poetry ?? 'likhari-poetry';
-    addClassNamesToElement(element, base, `${base}--${this.__layout}`, `${base}--spacing-${this.__spacing}`, `${base}--gutter-${this.__gutter}`);
+    addClassNamesToElement(element, base, `${base}--${this.__layout}`, `${base}--spacing-${this.__spacing}`, `${base}--gutter-${this.__gutter}`, `${base}--stagger-${this.__stagger}`);
     applyJustifyStyle(element);
     applyWidthStyle(element, this.__width);
     return element;
@@ -206,6 +228,10 @@ export class PoetryBlockNode extends ElementNode {
       dom.classList.remove(`${base}--gutter-${prevNode.__gutter}`);
       dom.classList.add(`${base}--gutter-${this.__gutter}`);
     }
+    if (prevNode.__stagger !== this.__stagger) {
+      dom.classList.remove(`${base}--stagger-${prevNode.__stagger}`);
+      dom.classList.add(`${base}--stagger-${this.__stagger}`);
+    }
     if (prevNode.__width !== this.__width) {
       applyWidthStyle(dom, this.__width);
     }
@@ -226,8 +252,9 @@ export function $createPoetryBlockNode(
   width?: number,
   spacing: PoetrySpacing = DEFAULT_POETRY_SPACING,
   gutter: PoetryGutter = DEFAULT_POETRY_GUTTER,
+  stagger: PoetryStagger = DEFAULT_POETRY_STAGGER,
 ): PoetryBlockNode {
-  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter));
+  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter, stagger));
 }
 
 export function $isPoetryBlockNode(node: LexicalNode | null | undefined): node is PoetryBlockNode {

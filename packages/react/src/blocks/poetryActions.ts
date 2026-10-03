@@ -6,6 +6,7 @@ import {
   $isPoetryBlockNode,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
+  POETRY_STAGGERS,
   type PoetryBlockNode,
   type PoetryLayout,
 } from './PoetryNode';
@@ -369,5 +370,16 @@ export function $adjustPoetryGutter(step: 1 | -1): boolean {
   const index = POETRY_GUTTERS.indexOf(block.getGutter());
   const next = POETRY_GUTTERS[Math.min(POETRY_GUTTERS.length - 1, Math.max(0, index + step))];
   block.setGutter(next);
+  return true;
+}
+
+/** Steps the caret's staggered couplet width one notch narrower (-1) or wider
+ * (+1); clamps at either end. */
+export function $adjustPoetryStagger(step: 1 | -1): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  const index = POETRY_STAGGERS.indexOf(block.getStagger());
+  const next = POETRY_STAGGERS[Math.min(POETRY_STAGGERS.length - 1, Math.max(0, index + step))];
+  block.setStagger(next);
   return true;
 }

@@ -434,12 +434,17 @@
 .likhari-poetry--gutter-relaxed { --poetry-gutter: 32px; }
 .likhari-poetry--gutter-loose { --poetry-gutter: 48px; }
 
+.likhari-poetry--stagger-compact { --poetry-stagger-width: 50%; }
+.likhari-poetry--stagger-normal { --poetry-stagger-width: 65%; }
+.likhari-poetry--stagger-relaxed { --poetry-stagger-width: 75%; }
+.likhari-poetry--stagger-loose { --poetry-stagger-width: 85%; }
+
 /* Staggered: couplets are the same flat misra paragraphs as single column,
    but each couplet's two misras are placed in a 65%-wide box that alternates
    sides — the first couplet pushed to the start edge, the next to the end
    edge, and so on. Logical properties keep the alternation mirrored for RTL. */
 .likhari-poetry--staggered .likhari-paragraph {
-  width: 65%;
+  width: var(--poetry-stagger-width, 65%);
 }
 
 .likhari-poetry--staggered .likhari-paragraph:nth-child(4n+1),

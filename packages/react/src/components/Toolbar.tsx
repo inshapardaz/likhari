@@ -43,9 +43,19 @@ import { $createImageNode } from '../image/ImageNode';
 import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
-import { $isPoetryBlockNode, type PoetryLayout } from '../blocks/PoetryNode';
+import {
+  $isPoetryBlockNode,
+  POETRY_GUTTERS,
+  POETRY_SPACINGS,
+  POETRY_STAGGERS,
+  type PoetryGutter,
+  type PoetryLayout,
+  type PoetrySpacing,
+  type PoetryStagger,
+} from '../blocks/PoetryNode';
 import {
   $adjustPoetryGutter,
+  $adjustPoetryStagger,
   $adjustPoetrySpacing,
   $deletePoetryCouplet,
   $getPoetryBlockFromSelection,
@@ -177,6 +187,7 @@ interface ToolbarState {
   /** The caret is inside a poetry couplet; layout mirrors that couplet's own. */
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
+  poetryScale: PoetryScale;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -202,6 +213,7 @@ const INITIAL_STATE: ToolbarState = {
   canUnmergeCell: false,
   inPoetry: false,
   poetryLayout: 'single',
+  poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal' },
   canUndo: false,
   canRedo: false,
 };
@@ -522,13 +534,29 @@ function TableMenuItems({
  * the caret is in, delete it) — a poetry block is "one object with multiple
  * couplets, add/remove like table rows", so these mirror TableMenuItems'
  * own insert-before/insert-after/delete-row actions. */
+/** The poetry block's current position on each adjustable scale. */
+interface PoetryScale {
+  spacing: PoetrySpacing;
+  gutter: PoetryGutter;
+  stagger: PoetryStagger;
+}
+
+/** Whether a one-notch step from `value` stays on the scale — a step that
+ * would fall off either end is disabled rather than silently clamped. */
+function canStep<T extends string>(scale: readonly T[], value: T, step: 1 | -1): boolean {
+  const next = scale.indexOf(value) + step;
+  return next >= 0 && next < scale.length;
+}
+
 function PoetryMenuItems({
   strings,
   layout,
+  scale,
   onAction,
 }: {
   strings: Strings;
   layout: PoetryLayout;
+  scale: PoetryScale;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
@@ -560,12 +588,18 @@ function PoetryMenuItems({
       <Menu.Divider />
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
-      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1))}
-      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1))}
+      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
+      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
+      {layout === 'staggered' && (
+        <>
+          {item(IconArrowsMinimize, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
+          {item(IconArrowsMaximize, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
+        </>
+      )}
       {layout === 'two-column' && (
         <>
-          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1))}
-          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1))}
+          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
+          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
         </>
       )}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
@@ -655,6 +689,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const poetryLayout = poetryBlock?.getLayout();
+      const poetryScale = poetryBlock
+        ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger() }
+        : null;
 
       setState((s) => ({
         ...s,
@@ -673,6 +710,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         canUnmergeCell,
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
+        poetryScale: poetryScale ?? s.poetryScale,
       }));
     });
   }, [editor]);
@@ -1484,7 +1522,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             </button>
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1627,7 +1665,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             />
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}
