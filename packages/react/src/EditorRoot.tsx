@@ -28,6 +28,7 @@ import { PoetryPlugin } from './plugins/PoetryPlugin';
 import { PoetryResizer } from './blocks/PoetryResizer';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { FindReplaceBar } from './components/FindReplaceBar';
+import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
   clearDraft,
@@ -244,6 +245,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  const [spellOpen, setSpellOpen] = useState(false);
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -487,7 +489,15 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             config={config}
             onSave={handleSave}
             findOpen={findOpen}
-            onToggleFind={() => setFindOpen((v) => !v)}
+            onToggleFind={() => {
+              setFindOpen((v) => !v);
+              setSpellOpen(false);
+            }}
+            spellOpen={spellOpen}
+            onToggleSpell={() => {
+              setSpellOpen((v) => !v);
+              setFindOpen(false);
+            }}
             isDirty={isDirty}
             showSave={showSave}
             fontOptions={fontOptions}
@@ -510,6 +520,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           )}
           <div className="likhari-canvas-frame">
             {config.findReplace && findOpen && <FindReplaceBar strings={strings} dir={dir} onClose={() => setFindOpen(false)} />}
+            {config.language.spellCheck && spellOpen && <SpellcheckPanel strings={strings} onClose={() => setSpellOpen(false)} />}
             <div className="likhari-canvas">
               <RichTextPlugin
                 contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label={strings.editor.contentLabel} />}
