@@ -139,6 +139,7 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconSearch,
   IconColumns1,
   IconColumns2,
   IconNumber1Small,
@@ -618,6 +619,9 @@ function PoetryMenuItems({
 
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
+  /** Whether the find-and-replace widget is open, and how to toggle it (owned by EditorRoot). */
+  findOpen?: boolean;
+  onToggleFind?: () => void;
   onSave?: () => void;
   isDirty?: boolean;
   showSave?: boolean;
@@ -631,7 +635,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1470,6 +1474,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             title={strings.toolbar.insertHorizontalRule}
             onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
           />
+        )}
+        {config.findReplace && (
+          <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
         )}
         {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
             outside an Urdu/Punjabi editing context, not just when the feature is off. */}

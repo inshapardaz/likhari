@@ -158,6 +158,19 @@ export interface Strings {
     deleteCouplet: string;
     deletePoetry: string;
   };
+  findReplace: {
+    toggle: string;
+    find: string;
+    replace: string;
+    findPlaceholder: string;
+    replacePlaceholder: string;
+    previous: string;
+    next: string;
+    replaceOne: string;
+    replaceAll: string;
+    noMatches: string;
+    close: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -378,6 +391,19 @@ const en: Strings = {
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
     deletePoetry: 'Delete poetry',
+  },
+  findReplace: {
+    toggle: 'Find and replace',
+    find: 'Find',
+    replace: 'Replace',
+    findPlaceholder: 'Text to find',
+    replacePlaceholder: 'Replacement text',
+    previous: 'Previous',
+    next: 'Next',
+    replaceOne: 'Replace',
+    replaceAll: 'Replace all',
+    noMatches: 'No matches',
+    close: 'Close',
   },
   link: {
     menuLabel: 'Link',
@@ -601,6 +627,19 @@ const ur: Strings = {
     deleteCouplet: 'شعر حذف کریں',
     deletePoetry: 'پوری شاعری حذف کریں',
   },
+  findReplace: {
+    toggle: 'تلاش اور تبدیلی',
+    find: 'تلاش کریں',
+    replace: 'تبدیل کریں',
+    findPlaceholder: 'جو متن تلاش کرنا ہے',
+    replacePlaceholder: 'تبدیل کرنے کا متن',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    replaceOne: 'تبدیل کریں',
+    replaceAll: 'سب تبدیل کریں',
+    noMatches: 'کوئی میچ نہیں',
+    close: 'بند کریں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -822,6 +861,19 @@ const paShahmukhi: Strings = {
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
     deletePoetry: 'ساری شاعری مٹاؤ',
+  },
+  findReplace: {
+    toggle: 'لبھو تے بدلو',
+    find: 'لبھo',
+    replace: 'بدلo',
+    findPlaceholder: 'جو لبھنا اے',
+    replacePlaceholder: 'بدلن والا متن',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    replaceOne: 'بدلo',
+    replaceAll: 'سارے بدلo',
+    noMatches: 'کوئی ملدا نئیں',
+    close: 'بند کرo',
   },
   link: {
     menuLabel: 'لنک',

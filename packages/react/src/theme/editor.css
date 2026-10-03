@@ -160,6 +160,14 @@
 /* Canvas — editor-ui-design-spec.md §4. flex: 1 1 auto + min-height: 0 lets
    this pane absorb the root's height and scroll internally instead of the
    editor (and the page around it) growing to fit the content. */
+.likhari-canvas-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .likhari-canvas {
   position: relative;
   flex: 1 1 auto;
@@ -754,4 +762,111 @@
 .likhari-draft-banner-button:focus-visible {
   outline: 2px solid var(--editor-accent);
   outline-offset: 1px;
+}
+
+/* Floats over the top-right of the canvas, so it takes no space from the
+   toolbar or the page. */
+.likhari-find-widget {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: fit-content;
+  padding: 6px;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  background: var(--editor-paper-dim);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+
+/* Both rows share one grid. Columns: chevron, input, then two narrow tracks
+   that hold either the match count (search row) or the two replace buttons
+   (replace row), then prev, next and close. */
+.likhari-find-row {
+  display: grid;
+  grid-template-columns: 24px 180px 24px 24px 24px 24px 24px;
+  align-items: center;
+  column-gap: 4px;
+}
+
+.likhari-find-replace-input {
+  grid-column: 2;
+}
+
+.likhari-find-status {
+  grid-column: 3 / span 2;
+}
+
+.likhari-find-prev {
+  grid-column: 5;
+}
+
+.likhari-find-next {
+  grid-column: 6;
+}
+
+.likhari-find-close {
+  grid-column: 7;
+}
+
+.likhari-find-replace-one {
+  grid-column: 3;
+}
+
+.likhari-find-replace-all {
+  grid-column: 4;
+}
+
+.likhari-find-widget[dir='rtl'] {
+  right: auto;
+  left: 16px;
+}
+
+.likhari-find-widget input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: var(--editor-paper);
+  color: inherit;
+}
+
+.likhari-find-widget button {
+  padding: 2px 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.likhari-find-widget button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.likhari-find-widget .likhari-find-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+}
+
+.likhari-find-icon-spacer {
+  display: block;
+}
+
+.likhari-find-status {
+  text-align: end;
+  opacity: 0.8;
+  white-space: nowrap;
 }
