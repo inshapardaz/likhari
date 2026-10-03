@@ -755,3 +755,48 @@
   outline: 2px solid var(--editor-accent);
   outline-offset: 1px;
 }
+
+.likhari-find-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--editor-line);
+  background: var(--editor-paper-dim);
+  font-size: 13px;
+}
+
+.likhari-find-bar input {
+  min-width: 140px;
+  padding: 3px 6px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: var(--editor-paper);
+  color: inherit;
+}
+
+.likhari-find-bar button {
+  padding: 3px 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.likhari-find-bar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.likhari-find-status {
+  min-width: 64px;
+  color: var(--editor-ink-muted, inherit);
+}
+
+.likhari-find-close {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+}

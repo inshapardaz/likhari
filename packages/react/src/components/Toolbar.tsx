@@ -37,6 +37,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { FindReplaceBar } from './FindReplaceBar';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -139,6 +140,7 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconSearch,
   IconColumns1,
   IconColumns2,
   IconNumber1Small,
@@ -866,6 +868,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
   };
 
   const [layoutDialogOpen, setLayoutDialogOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
 
   const openLayoutDialog = () => {
     snapshotSelection();
@@ -1471,6 +1474,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
           />
         )}
+        {config.findReplace && (
+          <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={() => setFindOpen((v) => !v)} />
+        )}
         {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
             outside an Urdu/Punjabi editing context, not just when the feature is off. */}
         {config.poetry.enabled && locale !== 'en' && (
@@ -1708,6 +1714,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
       {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
+      {config.findReplace && findOpen && <FindReplaceBar strings={strings} onClose={() => setFindOpen(false)} />}
       {config.columns && <LayoutDialog opened={layoutDialogOpen} onSubmit={insertLayout} onClose={closeLayoutDialog} />}
       {config.links && (
         <LinkDialog
