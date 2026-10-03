@@ -783,9 +783,9 @@
   font-size: 13px;
 }
 
-/* Both rows share one grid so the replace controls sit directly under the
-   search controls they belong with: input under input, buttons under the
-   previous/next pair. Columns are chevron, input, status, prev, next, close. */
+/* Both rows share one grid. The replace input sits under the search input and
+   its two buttons follow it directly. Columns are chevron, input, status, prev,
+   next, close. */
 .likhari-find-row {
   display: grid;
   grid-template-columns: 24px 180px 56px 24px 24px 24px;
@@ -798,11 +798,13 @@
 }
 
 .likhari-find-replace-one {
-  grid-column: 4;
+  grid-column: 3;
+  justify-self: start;
 }
 
 .likhari-find-replace-all {
-  grid-column: 5;
+  grid-column: 4;
+  justify-self: start;
 }
 
 .likhari-find-widget[dir='rtl'] {
