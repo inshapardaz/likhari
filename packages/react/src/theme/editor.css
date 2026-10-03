@@ -770,7 +770,7 @@
   position: absolute;
   z-index: 5;
   top: 8px;
-  inset-inline-end: 16px;
+  right: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -788,6 +788,11 @@
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+}
+
+.likhari-find-widget[dir='rtl'] {
+  right: auto;
+  left: 16px;
 }
 
 .likhari-find-widget input {

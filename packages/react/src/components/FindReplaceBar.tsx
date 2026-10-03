@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconRepeat, IconReplace, IconX } from '@tabler/icons-react';
 import type { Strings } from '../i18n/strings';
 import { $findMatches, $replaceAll, $replaceMatch, $selectMatch, type FindMatch } from '../find/findReplaceActions';
 
@@ -10,7 +10,7 @@ import { $findMatches, $replaceAll, $replaceMatch, $selectMatch, type FindMatch 
  * only counts matches — the editor's selection moves to a match only when the
  * user asks (next, previous, replace), so typing keeps going into the bar.
  */
-export function FindReplaceBar({ strings, onClose }: { strings: Strings; onClose: () => void }) {
+export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; dir: 'ltr' | 'rtl'; onClose: () => void }) {
   const [editor] = useLexicalComposerContext();
   const t = strings.findReplace;
   const [query, setQuery] = useState('');
@@ -72,7 +72,7 @@ export function FindReplaceBar({ strings, onClose }: { strings: Strings; onClose
   const Chevron = showReplace ? IconChevronDown : IconChevronRight;
 
   return (
-    <div className="likhari-find-widget" role="search">
+    <div className="likhari-find-widget" role="search" dir={dir}>
       <div className="likhari-find-row">
         <button
           type="button"
@@ -121,11 +121,11 @@ export function FindReplaceBar({ strings, onClose }: { strings: Strings; onClose
               if (e.key === 'Enter' && count > 0) replaceCurrent();
             }}
           />
-          <button type="button" onClick={replaceCurrent} disabled={count === 0}>
-            {t.replaceOne}
+          <button type="button" className="likhari-find-icon" onClick={replaceCurrent} disabled={count === 0} aria-label={t.replaceOne} title={t.replaceOne}>
+            <IconReplace size={14} stroke={1.75} />
           </button>
-          <button type="button" onClick={replaceEverything} disabled={count === 0}>
-            {t.replaceAll}
+          <button type="button" className="likhari-find-icon" onClick={replaceEverything} disabled={count === 0} aria-label={t.replaceAll} title={t.replaceAll}>
+            <IconRepeat size={14} stroke={1.75} />
           </button>
         </div>
       )}
