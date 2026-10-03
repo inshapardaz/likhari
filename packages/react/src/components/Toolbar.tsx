@@ -37,6 +37,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { $cleanUpText } from '../cleanup/textCleanupActions';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -1548,7 +1549,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
     showLanguageGroup && (
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
         {config.language.autocorrect && <StubButton icon={IconWand} title={strings.toolbar.autocorrect} comingSoon={strings.toolbar.comingSoon} />}
-        {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
+        {config.language.textCleanup && (
+          <ToolbarButton icon={IconSparkles} title={strings.toolbar.textCleanup} onClick={() => editor.update(() => $cleanUpText(), { discrete: true })} />
+        )}
         {config.language.spellCheck && <StubButton icon={IconAbc} title={strings.toolbar.spellChecker} comingSoon={strings.toolbar.comingSoon} />}
       </div>
     ),
