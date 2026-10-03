@@ -129,7 +129,7 @@ function layoutToHtml(node: SNode, ctx?: ConverterContext): string {
 }
 
 function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
-  const layout = node.layout === 'two-column' ? 'two-column' : 'single';
+  const layout = node.layout === 'two-column' || node.layout === 'staggered' ? node.layout : 'single';
   const inner = (node.children ?? []).map((child) => nodeToHtml(child, ctx)).join('');
   return `<div data-likhari-poetry-layout="${layout}" style="text-align: justify">${inner}</div>`;
 }

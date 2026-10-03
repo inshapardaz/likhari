@@ -695,3 +695,22 @@ describe('$adjustPoetryGutter', () => {
     expect(gutterNow()).toBe('loose');
   });
 });
+
+describe('staggered layout', () => {
+  it('keeps every couplet readable when switching single column to staggered', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(() => {
+      const block = getBlock();
+      block.getFirstChild()!.selectStart();
+      $insertCoupletRelativeToSelection('after');
+      $setPoetryLayout(block, 'staggered');
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('staggered');
+      expect($getCouplets(block)).toHaveLength(2);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+  });
+});

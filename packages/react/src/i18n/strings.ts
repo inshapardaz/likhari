@@ -144,6 +144,7 @@ export interface Strings {
     menuLabel: string;
     singleColumn: string;
     twoColumn: string;
+    staggered: string;
     insertCoupletBefore: string;
     insertCoupletAfter: string;
     tighterSpacing: string;
@@ -359,6 +360,7 @@ const en: Strings = {
     menuLabel: 'Poetry',
     singleColumn: 'Single column',
     twoColumn: 'Two column',
+    staggered: 'Alternating sides',
     insertCoupletBefore: 'Insert couplet above',
     insertCoupletAfter: 'Insert couplet below',
     tighterSpacing: 'Tighter couplet spacing',
@@ -575,6 +577,7 @@ const ur: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'ایک کالم',
     twoColumn: 'دو کالم',
+    staggered: 'کالم متبادل',
     insertCoupletBefore: 'اوپر شعر شامل کریں',
     insertCoupletAfter: 'نیچے شعر شامل کریں',
     tighterSpacing: 'شعروں کے درمیان کم جگہ',
@@ -791,6 +794,7 @@ const paShahmukhi: Strings = {
     menuLabel: 'شاعری',
     singleColumn: 'اک کالم',
     twoColumn: 'دو کالم',
+    staggered: 'وارو وار پاسے',
     insertCoupletBefore: 'اُتے شعر شامل کرو',
     insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
     tighterSpacing: 'شعراں وچکار گھٹ جگہ',

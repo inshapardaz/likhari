@@ -12,7 +12,7 @@ import {
   ElementNode,
 } from 'lexical';
 
-export type PoetryLayout = 'single' | 'two-column';
+export type PoetryLayout = 'single' | 'two-column' | 'staggered';
 /** Vertical space between couplets — an ordered scale the menu steps through. */
 export const POETRY_SPACINGS = ['compact', 'normal', 'relaxed', 'loose'] as const;
 export type PoetrySpacing = (typeof POETRY_SPACINGS)[number];
@@ -22,7 +22,7 @@ export const POETRY_GUTTERS = ['compact', 'normal', 'relaxed', 'loose'] as const
 export type PoetryGutter = (typeof POETRY_GUTTERS)[number];
 export const DEFAULT_POETRY_GUTTER: PoetryGutter = 'normal';
 
-const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column']);
+const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'staggered']);
 const VALID_SPACINGS = new Set<PoetrySpacing>(POETRY_SPACINGS);
 const VALID_GUTTERS = new Set<PoetryGutter>(POETRY_GUTTERS);
 

@@ -134,6 +134,7 @@ import {
   IconRowRemove,
   IconArrowsMaximize,
   IconArrowsMinimize,
+  IconArrowsShuffle,
   IconTable,
   IconTableMinus,
   IconTrash,
@@ -554,6 +555,7 @@ function PoetryMenuItems({
       <Menu.Label>{t.menuLabel}</Menu.Label>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
       <Menu.Divider />
       <Menu.Divider />
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}

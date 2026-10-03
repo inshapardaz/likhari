@@ -242,7 +242,7 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
           }
         } else if (node.name === 'poetry') {
           const attrs = node.attributes ?? {};
-          const layout = attrs.layout === 'two-column' ? 'two-column' : 'single';
+          const layout = attrs.layout === 'two-column' || attrs.layout === 'staggered' ? attrs.layout : 'single';
           const children = blocks(node.children ?? []);
           out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout }));
         } else {

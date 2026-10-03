@@ -263,7 +263,7 @@ function convertLayout(container: HTMLElement): SNode {
   return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
 }
 
-const POETRY_LAYOUTS = new Set(['single', 'two-column']);
+const POETRY_LAYOUTS = new Set(['single', 'two-column', 'staggered']);
 
 function convertPoetry(el: HTMLElement): SNode {
   const rawLayout = el.getAttribute('data-likhari-poetry-layout') ?? 'single';

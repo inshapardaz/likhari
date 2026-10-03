@@ -22,7 +22,7 @@ export type Couplet = [ParagraphNode, ParagraphNode];
  * read either shape, so nothing else needs to.
  */
 export function $getCouplets(node: PoetryBlockNode): Couplet[] {
-  if (node.getLayout() === 'single') {
+  if (node.getLayout() !== 'two-column') {
     const paragraphs = node.getChildren().filter($isParagraphNode);
     const couplets: Couplet[] = [];
     for (let i = 0; i + 1 < paragraphs.length; i += 2) couplets.push([paragraphs[i], paragraphs[i + 1]]);
@@ -69,7 +69,7 @@ function $findCoupletPosition(couplets: Couplet[], target: import('lexical').Lex
 function $appendCoupletTo(node: PoetryBlockNode): Couplet {
   const misraA = $createParagraphNode();
   const misraB = $createParagraphNode();
-  if (node.getLayout() === 'single') {
+  if (node.getLayout() !== 'two-column') {
     node.append(misraA, misraB);
   } else {
     const container = $createLayoutContainerNode('repeat(2, 1fr)');
@@ -91,7 +91,7 @@ function $appendCoupletTo(node: PoetryBlockNode): Couplet {
 function $insertCoupletRelativeTo(existingFirstMisra: ParagraphNode, layout: PoetryLayout, position: 'before' | 'after'): Couplet {
   const misraA = $createParagraphNode();
   const misraB = $createParagraphNode();
-  if (layout === 'single') {
+  if (layout !== 'two-column') {
     if (position === 'before') {
       existingFirstMisra.insertBefore(misraA);
       misraA.insertAfter(misraB);
@@ -151,7 +151,7 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
   }
   for (const leftover of node.getChildren()) leftover.remove();
 
-  if (layout === 'single') {
+  if (layout !== 'two-column') {
     for (const [a, b] of couplets) node.append(a, b);
   } else {
     for (const [a, b] of couplets) {

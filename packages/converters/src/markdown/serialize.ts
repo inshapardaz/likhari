@@ -253,7 +253,7 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 }
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
-  const layout = node.layout === 'two-column' ? 'two-column' : 'single';
+  const layout = node.layout === 'two-column' || node.layout === 'staggered' ? node.layout : 'single';
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
   return directive('containerDirective', 'poetry', { layout }, inner);
 }
