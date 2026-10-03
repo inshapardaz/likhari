@@ -756,19 +756,32 @@
   outline-offset: 1px;
 }
 
-.likhari-find-bar {
+/* A compact widget, sized to its controls and pushed to the inline end — not a
+   full-width bar. margin-inline-start: auto works in block and flex parents. */
+.likhari-find-widget {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--editor-line);
+  width: fit-content;
+  margin-inline: auto 10px;
+  margin-block: 6px;
+  padding: 6px;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
   background: var(--editor-paper-dim);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   font-size: 13px;
 }
 
-.likhari-find-bar input {
-  min-width: 140px;
+.likhari-find-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.likhari-find-widget input {
+  width: 180px;
   padding: 3px 6px;
   border: 1px solid var(--editor-line);
   border-radius: 4px;
@@ -776,27 +789,39 @@
   color: inherit;
 }
 
-.likhari-find-bar button {
-  padding: 3px 8px;
+.likhari-find-widget button {
+  padding: 2px 8px;
   border: 1px solid var(--editor-line);
   border-radius: 4px;
   background: transparent;
   color: inherit;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.likhari-find-bar button:disabled {
+.likhari-find-widget button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.likhari-find-status {
-  min-width: 64px;
-  color: var(--editor-ink-muted, inherit);
-}
-
-.likhari-find-close {
+.likhari-find-widget .likhari-find-icon {
   display: inline-flex;
   align-items: center;
-  margin-inline-start: auto;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+}
+
+.likhari-find-icon-spacer {
+  display: inline-block;
+  width: 24px;
+  flex: 0 0 24px;
+}
+
+.likhari-find-status {
+  min-width: 56px;
+  text-align: end;
+  opacity: 0.8;
 }
