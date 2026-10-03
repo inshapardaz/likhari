@@ -27,6 +27,7 @@ import { FootnotePlugin } from './plugins/FootnotePlugin';
 import { PoetryPlugin } from './plugins/PoetryPlugin';
 import { PoetryResizer } from './blocks/PoetryResizer';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
+import { FindReplaceBar } from './components/FindReplaceBar';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
   clearDraft,
@@ -242,6 +243,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const editorStateRef = useRef<EditorState | null>(null);
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -484,6 +486,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <Toolbar
             config={config}
             onSave={handleSave}
+            findOpen={findOpen}
+            onToggleFind={() => setFindOpen((v) => !v)}
             isDirty={isDirty}
             showSave={showSave}
             fontOptions={fontOptions}
@@ -504,12 +508,15 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
               onRestored={handleDraftRestored}
             />
           )}
-          <div className="likhari-canvas">
-            <RichTextPlugin
-              contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label={strings.editor.contentLabel} />}
-              placeholder={<div className="likhari-placeholder">{resolvedPlaceholder}</div>}
-              ErrorBoundary={LexicalErrorBoundary}
-            />
+          <div className="likhari-canvas-frame">
+            {config.findReplace && findOpen && <FindReplaceBar strings={strings} onClose={() => setFindOpen(false)} />}
+            <div className="likhari-canvas">
+              <RichTextPlugin
+                contentEditable={<ContentEditable className="likhari-content-editable" dir={dir} aria-label={strings.editor.contentLabel} />}
+                placeholder={<div className="likhari-placeholder">{resolvedPlaceholder}</div>}
+                ErrorBoundary={LexicalErrorBoundary}
+              />
+            </div>
           </div>
           {config.history && <HistoryPlugin />}
           {(config.lists.bullet || config.lists.numbered || config.lists.check) && <ListPlugin />}

@@ -160,6 +160,14 @@
 /* Canvas — editor-ui-design-spec.md §4. flex: 1 1 auto + min-height: 0 lets
    this pane absorb the root's height and scroll internally instead of the
    editor (and the page around it) growing to fit the content. */
+.likhari-canvas-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .likhari-canvas {
   position: relative;
   flex: 1 1 auto;
@@ -756,15 +764,17 @@
   outline-offset: 1px;
 }
 
-/* A compact widget, sized to its controls and pushed to the inline end — not a
-   full-width bar. margin-inline-start: auto works in block and flex parents. */
+/* Floats over the top-right of the canvas, so it takes no space from the
+   toolbar or the page. */
 .likhari-find-widget {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  inset-inline-end: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   width: fit-content;
-  margin-inline: auto 10px;
-  margin-block: 6px;
   padding: 6px;
   border: 1px solid var(--editor-line);
   border-radius: 6px;
