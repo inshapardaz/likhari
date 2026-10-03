@@ -146,6 +146,8 @@ export interface Strings {
     twoColumn: string;
     insertCoupletBefore: string;
     insertCoupletAfter: string;
+    tighterSpacing: string;
+    looserSpacing: string;
     deleteCouplet: string;
   };
   link: {
@@ -357,6 +359,8 @@ const en: Strings = {
     twoColumn: 'Two column',
     insertCoupletBefore: 'Insert couplet above',
     insertCoupletAfter: 'Insert couplet below',
+    tighterSpacing: 'Tighter couplet spacing',
+    looserSpacing: 'Looser couplet spacing',
     deleteCouplet: 'Delete couplet',
   },
   link: {
@@ -569,6 +573,8 @@ const ur: Strings = {
     twoColumn: 'دو کالم',
     insertCoupletBefore: 'اوپر شعر شامل کریں',
     insertCoupletAfter: 'نیچے شعر شامل کریں',
+    tighterSpacing: 'شعروں کے درمیان کم جگہ',
+    looserSpacing: 'شعروں کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
   },
   link: {
@@ -781,6 +787,8 @@ const paShahmukhi: Strings = {
     twoColumn: 'دو کالم',
     insertCoupletBefore: 'اُتے شعر شامل کرو',
     insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
+    tighterSpacing: 'شعراں وچکار گھٹ جگہ',
+    looserSpacing: 'شعراں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
   },
   link: {

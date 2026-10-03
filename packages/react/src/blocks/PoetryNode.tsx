@@ -12,11 +12,16 @@ import {
   ElementNode,
 } from 'lexical';
 
-export type PoetryLayout = 'single' | 'two-column' | 'alternating';
+export type PoetryLayout = 'single' | 'two-column';
 export type PoetryAlign = 'justify' | 'left' | 'right' | 'start';
+/** Vertical space between couplets — an ordered scale the menu steps through. */
+export const POETRY_SPACINGS = ['compact', 'normal', 'relaxed', 'loose'] as const;
+export type PoetrySpacing = (typeof POETRY_SPACINGS)[number];
+export const DEFAULT_POETRY_SPACING: PoetrySpacing = 'normal';
 
-const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'alternating']);
+const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column']);
 const VALID_ALIGNS = new Set<PoetryAlign>(['justify', 'left', 'right', 'start']);
+const VALID_SPACINGS = new Set<PoetrySpacing>(POETRY_SPACINGS);
 
 /** `text-align: justify` only stretches a line that actually wraps — a
  * misra short enough to fit on one line would otherwise just sit at its own
@@ -37,21 +42,23 @@ function applyWidthStyle(element: HTMLElement, width: number | undefined): void 
   else element.style.maxWidth = `${width}px`;
 }
 
-export type SerializedPoetryBlockNode = Spread<{ layout: PoetryLayout; align: PoetryAlign; width?: number }, SerializedElementNode>;
+export type SerializedPoetryBlockNode = Spread<
+  { layout: PoetryLayout; align: PoetryAlign; width?: number; spacing?: PoetrySpacing },
+  SerializedElementNode
+>;
 
 /**
- * A poetry *section*: one or more couplets (two-line verse units), each
- * wrapped as either a PoetryCoupletNode (single-column/alternating — see
- * that file) or a LayoutContainerNode row (two-column, built on the
- * columns primitive, §4.9) — see blocks/poetryActions.ts's $getCouplets
- * for how a block's children (a free mix of either wrapper, per couplet)
- * are read, and $setPoetryLayout/$exitPoetryOnEnter for how they're
- * restructured/grown. `layout` is this block's *default* for couplets
- * appended to it (a PoetryCoupletNode can still individually override to
- * "centered" regardless); `align` applies to the whole section. Both
- * mutate in place via poetryActions so converting a section between
- * layouts doesn't lose selection/undo coherence. One extensible primitive
- * in place of four fixed templates, per requirements doc §4.11.
+ * A poetry *section*: one or more couplets (two-line verse units) sharing
+ * one layout — single-column stacks each couplet's two misras directly as
+ * paragraph children (two per couplet, in order), two-column gives each
+ * couplet its own LayoutContainerNode row (built on the columns primitive,
+ * §4.9) — see blocks/poetryActions.ts's $getCouplets for how either shape
+ * is read, and $setPoetryLayout/$exitPoetryOnEnter for how children are
+ * restructured/grown between couplets and layouts. `layout` and `align`
+ * apply to the whole section, not per couplet; both mutate in place via
+ * poetryActions so converting a section between layouts doesn't lose
+ * selection/undo coherence. One extensible primitive in place of four
+ * fixed templates, per requirements doc §4.11.
  */
 export class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
@@ -59,20 +66,28 @@ export class PoetryBlockNode extends ElementNode {
   /** User-chosen width in px (drag-resized), overriding editor.css's default
    * max-width: 70%. Undefined until the user resizes it. */
   __width?: number;
+  __spacing: PoetrySpacing;
 
-  constructor(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify', width?: number, key?: NodeKey) {
+  constructor(
+    layout: PoetryLayout = 'single',
+    align: PoetryAlign = 'justify',
+    width?: number,
+    spacing: PoetrySpacing = DEFAULT_POETRY_SPACING,
+    key?: NodeKey,
+  ) {
     super(key);
     this.__layout = layout;
     this.__align = align;
     this.__width = width;
+    this.__spacing = spacing;
   }
 
   static getType(): string {
-    return 'poetry-block';
+    return 'poetry-couplet';
   }
 
   static clone(node: PoetryBlockNode): PoetryBlockNode {
-    return new PoetryBlockNode(node.__layout, node.__align, node.__width, node.__key);
+    return new PoetryBlockNode(node.__layout, node.__align, node.__width, node.__spacing, node.__key);
   }
 
   getLayout(): PoetryLayout {
@@ -102,6 +117,16 @@ export class PoetryBlockNode extends ElementNode {
     return writable;
   }
 
+  getSpacing(): PoetrySpacing {
+    return this.getLatest().__spacing;
+  }
+
+  setSpacing(spacing: PoetrySpacing): this {
+    const writable = this.getWritable();
+    writable.__spacing = spacing;
+    return writable;
+  }
+
   setAlign(align: PoetryAlign): this {
     const writable = this.getWritable();
     writable.__align = align;
@@ -109,17 +134,18 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static importJSON(serializedNode: SerializedPoetryBlockNode): PoetryBlockNode {
-    return $createPoetryBlockNode(serializedNode.layout, serializedNode.align, serializedNode.width);
+    return $createPoetryBlockNode(serializedNode.layout, serializedNode.align, serializedNode.width, serializedNode.spacing);
   }
 
   exportJSON(): SerializedPoetryBlockNode {
     const width = this.getWidth();
     return {
       ...super.exportJSON(),
-      type: 'poetry-block',
+      type: 'poetry-couplet',
       version: 1,
       layout: this.getLayout(),
       align: this.getAlign(),
+      spacing: this.getSpacing(),
       ...(width !== undefined ? { width } : {}),
     };
   }
@@ -134,7 +160,9 @@ export class PoetryBlockNode extends ElementNode {
         const align = VALID_ALIGNS.has(rawAlign as PoetryAlign) ? (rawAlign as PoetryAlign) : 'justify';
         const rawWidth = Number(domNode.getAttribute('data-likhari-poetry-width'));
         const width = Number.isFinite(rawWidth) && rawWidth > 0 ? rawWidth : undefined;
-        return { conversion: () => ({ node: $createPoetryBlockNode(layout, align, width) }), priority: 2 };
+        const rawSpacing = domNode.getAttribute('data-likhari-poetry-spacing');
+        const spacing = VALID_SPACINGS.has(rawSpacing as PoetrySpacing) ? (rawSpacing as PoetrySpacing) : DEFAULT_POETRY_SPACING;
+        return { conversion: () => ({ node: $createPoetryBlockNode(layout, align, width, spacing) }), priority: 2 };
       },
     };
   }
@@ -143,6 +171,7 @@ export class PoetryBlockNode extends ElementNode {
     const element = document.createElement('div');
     element.setAttribute('data-likhari-poetry-layout', this.getLayout());
     element.setAttribute('data-likhari-poetry-align', this.getAlign());
+    element.setAttribute('data-likhari-poetry-spacing', this.getSpacing());
     const width = this.getWidth();
     if (width !== undefined) element.setAttribute('data-likhari-poetry-width', String(width));
     applyAlignStyle(element, this.getAlign());
@@ -153,7 +182,7 @@ export class PoetryBlockNode extends ElementNode {
   createDOM(config: EditorConfig): HTMLElement {
     const element = document.createElement('div');
     const base = config.theme.poetry ?? 'likhari-poetry';
-    addClassNamesToElement(element, base, `${base}--${this.__layout}`);
+    addClassNamesToElement(element, base, `${base}--${this.__layout}`, `${base}--spacing-${this.__spacing}`);
     applyAlignStyle(element, this.__align);
     applyWidthStyle(element, this.__width);
     return element;
@@ -168,6 +197,11 @@ export class PoetryBlockNode extends ElementNode {
       const base = config.theme.poetry ?? 'likhari-poetry';
       dom.classList.remove(`${base}--${prevNode.__layout}`);
       dom.classList.add(`${base}--${this.__layout}`);
+    }
+    if (prevNode.__spacing !== this.__spacing) {
+      const base = config.theme.poetry ?? 'likhari-poetry';
+      dom.classList.remove(`${base}--spacing-${prevNode.__spacing}`);
+      dom.classList.add(`${base}--spacing-${this.__spacing}`);
     }
     if (prevNode.__align !== this.__align) {
       applyAlignStyle(dom, this.__align);
@@ -187,8 +221,13 @@ export class PoetryBlockNode extends ElementNode {
   }
 }
 
-export function $createPoetryBlockNode(layout: PoetryLayout = 'single', align: PoetryAlign = 'justify', width?: number): PoetryBlockNode {
-  return $applyNodeReplacement(new PoetryBlockNode(layout, align, width));
+export function $createPoetryBlockNode(
+  layout: PoetryLayout = 'single',
+  align: PoetryAlign = 'justify',
+  width?: number,
+  spacing: PoetrySpacing = DEFAULT_POETRY_SPACING,
+): PoetryBlockNode {
+  return $applyNodeReplacement(new PoetryBlockNode(layout, align, width, spacing));
 }
 
 export function $isPoetryBlockNode(node: LexicalNode | null | undefined): node is PoetryBlockNode {

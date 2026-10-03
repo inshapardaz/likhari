@@ -1,7 +1,14 @@
 import { $findMatchingParent } from '@lexical/utils';
 import { $createParagraphNode, $getSelection, $isElementNode, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
 import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode, type LayoutContainerNode } from './LayoutNode';
-import { $createPoetryBlockNode, $isPoetryBlockNode, type PoetryAlign, type PoetryLayout, type PoetryBlockNode } from './PoetryNode';
+import {
+  $createPoetryBlockNode,
+  $isPoetryBlockNode,
+  POETRY_SPACINGS,
+  type PoetryAlign,
+  type PoetryBlockNode,
+  type PoetryLayout,
+} from './PoetryNode';
 
 /** One couplet's two misra paragraphs, in order. */
 export type Couplet = [ParagraphNode, ParagraphNode];
@@ -340,5 +347,16 @@ export function $exitPoetryOnEnter(): boolean {
 
   const [newA] = $appendCoupletTo(block);
   newA.selectStart();
+  return true;
+}
+
+/** Steps the caret's poetry block one notch looser (+1) or tighter (-1) on
+ * the couplet-spacing scale; clamps at either end. */
+export function $adjustPoetrySpacing(step: 1 | -1): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  const index = POETRY_SPACINGS.indexOf(block.getSpacing());
+  const next = POETRY_SPACINGS[Math.min(POETRY_SPACINGS.length - 1, Math.max(0, index + step))];
+  block.setSpacing(next);
   return true;
 }

@@ -44,7 +44,13 @@ import { INSERT_PAGE_BREAK_COMMAND } from '../blocks/PageBreakNode';
 import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
-import { $deletePoetryCouplet, $getPoetryBlockFromSelection, $insertCoupletRelativeToSelection, $setPoetryLayout } from '../blocks/poetryActions';
+import {
+  $adjustPoetrySpacing,
+  $deletePoetryCouplet,
+  $getPoetryBlockFromSelection,
+  $insertCoupletRelativeToSelection,
+  $setPoetryLayout,
+} from '../blocks/poetryActions';
 import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
 import { LayoutDialog, type LayoutDialogValue } from './LayoutDialog';
@@ -125,6 +131,8 @@ import {
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
+  IconArrowsMaximize,
+  IconArrowsMinimize,
   IconTable,
   IconTableMinus,
   IconTrash,
@@ -563,6 +571,8 @@ function PoetryMenuItems({
       <Menu.Divider />
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
+      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1))}
+      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1))}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
     </>
   );

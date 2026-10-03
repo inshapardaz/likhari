@@ -420,9 +420,14 @@
    border-top in place of the previous couplet's margin-bottom. */
 .likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
-  margin-top: 1em;
-  padding-top: 0.6em;
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
+
+.likhari-poetry--spacing-compact { --poetry-couplet-gap: 0.4em; }
+.likhari-poetry--spacing-normal { --poetry-couplet-gap: 1em; }
+.likhari-poetry--spacing-relaxed { --poetry-couplet-gap: 1.8em; }
+.likhari-poetry--spacing-loose { --poetry-couplet-gap: 2.8em; }
 
 .likhari-poetry--two-column .likhari-layout-container {
   margin: 0;
@@ -437,8 +442,8 @@
    within one. */
 .likhari-poetry--two-column .likhari-layout-container:not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
-  margin-top: 1em;
-  padding-top: 0.6em;
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
 
 .likhari-poetry--two-column .likhari-layout-item {
