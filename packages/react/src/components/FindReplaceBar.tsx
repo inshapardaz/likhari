@@ -113,6 +113,7 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
         <div className="likhari-find-row">
           <span className="likhari-find-icon-spacer" aria-hidden="true" />
           <input
+            className="likhari-find-replace-input"
             aria-label={t.replace}
             placeholder={t.replacePlaceholder}
             value={replacement}
@@ -121,10 +122,10 @@ export function FindReplaceBar({ strings, dir, onClose }: { strings: Strings; di
               if (e.key === 'Enter' && count > 0) replaceCurrent();
             }}
           />
-          <button type="button" className="likhari-find-icon" onClick={replaceCurrent} disabled={count === 0} aria-label={t.replaceOne} title={t.replaceOne}>
+          <button type="button" className="likhari-find-icon likhari-find-replace-one" onClick={replaceCurrent} disabled={count === 0} aria-label={t.replaceOne} title={t.replaceOne}>
             <IconReplace size={14} stroke={1.75} />
           </button>
-          <button type="button" className="likhari-find-icon" onClick={replaceEverything} disabled={count === 0} aria-label={t.replaceAll} title={t.replaceAll}>
+          <button type="button" className="likhari-find-icon likhari-find-replace-all" onClick={replaceEverything} disabled={count === 0} aria-label={t.replaceAll} title={t.replaceAll}>
             <IconRepeat size={14} stroke={1.75} />
           </button>
         </div>
