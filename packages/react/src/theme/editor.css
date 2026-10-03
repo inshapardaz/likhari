@@ -484,6 +484,18 @@
   text-align: inherit;
 }
 
+/* A centered couplet: a two-column row holding one item (see poetryActions.ts's
+   $setCoupletCentered) — narrowed to the middle of the block, with no column
+   divider or gutter since there's only one column. */
+.likhari-poetry--two-column > .likhari-layout-container:has(> .likhari-layout-item:only-child) {
+  width: 60%;
+  margin-inline: auto;
+}
+
+.likhari-poetry--two-column .likhari-layout-item:only-child {
+  padding-inline-end: 0;
+}
+
 .likhari-poetry--two-column .likhari-layout-item:first-child {
   padding-inline-end: var(--poetry-gutter, 20px);
 }

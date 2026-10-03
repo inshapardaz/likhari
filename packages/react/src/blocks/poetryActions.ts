@@ -33,6 +33,11 @@ export function $getCouplets(node: PoetryBlockNode): Couplet[] {
   const couplets: Couplet[] = [];
   for (const container of containers) {
     const items = container.getChildren().filter($isLayoutItemNode);
+    if (items.length === 1) {
+      const [a, b] = items[0].getChildren();
+      if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
+      continue;
+    }
     const a = items[0]?.getFirstChild();
     const b = items[1]?.getFirstChild();
     if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
@@ -381,5 +386,56 @@ export function $adjustPoetryStagger(step: 1 | -1): boolean {
   const index = POETRY_STAGGERS.indexOf(block.getStagger());
   const next = POETRY_STAGGERS[Math.min(POETRY_STAGGERS.length - 1, Math.max(0, index + step))];
   block.setStagger(next);
+  return true;
+}
+
+/** A centered couplet is a two-column row holding both misras in one item
+ * (a single-item row), rather than one item per misra. */
+function $isCoupletRowCentered(row: LayoutContainerNode): boolean {
+  return row.getChildren().filter($isLayoutItemNode).length === 1;
+}
+
+function $findCoupletRow(couplet: Couplet): LayoutContainerNode | null {
+  return $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+}
+
+/** Whether the couplet the caret is in is centered, or null outside a
+ * two-column poetry block (centering only applies there). */
+export function $getCoupletCenteredFromSelection(): boolean | null {
+  const block = $getPoetryBlockFromSelection();
+  if (!block || block.getLayout() !== 'two-column') return null;
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return null;
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return null;
+  const row = $findCoupletRow(couplets[position.coupletIndex]);
+  return row ? $isCoupletRowCentered(row) : false;
+}
+
+/** Centers (or un-centers) the caret's couplet within a two-column block by
+ * rebuilding its row around the same two misra paragraphs. */
+export function $setCoupletCentered(centered: boolean): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block || block.getLayout() !== 'two-column') return false;
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return false;
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return false;
+  const couplet = couplets[position.coupletIndex];
+  const row = $findCoupletRow(couplet);
+  if (!row || $isCoupletRowCentered(row) === centered) return true;
+
+  const [a, b] = couplet;
+  const newRow = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');
+  if (centered) {
+    newRow.append($createLayoutItemNode().append(a, b));
+  } else {
+    newRow.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
+  }
+  row.insertAfter(newRow);
+  row.remove();
+  a.selectStart();
   return true;
 }

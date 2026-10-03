@@ -55,6 +55,8 @@ import {
 } from '../blocks/PoetryNode';
 import {
   $adjustPoetryGutter,
+  $getCoupletCenteredFromSelection,
+  $setCoupletCentered,
   $adjustPoetryStagger,
   $adjustPoetrySpacing,
   $deletePoetryCouplet,
@@ -188,6 +190,7 @@ interface ToolbarState {
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
   poetryScale: PoetryScale;
+  poetryCentered: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -214,6 +217,7 @@ const INITIAL_STATE: ToolbarState = {
   inPoetry: false,
   poetryLayout: 'single',
   poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal' },
+  poetryCentered: false,
   canUndo: false,
   canRedo: false,
 };
@@ -552,11 +556,13 @@ function PoetryMenuItems({
   strings,
   layout,
   scale,
+  centered,
   onAction,
 }: {
   strings: Strings;
   layout: PoetryLayout;
   scale: PoetryScale;
+  centered: boolean;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
@@ -598,6 +604,7 @@ function PoetryMenuItems({
       )}
       {layout === 'two-column' && (
         <>
+          {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
           {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
           {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
         </>
@@ -689,6 +696,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const poetryLayout = poetryBlock?.getLayout();
+      const poetryCentered = $getCoupletCenteredFromSelection();
       const poetryScale = poetryBlock
         ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger() }
         : null;
@@ -711,6 +719,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
         poetryScale: poetryScale ?? s.poetryScale,
+        poetryCentered: poetryCentered ?? false,
       }));
     });
   }, [editor]);
@@ -1522,7 +1531,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             </button>
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       </div>
@@ -1665,7 +1674,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, fontOptions = DEFAU
             />
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} onAction={runMenuAction} />
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
       )}

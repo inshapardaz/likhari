@@ -13,6 +13,8 @@ import {
   $adjustPoetryGutter,
   $adjustPoetrySpacing,
   $adjustPoetryStagger,
+  $getCoupletCenteredFromSelection,
+  $setCoupletCentered,
   $insertCoupletRelativeToSelection,
   $insertPoetryCouplet,
   $setPoetryLayout,
@@ -738,5 +740,50 @@ describe('$adjustPoetryStagger', () => {
     step(1);
     step(1);
     expect(staggerNow()).toBe('loose');
+  });
+});
+
+describe('$setCoupletCentered', () => {
+  it('centers a two-column couplet in place, keeping its text, and un-centers it again', () => {
+    const editor = makeEditor();
+    editor.update(() => {
+      $getRoot().append($createParagraphNode().append($createTextNode('x')));
+      $getRoot().getFirstChild()!.selectEnd();
+      $insertPoetryCouplet('two-column');
+    }, { discrete: true });
+    editor.update(() => {
+      const [a, b] = $getCouplets(getBlock())[0];
+      a.append($createTextNode('A1'));
+      b.append($createTextNode('B1'));
+      a.selectEnd();
+      $setCoupletCentered(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      const [couplet] = $getCouplets(block);
+      expect(couplet.map((p) => p.getTextContent())).toEqual(['A1', 'B1']);
+      expect(block.getChildren()[0].getChildren()).toHaveLength(1);
+    });
+    editor.update(() => {
+      $getCouplets(getBlock())[0][0].selectEnd();
+      expect($getCoupletCenteredFromSelection()).toBe(true);
+      $setCoupletCentered(false);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['A1', 'B1']);
+      expect(block.getChildren()[0].getChildren()).toHaveLength(2);
+    });
+  });
+
+  it('does nothing in single-column layout', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    let result = true;
+    editor.update(() => {
+      getBlock().getFirstChild()!.selectStart();
+      result = $setCoupletCentered(true);
+    }, { discrete: true });
+    expect(result).toBe(false);
   });
 });
