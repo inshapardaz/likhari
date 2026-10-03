@@ -171,6 +171,17 @@ export interface Strings {
     noMatches: string;
     close: string;
   },
+  spellcheck: {
+    title: string;
+    language: string;
+    check: string;
+    close: string;
+    noDictionary: string;
+    noMisspellings: string;
+    previous: string;
+    next: string;
+    noSuggestions: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -404,6 +415,17 @@ const en: Strings = {
     replaceAll: 'Replace all',
     noMatches: 'No matches',
     close: 'Close',
+  },
+  spellcheck: {
+    title: 'Spell check',
+    language: 'Language',
+    check: 'Check',
+    close: 'Close',
+    noDictionary: 'No dictionary installed',
+    noMisspellings: 'No misspellings found',
+    previous: 'Previous',
+    next: 'Next',
+    noSuggestions: 'No suggestions',
   },
   link: {
     menuLabel: 'Link',
@@ -640,6 +662,17 @@ const ur: Strings = {
     noMatches: 'کوئی میچ نہیں',
     close: 'بند کریں',
   },
+  spellcheck: {
+    title: 'ہجے کی جانچ',
+    language: 'زبان',
+    check: 'جانچیں',
+    close: 'بند کریں',
+    noDictionary: 'کوئی لغت نصب نہیں',
+    noMisspellings: 'کوئی غلط ہجے نہیں ملے',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    noSuggestions: 'کوئی تجویز نہیں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -874,6 +907,17 @@ const paShahmukhi: Strings = {
     replaceAll: 'سارے بدلo',
     noMatches: 'کوئی ملدا نئیں',
     close: 'بند کرo',
+  },
+  spellcheck: {
+    title: 'ہجے دی جانچ',
+    language: 'بولی',
+    check: 'جانچو',
+    close: 'بند کرو',
+    noDictionary: 'کوئی شبدکوش نئیں لگی',
+    noMisspellings: 'کوئی غلط ہجے نئیں لبھے',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    noSuggestions: 'کوئی تجویز نئیں',
   },
   link: {
     menuLabel: 'لنک',
