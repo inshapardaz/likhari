@@ -997,3 +997,61 @@
   gap: 4px;
 }
 
+/* Auto-correct panel: the same floating spot as the spellcheck panel. */
+.likhari-autocorrect-panel {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 16px;
+  width: 260px;
+  max-width: calc(100% - 32px);
+  padding: 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  background: var(--editor-paper-dim);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+
+.likhari-autocorrect-panel[dir='rtl'] {
+  right: auto;
+  left: 16px;
+}
+
+.likhari-autocorrect-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.likhari-autocorrect-field input,
+.likhari-autocorrect-field select {
+  padding: 3px 6px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: var(--editor-paper);
+  color: inherit;
+}
+
+.likhari-autocorrect-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.likhari-autocorrect-actions button {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.likhari-autocorrect-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+

@@ -625,6 +625,9 @@ export interface ToolbarProps {
   /** Whether the spellcheck panel is open, and how to toggle it (owned by EditorRoot). */
   spellOpen?: boolean;
   onToggleSpell?: () => void;
+  /** Whether the add-auto-correction panel is open, and how to toggle it (owned by EditorRoot). */
+  autoCorrectOpen?: boolean;
+  onToggleAutoCorrect?: () => void;
   onSave?: () => void;
   isDirty?: boolean;
   showSave?: boolean;
@@ -638,7 +641,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1550,7 +1553,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
     ),
     showLanguageGroup && (
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
-        {config.language.autocorrect && <StubButton icon={IconWand} title={strings.toolbar.autocorrect} comingSoon={strings.toolbar.comingSoon} />}
+        {config.language.autocorrect && (
+          <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
+        )}
         {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
         {config.language.spellCheck && (
           <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />

@@ -28,6 +28,9 @@ import { PoetryPlugin } from './plugins/PoetryPlugin';
 import { PoetryResizer } from './blocks/PoetryResizer';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { FindReplaceBar } from './components/FindReplaceBar';
+import { AutoCorrectPanel } from './components/AutoCorrectPanel';
+import { AutoCorrectPlugin } from './autocorrect/AutoCorrectPlugin';
+import { localStorageAutoCorrectStore, type AutoCorrectStore } from './autocorrect/autoCorrectStores';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { LeaveDialog } from './components/LeaveDialog';
@@ -55,8 +58,15 @@ export interface EditorInitialContent {
   value: string;
 }
 
+/** Used when the host passes no stores: corrections are kept in this browser. */
+const DEFAULT_AUTOCORRECT_STORES: AutoCorrectStore[] = [localStorageAutoCorrectStore()];
+
+type OpenPanel = 'find' | 'spell' | 'autocorrect' | null;
+
 export interface EditorRootProps {
   documentId?: string;
+  /** Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. */
+  autoCorrectStores?: AutoCorrectStore[];
   initialContent?: EditorInitialContent;
   featureConfig?: EditorFeatureConfig;
   featurePreset?: FeatureConfigPresetName;
@@ -190,6 +200,7 @@ function initialEditorStateJson(initialContent?: EditorInitialContent): string |
 export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function EditorRoot(
   {
     documentId,
+    autoCorrectStores,
     initialContent,
     featureConfig,
     featurePreset,
@@ -245,8 +256,10 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const editorStateRef = useRef<EditorState | null>(null);
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [findOpen, setFindOpen] = useState(false);
-  const [spellOpen, setSpellOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
+  const [autoCorrectVersion, setAutoCorrectVersion] = useState(0);
+  const stores = autoCorrectStores ?? DEFAULT_AUTOCORRECT_STORES;
+  const togglePanel = (panel: Exclude<OpenPanel, null>) => setOpenPanel((current) => (current === panel ? null : panel));
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -489,16 +502,12 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <Toolbar
             config={config}
             onSave={handleSave}
-            findOpen={findOpen}
-            onToggleFind={() => {
-              setFindOpen((v) => !v);
-              setSpellOpen(false);
-            }}
-            spellOpen={spellOpen}
-            onToggleSpell={() => {
-              setSpellOpen((v) => !v);
-              setFindOpen(false);
-            }}
+            findOpen={openPanel === 'find'}
+            onToggleFind={() => togglePanel('find')}
+            spellOpen={openPanel === 'spell'}
+            onToggleSpell={() => togglePanel('spell')}
+            autoCorrectOpen={openPanel === 'autocorrect'}
+            onToggleAutoCorrect={() => togglePanel('autocorrect')}
             isDirty={isDirty}
             showSave={showSave}
             fontOptions={fontOptions}
@@ -520,8 +529,19 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             />
           )}
           <div className="likhari-canvas-frame">
-            {config.findReplace && findOpen && <FindReplaceBar strings={strings} dir={dir} onClose={() => setFindOpen(false)} />}
-            {config.language.spellCheck && spellOpen && <SpellcheckPanel strings={strings} dir={dir} onClose={() => setSpellOpen(false)} />}
+            {config.findReplace && openPanel === 'find' && <FindReplaceBar strings={strings} dir={dir} onClose={() => setOpenPanel(null)} />}
+            {config.language.spellCheck && openPanel === 'spell' && (
+              <SpellcheckPanel strings={strings} dir={dir} onClose={() => setOpenPanel(null)} />
+            )}
+            {config.language.autocorrect && openPanel === 'autocorrect' && (
+              <AutoCorrectPanel
+                strings={strings}
+                dir={dir}
+                stores={stores}
+                onSaved={() => setAutoCorrectVersion((v) => v + 1)}
+                onClose={() => setOpenPanel(null)}
+              />
+            )}
             <div className="likhari-canvas">
               <RichTextPlugin
                 contentEditable={
@@ -539,6 +559,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin />}
+          {config.language.autocorrect && <AutoCorrectPlugin stores={stores} version={autoCorrectVersion} enabled />}
           {config.columns && <LayoutPlugin />}
           {config.footnotes && <FootnotePlugin />}
           {config.poetry.enabled && <PoetryPlugin />}
