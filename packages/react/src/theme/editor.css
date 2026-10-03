@@ -870,3 +870,130 @@
   opacity: 0.8;
   white-space: nowrap;
 }
+
+/* Spellcheck panel: same top-right floating spot as the find widget, which
+   closes when this opens. */
+.likhari-spell-panel {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 16px;
+  width: max-content;
+  max-width: min(360px, calc(100% - 32px));
+  max-height: 60%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  background: var(--editor-paper-dim);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+
+.likhari-spell-panel[dir='rtl'] {
+  right: auto;
+  left: 16px;
+}
+
+.likhari-spell-header,
+.likhari-spell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.likhari-spell-controls select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.likhari-spell-panel button {
+  padding: 2px 8px;
+  border: 1px solid var(--editor-line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.likhari-spell-panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.likhari-spell-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.likhari-spell-note {
+  margin: 4px 0;
+  opacity: 0.8;
+}
+
+.likhari-spell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.likhari-spell-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--editor-line);
+}
+
+.likhari-spell-word {
+  font-weight: 600;
+  color: #b42318 !important;
+}
+
+.likhari-spell-suggestion {
+  font-size: 12px;
+}
+
+/* Misspelled words, underlined like the browser's own spellcheck. Styled
+   through the CSS Custom Highlight API by SpellHighlightPlugin. */
+::highlight(likhari-spelling) {
+  text-decoration: red wavy underline;
+  text-decoration-skip-ink: none;
+}
+
+.likhari-spell-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.likhari-spell-status {
+  opacity: 0.8;
+}
+
+.likhari-spell-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--editor-line);
+}
+
+.likhari-spell-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
