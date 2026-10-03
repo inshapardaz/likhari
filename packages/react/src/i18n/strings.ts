@@ -178,6 +178,9 @@ export interface Strings {
     close: string;
     noDictionary: string;
     noMisspellings: string;
+    previous: string;
+    next: string;
+    noSuggestions: string;
   },
   link: {
     menuLabel: string;
@@ -420,6 +423,9 @@ const en: Strings = {
     close: 'Close',
     noDictionary: 'No dictionary installed',
     noMisspellings: 'No misspellings found',
+    previous: 'Previous',
+    next: 'Next',
+    noSuggestions: 'No suggestions',
   },
   link: {
     menuLabel: 'Link',
@@ -663,6 +669,9 @@ const ur: Strings = {
     close: 'بند کریں',
     noDictionary: 'کوئی لغت نصب نہیں',
     noMisspellings: 'کوئی غلط ہجے نہیں ملے',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    noSuggestions: 'کوئی تجویز نہیں',
   },
   link: {
     menuLabel: 'لنک',
@@ -906,6 +915,9 @@ const paShahmukhi: Strings = {
     close: 'بند کرو',
     noDictionary: 'کوئی شبدکوش نئیں لگی',
     noMisspellings: 'کوئی غلط ہجے نئیں لبھے',
+    previous: 'پچھلا',
+    next: 'اگلا',
+    noSuggestions: 'کوئی تجویز نئیں',
   },
   link: {
     menuLabel: 'لنک',

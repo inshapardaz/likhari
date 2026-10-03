@@ -970,3 +970,30 @@
   text-decoration: red wavy underline;
   text-decoration-skip-ink: none;
 }
+
+.likhari-spell-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.likhari-spell-status {
+  opacity: 0.8;
+}
+
+.likhari-spell-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--editor-line);
+}
+
+.likhari-spell-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
