@@ -1,5 +1,13 @@
 import { $findMatchingParent } from '@lexical/utils';
-import { $createParagraphNode, $getSelection, $isElementNode, $isParagraphNode, $isRangeSelection, type ParagraphNode } from 'lexical';
+import {
+  $createParagraphNode,
+  $getSelection,
+  $isElementNode,
+  $isParagraphNode,
+  $isRangeSelection,
+  type LexicalNode,
+  type ParagraphNode,
+} from 'lexical';
 import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNode, $isLayoutItemNode, type LayoutContainerNode } from './LayoutNode';
 import {
   $createPoetryBlockNode,
@@ -240,16 +248,22 @@ export function $deletePoetryCouplet(): boolean {
   return true;
 }
 
+/** Whether a point sits at the very start (or, with `atEnd`, very end) of a paragraph. */
+function $isPointAt(paragraph: ParagraphNode, point: { key: string; offset: number; getNode(): LexicalNode }, atEnd: boolean): boolean {
+  if (point.key === paragraph.getKey()) return point.offset === (atEnd ? paragraph.getChildrenSize() : 0);
+  const edge = atEnd ? paragraph.getLastDescendant() : paragraph.getFirstDescendant();
+  if (point.getNode() !== edge) return false;
+  return point.offset === (atEnd ? point.getNode().getTextContent().length : 0);
+}
+
 /**
- * Backspace at the very start of an empty couplet removes just that
- * couplet — merging back into the previous one's end, or (if it's the
- * block's only couplet) removing the whole block, since an empty poetry
- * section serves no purpose. Otherwise there was no way to get rid of an
- * empty couplet created by mistake (its misra paragraphs each have their
- * own default canBeEmpty, so Lexical's usual "delete the empty block"
- * handling never reaches the couplet itself). Returns false for every
- * other caret position, including a non-empty couplet, so normal Backspace
- * handling (e.g. deleting within text) proceeds.
+ * Backspace at the start of a misra never merges it into its neighbour: the
+ * block's lines are paired into couplets, so merging one line away would
+ * shift every couplet after it (and take the previous couplet's last line
+ * with it). Instead, Backspace at the start of an empty couplet removes that
+ * couplet, and at the start of any other line it moves the caret to the end
+ * of the previous line. Other caret positions (deleting within text) fall
+ * through to normal handling.
  */
 export function $deletePoetryOnBackspace(): boolean {
   const selection = $getSelection();
@@ -259,34 +273,60 @@ export function $deletePoetryOnBackspace(): boolean {
   if (!block) return false;
 
   const couplets = $getCouplets(block);
-  const anchorNode = selection.anchor.getNode();
-  const position = $findCoupletPosition(couplets, anchorNode);
-  if (!position || position.misraIndex !== 0) return false;
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return false;
 
-  const [firstMisra] = couplets[position.coupletIndex];
-  const anchor = selection.anchor;
-  const isAtStart = anchor.key === firstMisra.getKey() && anchor.offset === 0;
-  if (!isAtStart) return false;
+  const { coupletIndex, misraIndex } = position;
+  const [a, b] = couplets[coupletIndex];
+  const misra = couplets[coupletIndex][misraIndex];
+  if (!$isPointAt(misra, selection.anchor, false)) return false;
 
-  const [a, b] = couplets[position.coupletIndex];
-  if (!a.isEmpty() || !b.isEmpty()) return false;
-
-  if (couplets.length <= 1) {
-    const previous = block.getPreviousSibling();
-    block.remove();
-    if ($isElementNode(previous)) previous.selectEnd();
+  if (a.isEmpty() && b.isEmpty()) {
+    if (couplets.length <= 1) {
+      const previous = block.getPreviousSibling();
+      block.remove();
+      if ($isElementNode(previous)) previous.selectEnd();
+      return true;
+    }
+    const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
+    if (container) container.remove();
+    else {
+      a.remove();
+      b.remove();
+    }
+    const remaining = $getCouplets(block);
+    const previousCouplet = remaining[coupletIndex - 1] ?? remaining[0];
+    previousCouplet?.[1].selectEnd();
     return true;
   }
 
-  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-  if (container) container.remove();
-  else {
-    a.remove();
-    b.remove();
-  }
-  const remaining = $getCouplets(block);
-  const previousCouplet = remaining[position.coupletIndex - 1] ?? remaining[0];
-  previousCouplet?.[1].selectEnd();
+  const previousLine = misraIndex === 1 ? a : couplets[coupletIndex - 1]?.[1];
+  previousLine?.selectEnd();
+  return true;
+}
+
+/**
+ * Forward Delete at the end of a misra never merges the next line into it, for
+ * the same reason as $deletePoetryOnBackspace: the caret moves to the start of
+ * the next line instead. Other caret positions fall through to normal handling.
+ */
+export function $deletePoetryForward(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, selection.anchor.getNode());
+  if (!position) return false;
+
+  const { coupletIndex, misraIndex } = position;
+  const misra = couplets[coupletIndex][misraIndex];
+  if (!$isPointAt(misra, selection.anchor, true)) return false;
+
+  const nextLine = misraIndex === 0 ? couplets[coupletIndex][1] : couplets[coupletIndex + 1]?.[0];
+  nextLine?.selectStart();
   return true;
 }
 
@@ -438,4 +478,21 @@ export function $setCoupletCentered(centered: boolean): boolean {
   row.remove();
   a.selectStart();
   return true;
+}
+
+/** Removes the whole poetry block the caret is in, including every couplet. */
+export function $deletePoetryBlock(): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  block.remove();
+  return true;
+}
+
+/** Single-column blocks pair their paragraphs into couplets, so a line left
+ * without a partner (from pasted or imported content) would be invisible to
+ * the couplet logic. Give it an empty partner instead, so every line belongs
+ * to a couplet and can be deleted like any other. */
+export function $completeSingleCoupletBlock(node: PoetryBlockNode): void {
+  if (node.getLayout() === 'two-column') return;
+  if (node.getChildrenSize() % 2 === 1) node.append($createParagraphNode());
 }

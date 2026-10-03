@@ -9,6 +9,8 @@ import {
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, rootChildren, type SNode,
 } from '../shared/serialized';
 import { directive, type Attrs, type MdNode } from './mdast';
+import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
+import { nodeToHtml, setFootnoteOrder } from '../html/serialize';
 
 const processor = unified()
   .use(remarkGfm)
@@ -253,12 +255,32 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 }
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
-  const layout = node.layout === 'two-column' || node.layout === 'staggered' ? node.layout : 'single';
+  const attrs: Attrs = { layout: layoutOrDefault(node.layout) };
+  for (const key of ['spacing', 'gutter', 'stagger'] as const) {
+    const value = scaleOrDefault(node[key]);
+    if (value !== 'normal') attrs[key] = value;
+  }
+  if (typeof node.width === 'number' && node.width > 0) attrs.width = String(node.width);
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
-  return directive('containerDirective', 'poetry', { layout }, inner);
+  return directive('containerDirective', 'poetry', attrs, inner);
+}
+
+/** Markdown tables cannot express merged cells or multi-block cells, so those
+ * are written as an HTML table block, read back by the HTML importer. */
+function needsHtmlTable(node: SNode): boolean {
+  return (node.children ?? []).some((row) =>
+    (row.children ?? []).some(
+      (cell) =>
+        Number(cell.colSpan ?? 1) > 1 ||
+        Number(cell.rowSpan ?? 1) > 1 ||
+        (cell.children ?? []).length !== 1 ||
+        cell.children![0].type !== 'paragraph',
+    ),
+  );
 }
 
 function tableToMd(node: SNode, ctx?: ConverterContext): MdNode {
+  if (needsHtmlTable(node)) return { type: 'html', value: nodeToHtml(node, ctx) };
   const rows: MdNode[] = (node.children ?? []).map((row) => ({
     type: 'tableRow',
     children: (row.children ?? []).map((cell) => {
@@ -316,7 +338,9 @@ function blockToMd(node: SNode, ctx?: ConverterContext): MdNode[] {
 }
 
 export function serializeMarkdown(state: SerializedEditorState, ctx?: ConverterContext): string {
-  const tree: MdNode = { type: 'root', children: rootChildren(state).flatMap((n) => blockToMd(n, ctx)) };
+  const blocks = rootChildren(state);
+  setFootnoteOrder(blocks);
+  const tree: MdNode = { type: 'root', children: blocks.flatMap((n) => blockToMd(n, ctx)) };
   // remark-stringify consumes mdast; our MdNode is a structural subset of it.
   return String(processor.stringify(tree as never)).replace(/\n+$/, '\n').replace(/^\n+$/, '');
 }

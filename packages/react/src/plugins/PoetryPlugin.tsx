@@ -4,6 +4,7 @@ import {
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_HIGH,
   KEY_BACKSPACE_COMMAND,
+  KEY_DELETE_COMMAND,
   KEY_ENTER_COMMAND,
   createCommand,
   type LexicalCommand,
@@ -11,7 +12,14 @@ import {
 import { mergeRegister } from '@lexical/utils';
 import { LayoutContainerNode, LayoutItemNode } from '../blocks/LayoutNode';
 import { PoetryBlockNode, type PoetryLayout } from '../blocks/PoetryNode';
-import { $deletePoetryOnBackspace, $ensureTrailingParagraph, $exitPoetryOnEnter, $insertPoetryCouplet } from '../blocks/poetryActions';
+import {
+  $deletePoetryForward,
+  $deletePoetryOnBackspace,
+  $ensureTrailingParagraph,
+  $completeSingleCoupletBlock,
+  $exitPoetryOnEnter,
+  $insertPoetryCouplet,
+} from '../blocks/poetryActions';
 
 export const INSERT_POETRY_COUPLET_COMMAND: LexicalCommand<{ layout: PoetryLayout }> = createCommand(
   'INSERT_POETRY_COUPLET_COMMAND',
@@ -48,6 +56,7 @@ export function PoetryPlugin() {
           node.remove();
           return;
         }
+        $completeSingleCoupletBlock(node);
         $ensureTrailingParagraph(node);
       }),
       editor.registerCommand(
@@ -64,6 +73,15 @@ export function PoetryPlugin() {
         KEY_BACKSPACE_COMMAND,
         (event: KeyboardEvent | null) => {
           const handled = $deletePoetryOnBackspace();
+          if (handled) event?.preventDefault();
+          return handled;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      editor.registerCommand(
+        KEY_DELETE_COMMAND,
+        (event: KeyboardEvent | null) => {
+          const handled = $deletePoetryForward();
           if (handled) event?.preventDefault();
           return handled;
         },

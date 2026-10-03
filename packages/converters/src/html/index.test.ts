@@ -174,3 +174,57 @@ describe('htmlConverter', () => {
     expect(blocksOf(htmlConverter.parse(''))).toHaveLength(1);
   });
 });
+
+describe('poetry export', () => {
+  it('writes the poetry styling inline and keeps its settings through a round trip', () => {
+    const row = elementBase(
+      'layout-container',
+      [elementBase('layout-item', [paragraph([textNode('l')])]), elementBase('layout-item', [paragraph([textNode('r')])])],
+      { templateColumns: 'repeat(2, 1fr)' },
+    );
+    const centered = elementBase('layout-container', [elementBase('layout-item', [paragraph([textNode('c1')]), paragraph([textNode('c2')])])], {
+      templateColumns: '1fr',
+    });
+    const block = elementBase('poetry-couplet', [row, centered], { layout: 'two-column', spacing: 'relaxed', gutter: 'loose' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('text-align: justify; text-align-last: justify');
+    expect(html).toContain('border-inline-start: 1px dashed');
+    expect(html).toContain('width: 60%');
+    expect(html).toContain('padding-inline-start: 48px');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', spacing: 'relaxed', gutter: 'loose' });
+    expect(back.children![1].children![0].children).toHaveLength(2);
+  });
+
+  it('keeps staggered placement and width through a round trip', () => {
+    const lines = [paragraph([textNode('a')]), paragraph([textNode('b')]), paragraph([textNode('c')]), paragraph([textNode('d')])];
+    const block = elementBase('poetry-couplet', lines, { layout: 'staggered', stagger: 'loose', width: 480 });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: 85%');
+    expect(html).toContain('margin-inline-start: auto');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ layout: 'staggered', stagger: 'loose', width: 480 });
+  });
+});
+
+describe('html tables and footnotes export', () => {
+  it('writes table and footnote styling inline', () => {
+    const table = elementBase('table', [elementBase('tablerow', [elementBase('tablecell', [paragraph([textNode('x')])], { colSpan: 1, rowSpan: 1, headerState: 1 })])]);
+    const html = htmlConverter.serialize(makeState([table]));
+    expect(html).toContain('border-collapse: collapse');
+    expect(html).toContain('border: 1px solid #cfcac0');
+    expect(html).toContain('font-weight: 600');
+  });
+
+  it('numbers footnotes inline and drops the marker on import', () => {
+    const blocks = [
+      paragraph([textNode('see'), { type: 'footnote-reference', version: 1, footnoteId: 'n1' } as SNode]),
+      elementBase('footnote-list', [elementBase('footnote-item', [paragraph([textNode('note text')])], { footnoteId: 'n1' })]),
+    ];
+    const html = htmlConverter.serialize(makeState(blocks));
+    expect(html).toContain('[1] ');
+    const [, list] = blocksOf(htmlConverter.parse(html));
+    expect(list.type).toBe('footnote-list');
+    expect((list.children![0].children![0] as SNode).children![0]).toMatchObject({ text: 'note text' });
+  });
+});

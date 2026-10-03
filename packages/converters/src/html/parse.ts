@@ -1,5 +1,6 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
+import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX,
@@ -263,11 +264,15 @@ function convertLayout(container: HTMLElement): SNode {
   return elementBase('layout-container', items.length > 0 ? items : [elementBase('layout-item', [paragraph()])], { templateColumns });
 }
 
-const POETRY_LAYOUTS = new Set(['single', 'two-column', 'staggered']);
-
 function convertPoetry(el: HTMLElement): SNode {
-  const rawLayout = el.getAttribute('data-likhari-poetry-layout') ?? 'single';
-  const layout = POETRY_LAYOUTS.has(rawLayout) ? rawLayout : 'single';
+  const layout = layoutOrDefault(el.getAttribute('data-likhari-poetry-layout'));
+  const settings = {
+    layout,
+    spacing: scaleOrDefault(el.getAttribute('data-likhari-poetry-spacing')),
+    gutter: scaleOrDefault(el.getAttribute('data-likhari-poetry-gutter')),
+    stagger: scaleOrDefault(el.getAttribute('data-likhari-poetry-stagger')),
+    ...(Number(el.getAttribute('data-likhari-poetry-width')) > 0 ? { width: Number(el.getAttribute('data-likhari-poetry-width')) } : {}),
+  };
 
   if (layout === 'two-column') {
     // One LayoutContainerNode row per couplet — grab all of them, not just
@@ -281,11 +286,11 @@ function convertPoetry(el: HTMLElement): SNode {
               templateColumns: 'repeat(2, 1fr)',
             }),
           ];
-    return elementBase('poetry-couplet', containers, { layout });
+    return elementBase('poetry-couplet', containers, settings);
   }
 
   const children = flowBlocks(el);
-  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], { layout });
+  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], settings);
 }
 
 function convertFootnoteList(el: HTMLElement): SNode {
@@ -301,6 +306,8 @@ function convertFootnoteList(el: HTMLElement): SNode {
     Array.from(clone.querySelectorAll('a'))
       .filter((a) => a.getAttribute('href') === `#fnref-${footnoteId}`)
       .forEach((a) => a.remove());
+    // Likewise the "[n]" marker our serializer writes in front of the note.
+    clone.querySelectorAll('[data-likhari-footnote-number]').forEach((n) => n.remove());
     const children = flowBlocks(clone);
     items.push(elementBase('footnote-item', children.length > 0 ? children : [paragraph()], { footnoteId }));
   });

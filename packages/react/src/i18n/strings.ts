@@ -156,6 +156,7 @@ export interface Strings {
     narrowerGutter: string;
     widerGutter: string;
     deleteCouplet: string;
+    deletePoetry: string;
   };
   link: {
     menuLabel: string;
@@ -376,6 +377,7 @@ const en: Strings = {
     narrowerGutter: 'Narrower gutter',
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
+    deletePoetry: 'Delete poetry',
   },
   link: {
     menuLabel: 'Link',
@@ -597,6 +599,7 @@ const ur: Strings = {
     narrowerGutter: 'کالمز کے درمیان کم جگہ',
     widerGutter: 'کالمز کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
+    deletePoetry: 'پوری شاعری حذف کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -818,6 +821,7 @@ const paShahmukhi: Strings = {
     narrowerGutter: 'کالماں وچکار گھٹ جگہ',
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
+    deletePoetry: 'ساری شاعری مٹاؤ',
   },
   link: {
     menuLabel: 'لنک',

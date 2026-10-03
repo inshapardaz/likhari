@@ -3,6 +3,8 @@ import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRang
 import { LayoutContainerNode, LayoutItemNode } from './LayoutNode';
 import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
 import {
+  $completeSingleCoupletBlock,
+  $deletePoetryBlock,
   $deletePoetryCouplet,
   $deletePoetryOnBackspace,
   $ensureTrailingParagraph,
@@ -575,24 +577,28 @@ describe('$deletePoetryOnBackspace', () => {
     expect(misraTexts(editor)).toEqual(['a1', 'b1']);
   });
 
-  it('does nothing when the couplet has content', () => {
+  it('never merges a line with content into the line before it', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(() => {
+      const block = getBlock();
+      const [first, second] = $getMisraParagraphs(block);
+      first.append($createTextNode('x'));
+      second.append($createTextNode('y'));
+      second.selectStart();
+      expect($deletePoetryOnBackspace()).toBe(true);
+    }, { discrete: true });
+    expect(misraTexts(editor)).toEqual(['x', 'y']);
+  });
+
+  it('leaves caret positions inside text to normal deletion', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(() => {
       const block = getBlock();
       const [first] = $getMisraParagraphs(block);
-      first.append($createTextNode('x'));
-      first.selectStart();
-      expect($deletePoetryOnBackspace()).toBe(false);
-    });
-  });
-
-  it('does nothing when the caret is not at the very start of a couplet\'s first misra', () => {
-    const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
-    editor.update(() => {
-      const block = getBlock();
-      $getMisraParagraphs(block)[1].selectStart(); // second misra, not the first
+      first.append($createTextNode('abc'));
+      first.getFirstChild()!.select(1, 1);
       expect($deletePoetryOnBackspace()).toBe(false);
     });
   });
@@ -785,5 +791,66 @@ describe('$setCoupletCentered', () => {
       result = $setCoupletCentered(true);
     }, { discrete: true });
     expect(result).toBe(false);
+  });
+});
+
+describe('$deletePoetryBlock', () => {
+  it('removes the whole block with all its couplets', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(() => {
+      const block = getBlock();
+      block.getFirstChild()!.selectStart();
+      $insertCoupletRelativeToSelection('after');
+    }, { discrete: true });
+    editor.update(() => {
+      getBlock().getFirstChild()!.selectStart();
+      expect($deletePoetryBlock()).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      expect($getRoot().getChildren().some($isPoetryBlockNode)).toBe(false);
+    });
+  });
+});
+
+describe('deleting an empty last couplet', () => {
+  it('from its second line keeps every line of the previous couplet', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(() => {
+      const [a, b] = $getMisraParagraphs(getBlock());
+      a.append($createTextNode('a1'));
+      b.append($createTextNode('b1'));
+      b.selectEnd();
+      $insertCoupletRelativeToSelection('after');
+    }, { discrete: true });
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      misras[3].selectStart();
+      expect($deletePoetryOnBackspace()).toBe(true);
+    }, { discrete: true });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1']);
+  });
+});
+
+describe('$completeSingleCoupletBlock', () => {
+  it('gives an unpaired empty single-column line a partner so it can be deleted, keeping earlier couplets intact', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(() => {
+      const block = getBlock();
+      const [a, b] = $getMisraParagraphs(block);
+      a.append($createTextNode('a1'));
+      b.append($createTextNode('b1'));
+      block.append($createParagraphNode());
+      $completeSingleCoupletBlock(block);
+    }, { discrete: true });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1', '', '']);
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      misras[3].selectStart();
+      expect($deletePoetryOnBackspace()).toBe(true);
+    }, { discrete: true });
+    expect(misraTexts(editor)).toEqual(['a1', 'b1']);
   });
 });

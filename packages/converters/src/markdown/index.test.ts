@@ -188,3 +188,48 @@ describe('markdownConverter', () => {
     expect(parse('')).toHaveLength(1);
   });
 });
+
+describe('poetry settings', () => {
+  it('keeps non-default spacing, gutter, stagger and width through a round trip', () => {
+    const block = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], {
+      layout: 'staggered',
+      spacing: 'loose',
+      stagger: 'compact',
+      width: 400,
+    });
+    const out = md([block]);
+    expect(out).toContain('spacing="loose"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ layout: 'staggered', spacing: 'loose', stagger: 'compact', width: 400 });
+  });
+});
+
+describe('markdown tables that Markdown cannot express', () => {
+  it('keeps a merged cell and a multi-paragraph cell through an HTML table fallback', () => {
+    const cell = (texts: string[], colSpan = 1) =>
+      elementBase('tablecell', texts.map((t) => paragraph([textNode(t)])), { colSpan, rowSpan: 1, headerState: 0 });
+    const table = elementBase('table', [
+      elementBase('tablerow', [cell(['wide'], 2)]),
+      elementBase('tablerow', [cell(['a', 'second paragraph']), cell(['b'])]),
+    ]);
+    const out = md([table]);
+    expect(out).toContain('<table');
+    const [back] = parse(out);
+    expect(back.type).toBe('table');
+    expect(back.children![0].children![0]).toMatchObject({ colSpan: 2 });
+    expect(back.children![1].children![0].children!.length).toBe(2);
+  });
+
+  it('keeps a plain table as Markdown', () => {
+    const table = elementBase('table', [elementBase('tablerow', [elementBase('tablecell', [paragraph([textNode('a')])], { colSpan: 1, rowSpan: 1, headerState: 0 })])]);
+    expect(md([table])).not.toContain('<table');
+  });
+});
+
+describe('markdown images', () => {
+  it('keeps size and caption through a round trip', () => {
+    const image = { type: 'image', version: 1, src: 'https://example.com/a.png', altText: 'alt', caption: 'cap', linkType: 'linked', width: 300, height: 200 } as SNode;
+    const [back] = parse(md([image]));
+    expect(back).toMatchObject({ type: 'image', caption: 'cap', width: 300, height: 200, altText: 'alt' });
+  });
+});

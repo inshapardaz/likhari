@@ -59,6 +59,7 @@ import {
   $setCoupletCentered,
   $adjustPoetryStagger,
   $adjustPoetrySpacing,
+  $deletePoetryBlock,
   $deletePoetryCouplet,
   $getPoetryBlockFromSelection,
   $insertCoupletRelativeToSelection,
@@ -610,6 +611,7 @@ function PoetryMenuItems({
         </>
       )}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
+      {item(IconTrash, t.deletePoetry, $deletePoetryBlock, false, 'red')}
     </>
   );
 }
