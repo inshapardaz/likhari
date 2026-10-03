@@ -429,6 +429,11 @@
 .likhari-poetry--spacing-relaxed { --poetry-couplet-gap: 1.8em; }
 .likhari-poetry--spacing-loose { --poetry-couplet-gap: 2.8em; }
 
+.likhari-poetry--gutter-compact { --poetry-gutter: 8px; }
+.likhari-poetry--gutter-normal { --poetry-gutter: 20px; }
+.likhari-poetry--gutter-relaxed { --poetry-gutter: 32px; }
+.likhari-poetry--gutter-loose { --poetry-gutter: 48px; }
+
 .likhari-poetry--two-column .likhari-layout-container {
   margin: 0;
   /* No grid gap — the column divider sits exactly on the track boundary,
@@ -451,14 +456,14 @@
 }
 
 .likhari-poetry--two-column .likhari-layout-item:first-child {
-  padding-inline-end: 20px;
+  padding-inline-end: var(--poetry-gutter, 20px);
 }
 
 /* A visible divider between misra columns, same dashed language as the
    couplet's own border — matches a table's internal cell borders. */
 .likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
   border-inline-start: 1px dashed var(--editor-line-strong);
-  padding-inline-start: 20px;
+  padding-inline-start: var(--poetry-gutter, 20px);
 }
 
 /* PoetryResizer.tsx's drag handle — portaled to a fixed position over the

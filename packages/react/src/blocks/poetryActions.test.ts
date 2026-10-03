@@ -10,6 +10,7 @@ import {
   $getCouplets,
   $getMisraParagraphs,
   $getPoetryBlockFromSelection,
+  $adjustPoetryGutter,
   $adjustPoetrySpacing,
   $insertCoupletRelativeToSelection,
   $insertPoetryCouplet,
@@ -668,5 +669,30 @@ describe('$adjustPoetrySpacing', () => {
     expect(spacingNow()).toBe('loose');
     step(-1);
     expect(spacingNow()).toBe('relaxed');
+  });
+});
+
+describe('$adjustPoetryGutter', () => {
+  it('steps the gutter wider and narrower and clamps at both ends', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'justify'));
+    const gutterNow = () => editor.getEditorState().read(() => getBlock().getGutter());
+    const step = (delta: 1 | -1) =>
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          $adjustPoetryGutter(delta);
+        },
+        { discrete: true },
+      );
+    expect(gutterNow()).toBe('normal');
+    step(-1);
+    expect(gutterNow()).toBe('compact');
+    step(-1);
+    expect(gutterNow()).toBe('compact');
+    step(1);
+    step(1);
+    step(1);
+    expect(gutterNow()).toBe('loose');
   });
 });

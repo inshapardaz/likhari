@@ -45,6 +45,7 @@ import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import { $isPoetryBlockNode, type PoetryAlign, type PoetryLayout } from '../blocks/PoetryNode';
 import {
+  $adjustPoetryGutter,
   $adjustPoetrySpacing,
   $deletePoetryCouplet,
   $getPoetryBlockFromSelection,
@@ -573,6 +574,8 @@ function PoetryMenuItems({
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
       {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1))}
       {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1))}
+      {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1))}
+      {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1))}
       {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
     </>
   );

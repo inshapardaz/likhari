@@ -148,6 +148,8 @@ export interface Strings {
     insertCoupletAfter: string;
     tighterSpacing: string;
     looserSpacing: string;
+    narrowerGutter: string;
+    widerGutter: string;
     deleteCouplet: string;
   };
   link: {
@@ -361,6 +363,8 @@ const en: Strings = {
     insertCoupletAfter: 'Insert couplet below',
     tighterSpacing: 'Tighter couplet spacing',
     looserSpacing: 'Looser couplet spacing',
+    narrowerGutter: 'Narrower gutter',
+    widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
   },
   link: {
@@ -575,6 +579,8 @@ const ur: Strings = {
     insertCoupletAfter: 'نیچے شعر شامل کریں',
     tighterSpacing: 'شعروں کے درمیان کم جگہ',
     looserSpacing: 'شعروں کے درمیان زیادہ جگہ',
+    narrowerGutter: 'کالمز کے درمیان کم جگہ',
+    widerGutter: 'کالمز کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
   },
   link: {
@@ -789,6 +795,8 @@ const paShahmukhi: Strings = {
     insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
     tighterSpacing: 'شعراں وچکار گھٹ جگہ',
     looserSpacing: 'شعراں وچکار ودھ جگہ',
+    narrowerGutter: 'کالماں وچکار گھٹ جگہ',
+    widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
   },
   link: {

@@ -4,6 +4,7 @@ import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNo
 import {
   $createPoetryBlockNode,
   $isPoetryBlockNode,
+  POETRY_GUTTERS,
   POETRY_SPACINGS,
   type PoetryAlign,
   type PoetryBlockNode,
@@ -358,5 +359,16 @@ export function $adjustPoetrySpacing(step: 1 | -1): boolean {
   const index = POETRY_SPACINGS.indexOf(block.getSpacing());
   const next = POETRY_SPACINGS[Math.min(POETRY_SPACINGS.length - 1, Math.max(0, index + step))];
   block.setSpacing(next);
+  return true;
+}
+
+/** Steps the caret's two-column gutter one notch wider (+1) or narrower (-1);
+ * clamps at either end. */
+export function $adjustPoetryGutter(step: 1 | -1): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  const index = POETRY_GUTTERS.indexOf(block.getGutter());
+  const next = POETRY_GUTTERS[Math.min(POETRY_GUTTERS.length - 1, Math.max(0, index + step))];
+  block.setGutter(next);
   return true;
 }
