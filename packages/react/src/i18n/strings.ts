@@ -193,6 +193,7 @@ export interface Strings {
     noWritableStore: string;
     failed: string;
     close: string;
+    correctDocument: string;
   },
   link: {
     menuLabel: string;
@@ -450,6 +451,7 @@ const en: Strings = {
     noWritableStore: 'No store accepts new corrections',
     failed: 'Could not save the correction',
     close: 'Close',
+    correctDocument: 'Correct whole document',
   },
   link: {
     menuLabel: 'Link',
@@ -708,6 +710,7 @@ const ur: Strings = {
     noWritableStore: 'کوئی ذخیرہ نئی تصحیح قبول نہیں کرتا',
     failed: 'تصحیح محفوظ نہیں ہو سکی',
     close: 'بند کریں',
+    correctDocument: 'تمام متن کی تصحیح کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -966,6 +969,7 @@ const paShahmukhi: Strings = {
     noWritableStore: 'کوئی ذخیرہ نویں درستی نئیں منّدا',
     failed: 'درستی سانبھی نئیں جا سکی',
     close: 'بند کرو',
+    correctDocument: 'پورے متن دی درستی کرو',
   },
   link: {
     menuLabel: 'لنک',

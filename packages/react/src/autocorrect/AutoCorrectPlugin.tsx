@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $getSelection, $isRangeSelection } from 'lexical';
-import { $correctWordBeforeCaret } from './autoCorrectActions';
+import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical';
+import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
 import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
 import type { SpellLanguage } from '../spellcheck/spellDictionaries';
 
 /** Keys that end a word: a space or punctuation, in Latin and Arabic-script forms. */
+/** Corrects every word in the document, e.g. after pasting or loading content. */
+export const CORRECT_DOCUMENT_COMMAND: LexicalCommand<void> = createCommand('CORRECT_DOCUMENT_COMMAND');
+
 const BOUNDARY_KEYS = new Set([' ', '.', ',', ';', ':', '!', '?', '،', '؛', '؟', '۔']);
 const LANGUAGES: SpellLanguage[] = ['en', 'ur', 'pa-shahmukhi'];
 const RTL_LANGUAGES: SpellLanguage[] = ['ur', 'pa-shahmukhi'];
@@ -39,6 +42,23 @@ export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCo
       active = false;
     };
   }, [stores, version, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    return editor.registerCommand(
+      CORRECT_DOCUMENT_COMMAND,
+      () => {
+        editor.update(
+          () => {
+            $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current);
+          },
+          { discrete: true },
+        );
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR,
+    );
+  }, [editor, enabled]);
 
   useEffect(() => {
     if (!enabled) return;

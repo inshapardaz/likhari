@@ -37,6 +37,7 @@ import {
   ListNode,
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
+import { CORRECT_DOCUMENT_COMMAND } from '../autocorrect/AutoCorrectPlugin';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -139,6 +140,7 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconCheckupList,
   IconSearch,
   IconColumns1,
   IconColumns2,
@@ -1555,6 +1557,13 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
         {config.language.autocorrect && (
           <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
+        )}
+        {config.language.autocorrect && (
+          <ToolbarButton
+            icon={IconCheckupList}
+            title={strings.autoCorrect.correctDocument}
+            onClick={() => editor.dispatchCommand(CORRECT_DOCUMENT_COMMAND, undefined)}
+          />
         )}
         {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
         {config.language.spellCheck && (

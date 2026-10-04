@@ -1,5 +1,6 @@
 import { $getSelection, $isRangeSelection, $isTextNode } from 'lexical';
-import { $replaceMatch } from '../find/findReplaceActions';
+import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
+import { wordsIn } from '../spellcheck/spellDictionaries';
 
 /** The part of a word that counts as word characters at its end. */
 const WORD_END = /[\p{L}\p{M}'’]+$/u;
@@ -44,4 +45,30 @@ export function $correctWordBeforeCaret(table: Map<string, string>): boolean {
     after.focus.set(focusNode.getKey(), caret, 'text');
   }
   return true;
+}
+
+/**
+ * Corrects every whole word in the document, for text that never went through
+ * typing (pasted or loaded content). Words are found per paragraph or cell, so a
+ * word split by formatting is still one word. Each block uses the table for its
+ * direction. Returns how many words were corrected.
+ */
+export function $correctDocument(ltr: Map<string, string>, rtl: Map<string, string>): number {
+  let corrected = 0;
+  for (const group of $textGroups()) {
+    const table = group[0].getParentOrThrow().getDirection() === 'rtl' ? rtl : ltr;
+    const text = group.map((node) => node.getTextContent()).join('');
+    const spans = wordsIn(text).filter((span) => table.has(span.word) && table.get(span.word) !== span.word);
+    // Right to left, so earlier positions stay valid as each word is replaced.
+    for (const span of spans.reverse()) {
+      const start = $locate(group, span.start, false);
+      const end = $locate(group, span.end, true);
+      $replaceMatch(
+        { anchorKey: start.key, anchorOffset: start.offset, focusKey: end.key, focusOffset: end.offset },
+        table.get(span.word)!,
+      );
+      corrected += 1;
+    }
+  }
+  return corrected;
 }

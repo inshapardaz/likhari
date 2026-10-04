@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor } from 'lexical';
-import { $correctWordBeforeCaret } from './autoCorrectActions';
+import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
 import {
   apiAutoCorrectStore,
   appendAutoCorrection,
@@ -167,5 +167,35 @@ describe('$correctWordBeforeCaret', () => {
     );
     expect(corrected).toBe(false);
     expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('teh');
+  });
+});
+
+describe('$correctDocument', () => {
+  it('corrects every word, including one split across formatted text, and counts them', () => {
+    const editor = createEditor({
+      namespace: 'correct-document-test',
+      onError: (e) => {
+        throw e;
+      },
+    });
+    editor.update(
+      () => {
+        const first = $createParagraphNode();
+        const bold = $createTextNode('te');
+        bold.toggleFormat('bold');
+        first.append(bold, $createTextNode('h cat'));
+        $getRoot().clear().append(first, $createParagraphNode().append($createTextNode('teh end')));
+      },
+      { discrete: true },
+    );
+    let count = 0;
+    editor.update(
+      () => {
+        count = $correctDocument(new Map([['teh', 'the']]), new Map());
+      },
+      { discrete: true },
+    );
+    expect(count).toBe(2);
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('the cat\n\nthe end');
   });
 });
