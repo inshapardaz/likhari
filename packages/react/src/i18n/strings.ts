@@ -176,7 +176,6 @@ export interface Strings {
     language: string;
     check: string;
     close: string;
-    noDictionary: string;
     noMisspellings: string;
     previous: string;
     next: string;
@@ -434,7 +433,6 @@ const en: Strings = {
     language: 'Language',
     check: 'Check',
     close: 'Close',
-    noDictionary: 'No dictionary installed',
     noMisspellings: 'No misspellings found',
     previous: 'Previous',
     next: 'Next',
@@ -693,7 +691,6 @@ const ur: Strings = {
     language: 'زبان',
     check: 'جانچیں',
     close: 'بند کریں',
-    noDictionary: 'کوئی لغت نصب نہیں',
     noMisspellings: 'کوئی غلط ہجے نہیں ملے',
     previous: 'پچھلا',
     next: 'اگلا',
@@ -952,7 +949,6 @@ const paShahmukhi: Strings = {
     language: 'بولی',
     check: 'جانچو',
     close: 'بند کرو',
-    noDictionary: 'کوئی شبدکوش نئیں لگی',
     noMisspellings: 'کوئی غلط ہجے نئیں لبھے',
     previous: 'پچھلا',
     next: 'اگلا',
