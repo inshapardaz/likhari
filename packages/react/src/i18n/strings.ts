@@ -209,6 +209,11 @@ export interface Strings {
   autoComplete: {
     label: string;
   },
+  thesaurus: {
+    synonyms: string;
+    loading: string;
+    none: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -480,6 +485,11 @@ const en: Strings = {
   },
   autoComplete: {
     label: 'Suggestions',
+  },
+  thesaurus: {
+    synonyms: 'Synonyms',
+    loading: 'Loading synonyms…',
+    none: 'No synonyms',
   },
   link: {
     menuLabel: 'Link',
@@ -754,6 +764,11 @@ const ur: Strings = {
   autoComplete: {
     label: 'تجاویز',
   },
+  thesaurus: {
+    synonyms: 'مترادفات',
+    loading: 'مترادفات لوڈ ہو رہے ہیں…',
+    none: 'کوئی مترادف نہیں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -1026,6 +1041,11 @@ const paShahmukhi: Strings = {
   },
   autoComplete: {
     label: 'تجویزاں',
+  },
+  thesaurus: {
+    synonyms: 'ہم معنی لفظ',
+    loading: 'ہم معنی لبھ رہے نیں…',
+    none: 'کوئی ہم معنی نئیں',
   },
   link: {
     menuLabel: 'لنک',
