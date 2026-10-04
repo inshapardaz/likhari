@@ -40,7 +40,8 @@ import {
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { CORRECT_DOCUMENT_COMMAND } from '../autocorrect/AutoCorrectPlugin';
 import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
-import { getSpeller } from '../spellcheck/spellDictionaries';
+import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
+import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
 import { $wordAtDomPoint, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
@@ -443,7 +444,7 @@ interface EditorContextMenu {
   link?: string;
   table?: { rows: number; columns: number };
   poetry?: boolean;
-  spelling?: { suggestions: string[]; match: FindMatch };
+  spelling?: { word: string; language: SpellLanguage; suggestions: string[]; match: FindMatch };
 }
 
 function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings }) {
@@ -638,6 +639,8 @@ function PoetryMenuItems({
 
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
+  /** Where words added to the dictionary are saved. */
+  dictionaryStores?: UserWordStore[];
   /** Whether the find-and-replace widget is open, and how to toggle it (owned by EditorRoot). */
   findOpen?: boolean;
   onToggleFind?: () => void;
@@ -660,7 +663,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, dictionaryStores = [], onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1041,11 +1044,12 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
       );
 
       if (word) {
-        const speller = getSpeller(word.direction === 'rtl' ? 'ur' : 'en');
+        const language: SpellLanguage = word.direction === 'rtl' ? 'ur' : 'en';
+        const speller = getSpeller(language);
         if (speller) {
           const checked = await speller;
           if (!checked.correct(word.word)) {
-            menu.spelling = { suggestions: checked.suggest(word.word).slice(0, 5), match: word.match };
+            menu.spelling = { word: word.word, language, suggestions: checked.suggest(word.word).slice(0, 5), match: word.match };
           }
         }
       }
@@ -1677,6 +1681,26 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
                   {suggestion}
                 </Menu.Item>
               ))}
+              <Menu.Item
+                onClick={() => {
+                  ignoreWord(contextMenu.spelling!.language, contextMenu.spelling!.word);
+                  setContextMenu(null);
+                }}
+              >
+                {strings.contextMenu.ignore}
+              </Menu.Item>
+              <Menu.Item
+                onClick={() => {
+                  const { language, word } = contextMenu.spelling!;
+                  // Without a writable store, the word is ignored for this session instead.
+                  void addUserWord(dictionaryStores, language, word).then((added) => {
+                    if (!added) ignoreWord(language, word);
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                {strings.contextMenu.addToDictionary}
+              </Menu.Item>
               <Menu.Divider />
             </>
           )}
