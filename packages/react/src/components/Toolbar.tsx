@@ -641,6 +641,8 @@ export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
   /** Where words added to the dictionary are saved. */
   dictionaryStores?: UserWordStore[];
+  /** Opens the auto-correct panel with the word filled in. */
+  onAddAutoCorrect?: (word: string, language: SpellLanguage) => void;
   /** Whether the find-and-replace widget is open, and how to toggle it (owned by EditorRoot). */
   findOpen?: boolean;
   onToggleFind?: () => void;
@@ -663,7 +665,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, dictionaryStores = [], onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1701,6 +1703,16 @@ export function Toolbar({ config, dictionaryStores = [], onSave, isDirty, showSa
               >
                 {strings.contextMenu.addToDictionary}
               </Menu.Item>
+              {onAddAutoCorrect && config.language.autocorrect && (
+                <Menu.Item
+                  onClick={() => {
+                    onAddAutoCorrect(contextMenu.spelling!.word, contextMenu.spelling!.language);
+                    setContextMenu(null);
+                  }}
+                >
+                  {strings.contextMenu.addToAutoCorrect}
+                </Menu.Item>
+              )}
               <Menu.Divider />
             </>
           )}

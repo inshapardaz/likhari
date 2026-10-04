@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor } from 'lexical';
-import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
+import { $correctDocument, $correctWordBeforeCaret, $correctWordEndingAtCaret } from './autoCorrectActions';
 import { normalizeUrdu } from '../normalization/urduNormalize';
 import {
   apiAutoCorrectStore,
@@ -223,5 +223,25 @@ describe('auto-correct with Urdu normalisation', () => {
       { discrete: true },
     );
     expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('گیا ');
+  });
+});
+
+describe('$correctWordEndingAtCaret', () => {
+  it('corrects the word at the end of a line, with no boundary typed after it', () => {
+    const editor = createEditor({
+      namespace: 'end-of-line-test',
+      onError: (e) => {
+        throw e;
+      },
+    });
+    editor.update(() => $getRoot().clear().append($createParagraphNode().append($createTextNode('teh'))), { discrete: true });
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(3, 3);
+        expect($correctWordEndingAtCaret(new Map([['teh', 'the']]))).toBe(true);
+      },
+      { discrete: true },
+    );
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('the');
   });
 });

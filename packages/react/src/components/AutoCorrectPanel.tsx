@@ -19,18 +19,23 @@ export function AutoCorrectPanel({
   strings,
   dir,
   stores,
+  initialFrom = '',
+  initialLanguage = 'en',
   onSaved,
   onClose,
 }: {
   strings: Strings;
   dir: 'ltr' | 'rtl';
   stores: AutoCorrectStore[];
+  /** The typed word to start with, e.g. a misspelled word the user chose to correct. */
+  initialFrom?: string;
+  initialLanguage?: SpellLanguage;
   onSaved: () => void;
   onClose: () => void;
 }) {
   const t = strings.autoCorrect;
-  const [language, setLanguage] = useState<SpellLanguage>('en');
-  const [from, setFrom] = useState('');
+  const [language, setLanguage] = useState<SpellLanguage>(initialLanguage);
+  const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState('');
   const [status, setStatus] = useState<'idle' | 'saved' | 'nowhere' | 'failed'>('idle');
 

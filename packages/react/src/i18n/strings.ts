@@ -202,6 +202,7 @@ export interface Strings {
     selectAll: string;
     ignore: string;
     addToDictionary: string;
+    addToAutoCorrect: string;
     spelling: string;
     noSuggestions: string;
   },
@@ -470,6 +471,7 @@ const en: Strings = {
     selectAll: 'Select all',
     ignore: 'Ignore',
     addToDictionary: 'Add to dictionary',
+    addToAutoCorrect: 'Add to auto-correct',
     spelling: 'Spelling suggestions',
     noSuggestions: 'No suggestions',
   },
@@ -739,6 +741,7 @@ const ur: Strings = {
     selectAll: 'سب منتخب کریں',
     ignore: 'نظرانداز کریں',
     addToDictionary: 'لغت میں شامل کریں',
+    addToAutoCorrect: 'خودکار تصحیح میں شامل کریں',
     spelling: 'ہجے کی تجاویز',
     noSuggestions: 'کوئی تجویز نہیں',
   },
@@ -1008,6 +1011,7 @@ const paShahmukhi: Strings = {
     selectAll: 'سارا چنو',
     ignore: 'نظر انداز کرو',
     addToDictionary: 'شبدکوش وچ پاؤ',
+    addToAutoCorrect: 'خودکار درستی وچ پاؤ',
     spelling: 'ہجے دیاں تجویزاں',
     noSuggestions: 'کوئی تجویز نئیں',
   },
