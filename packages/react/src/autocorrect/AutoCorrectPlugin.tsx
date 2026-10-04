@@ -8,6 +8,7 @@ import type { SpellLanguage } from '../spellcheck/spellDictionaries';
 /** Keys that end a word: a space or punctuation, in Latin and Arabic-script forms. */
 const BOUNDARY_KEYS = new Set([' ', '.', ',', ';', ':', '!', '?', '،', '؛', '؟', '۔']);
 const LANGUAGES: SpellLanguage[] = ['en', 'ur', 'pa-shahmukhi'];
+const RTL_LANGUAGES: SpellLanguage[] = ['ur', 'pa-shahmukhi'];
 
 /**
  * Corrects typed words as the user finishes them, the way the reference editor
@@ -19,6 +20,7 @@ const LANGUAGES: SpellLanguage[] = ['en', 'ur', 'pa-shahmukhi'];
 export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCorrectStore[]; version: number; enabled: boolean }) {
   const [editor] = useLexicalComposerContext();
   const tables = useRef(new Map<SpellLanguage, Map<string, string>>());
+  const rtlTable = useRef(new Map<string, string>());
 
   useEffect(() => {
     if (!enabled) return;
@@ -26,6 +28,12 @@ export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCo
     Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrections(stores, language)] as const)).then((loaded) => {
       if (!active) return;
       tables.current = new Map(loaded);
+      // Urdu and Shahmukhi share right-to-left blocks, so both apply there; Urdu wins a clash.
+      const combined = new Map<string, string>();
+      for (const language of RTL_LANGUAGES) {
+        for (const [from, to] of tables.current.get(language) ?? []) if (!combined.has(from)) combined.set(from, to);
+      }
+      rtlTable.current = combined;
     });
     return () => {
       active = false;
@@ -35,10 +43,7 @@ export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCo
   useEffect(() => {
     if (!enabled) return;
 
-    const tableFor = (rtl: boolean): Map<string, string> | undefined => {
-      const language: SpellLanguage = rtl ? 'ur' : 'en';
-      return tables.current.get(language);
-    };
+    const tableFor = (rtl: boolean): Map<string, string> | undefined => (rtl ? rtlTable.current : tables.current.get('en'));
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.isComposing || !BOUNDARY_KEYS.has(event.key)) return;
