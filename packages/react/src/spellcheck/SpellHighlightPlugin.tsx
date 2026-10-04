@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $collectMisspellings, type Checkers } from './spellcheckActions';
 import { getSpeller } from './spellDictionaries';
+import { onSpellWordsChange } from './userWords';
 
 /** The CSS Custom Highlight name; editor.css styles it as a red wavy underline. */
 const HIGHLIGHT = 'likhari-spelling';
@@ -46,6 +47,7 @@ export function SpellHighlightPlugin() {
     };
 
     const unregister = editor.registerUpdateListener(schedule);
+    const unsubscribe = onSpellWordsChange(schedule);
 
     Promise.all([getSpeller('en'), getSpeller('ur')]).then(async ([en, ur]) => {
       checkers = { ltr: en ? await en : undefined, rtl: ur ? await ur : undefined };
@@ -56,6 +58,7 @@ export function SpellHighlightPlugin() {
       active = false;
       clearTimeout(timer);
       unregister();
+      unsubscribe();
       CSS.highlights.delete(HIGHLIGHT);
     };
   }, [editor]);

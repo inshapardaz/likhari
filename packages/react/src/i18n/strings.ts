@@ -200,6 +200,8 @@ export interface Strings {
     copy: string;
     paste: string;
     selectAll: string;
+    ignore: string;
+    addToDictionary: string;
     spelling: string;
     noSuggestions: string;
   },
@@ -466,6 +468,8 @@ const en: Strings = {
     copy: 'Copy',
     paste: 'Paste',
     selectAll: 'Select all',
+    ignore: 'Ignore',
+    addToDictionary: 'Add to dictionary',
     spelling: 'Spelling suggestions',
     noSuggestions: 'No suggestions',
   },
@@ -733,6 +737,8 @@ const ur: Strings = {
     copy: 'کاپی کریں',
     paste: 'چسپاں کریں',
     selectAll: 'سب منتخب کریں',
+    ignore: 'نظرانداز کریں',
+    addToDictionary: 'لغت میں شامل کریں',
     spelling: 'ہجے کی تجاویز',
     noSuggestions: 'کوئی تجویز نہیں',
   },
@@ -1000,6 +1006,8 @@ const paShahmukhi: Strings = {
     copy: 'کاپی کرو',
     paste: 'چسپاں کرو',
     selectAll: 'سارا چنو',
+    ignore: 'نظر انداز کرو',
+    addToDictionary: 'شبدکوش وچ پاؤ',
     spelling: 'ہجے دیاں تجویزاں',
     noSuggestions: 'کوئی تجویز نئیں',
   },

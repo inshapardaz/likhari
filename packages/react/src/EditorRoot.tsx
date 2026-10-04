@@ -35,6 +35,7 @@ import type { UrduNormalizationOptions } from './normalization/urduNormalize';
 import type { PunctuationOptions } from './autocorrect/punctuationRules';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
+import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
   clearDraft,
@@ -62,6 +63,8 @@ export interface EditorInitialContent {
 
 /** Used when the host passes no stores: corrections are kept in this browser. */
 const DEFAULT_AUTOCORRECT_STORES: AutoCorrectStore[] = [localStorageAutoCorrectStore()];
+/** Used when the host passes no dictionary stores: added words are kept in this browser. */
+const DEFAULT_DICTIONARY_STORES: UserWordStore[] = [localStorageUserWordStore()];
 
 type OpenPanel = 'find' | 'spell' | 'autocorrect' | null;
 
@@ -69,6 +72,8 @@ export interface EditorRootProps {
   documentId?: string;
   /** Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. */
   autoCorrectStores?: AutoCorrectStore[];
+  /** Where words added to the spelling dictionary are saved, in priority order. Pass a stable array. */
+  dictionaryStores?: UserWordStore[];
   /** Urdu normalisation applied as part of auto-correct. Diacritics are kept unless `removeDiacritics` is set. */
   urduNormalization?: UrduNormalizationOptions;
   /** Common punctuation fixes, and whether a straight " becomes ”. Both on by default. */
@@ -207,6 +212,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   {
     documentId,
     autoCorrectStores,
+    dictionaryStores,
     urduNormalization,
     punctuation,
     initialContent,
@@ -267,6 +273,10 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
   const [autoCorrectVersion, setAutoCorrectVersion] = useState(0);
   const stores = autoCorrectStores ?? DEFAULT_AUTOCORRECT_STORES;
+  const wordStores = dictionaryStores ?? DEFAULT_DICTIONARY_STORES;
+  useEffect(() => {
+    void loadUserWords(wordStores);
+  }, [wordStores]);
   const togglePanel = (panel: Exclude<OpenPanel, null>) => setOpenPanel((current) => (current === panel ? null : panel));
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
@@ -509,6 +519,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         <LexicalComposer initialConfig={initialConfig}>
           <Toolbar
             config={config}
+            dictionaryStores={wordStores}
             onSave={handleSave}
             findOpen={openPanel === 'find'}
             onToggleFind={() => togglePanel('find')}
@@ -539,7 +550,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <div className="likhari-canvas-frame">
             {config.findReplace && openPanel === 'find' && <FindReplaceBar strings={strings} dir={dir} onClose={() => setOpenPanel(null)} />}
             {config.language.spellCheck && openPanel === 'spell' && (
-              <SpellcheckPanel strings={strings} dir={dir} onClose={() => setOpenPanel(null)} />
+              <SpellcheckPanel strings={strings} dir={dir} dictionaryStores={wordStores} onClose={() => setOpenPanel(null)} />
             )}
             {config.language.autocorrect && openPanel === 'autocorrect' && (
               <AutoCorrectPanel

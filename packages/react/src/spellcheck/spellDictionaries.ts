@@ -1,4 +1,5 @@
 import nspell from 'nspell';
+import { isAcceptedWord } from './userWords';
 
 /** Languages the spellchecker has a dictionary slot for. */
 export type SpellLanguage = 'en' | 'ur' | 'pa-shahmukhi';
@@ -61,7 +62,13 @@ export function getSpeller(language: SpellLanguage): Promise<Speller> | null {
   if (!loader) return null;
   let speller = spellers.get(language);
   if (!speller) {
-    speller = loader().then(({ aff, dic }) => nspell(aff, dic));
+    speller = loader()
+      .then(({ aff, dic }) => nspell(aff, dic))
+      .then((base) => ({
+        // Words the user added or ignored count as correct, whatever the dictionary says.
+        correct: (word: string) => isAcceptedWord(language, word) || base.correct(word),
+        suggest: (word: string) => base.suggest(word),
+      }));
     spellers.set(language, speller);
   }
   return speller;

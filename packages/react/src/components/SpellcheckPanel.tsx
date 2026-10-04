@@ -5,6 +5,7 @@ import type { Strings } from '../i18n/strings';
 import { $replaceMatch, $selectMatch, type FindMatch } from '../find/findReplaceActions';
 import { $collectMisspellings } from '../spellcheck/spellcheckActions';
 import { getSpeller, hasSpellDictionary, type SpellLanguage } from '../spellcheck/spellDictionaries';
+import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
 
 const LANGUAGES: { value: SpellLanguage; label: string }[] = [
   { value: 'en', label: 'English' },
@@ -26,7 +27,17 @@ const SUGGESTIONS_PER_WORD = 3;
  * can replace it. Checking reads the document on demand, so it never flags
  * words while the user is still typing.
  */
-export function SpellcheckPanel({ strings, dir, onClose }: { strings: Strings; dir: 'ltr' | 'rtl'; onClose: () => void }) {
+export function SpellcheckPanel({
+  strings,
+  dir,
+  dictionaryStores,
+  onClose,
+}: {
+  strings: Strings;
+  dir: 'ltr' | 'rtl';
+  dictionaryStores: UserWordStore[];
+  onClose: () => void;
+}) {
   const [editor] = useLexicalComposerContext();
   const t = strings.spellcheck;
   const [language, setLanguage] = useState<SpellLanguage>('en');
@@ -147,6 +158,30 @@ export function SpellcheckPanel({ strings, dir, onClose }: { strings: Strings; d
       {current && (
         <div className="likhari-spell-item">
           <span className="likhari-spell-word">{current.word}</span>
+          <div className="likhari-spell-suggestions">
+            <button
+              type="button"
+              className="likhari-spell-suggestion"
+              onClick={() => {
+                ignoreWord(language, current.word);
+                void check();
+              }}
+            >
+              {strings.contextMenu.ignore}
+            </button>
+            <button
+              type="button"
+              className="likhari-spell-suggestion"
+              onClick={() => {
+                void addUserWord(dictionaryStores, language, current.word).then((added) => {
+                  if (!added) ignoreWord(language, current.word);
+                  void check();
+                });
+              }}
+            >
+              {strings.contextMenu.addToDictionary}
+            </button>
+          </div>
           {current.suggestions.length === 0 ? (
             <span className="likhari-spell-note">{t.noSuggestions}</span>
           ) : (
