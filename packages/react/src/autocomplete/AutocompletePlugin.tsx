@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -33,8 +33,11 @@ interface Popup {
   index: number;
   /** Whether the user has moved into the list. Enter only accepts after that, so it still starts a new line. */
   selected: boolean;
-  x: number;
-  y: number;
+  /** The caret's left, right and vertical edges in the viewport. */
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
   dir: 'ltr' | 'rtl';
 }
 
@@ -132,7 +135,7 @@ export function AutocompletePlugin({
         const items = loaded.complete(prefix);
         if (items.length === 0) return hide();
         const rect = caretRect(editor);
-        show({ prefix, language, items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
+        show({ prefix, language, items, index: 0, selected: false, ...rect, dir: rtl ? 'rtl' : 'ltr' });
       });
     };
 
@@ -165,6 +168,11 @@ export function AutocompletePlugin({
       if (!typing.current) hide();
       setTimeout(refresh, 0);
     };
+    // Text that arrives without a keydown (input methods, some keyboard layouts) is typing too.
+    const onInput = () => {
+      typing.current = true;
+      setTimeout(refresh, 0);
+    };
     const onMouseDown = () => {
       typing.current = false;
       hide();
@@ -174,9 +182,11 @@ export function AutocompletePlugin({
     const attach = (next: HTMLElement | null) => {
       root?.removeEventListener('keydown', onKeyDown);
       root?.removeEventListener('mousedown', onMouseDown);
+      root?.removeEventListener('input', onInput);
       root = next;
       root?.addEventListener('keydown', onKeyDown);
       root?.addEventListener('mousedown', onMouseDown);
+      root?.addEventListener('input', onInput);
     };
     const unregisterRoot = editor.registerRootListener((next) => attach(next));
     const unregisterUpdate = editor.registerUpdateListener(() => {
@@ -241,14 +251,33 @@ export function AutocompletePlugin({
   }, [stores]);
 
   if (!popup) return null;
+  return <SuggestionList popup={popup} label={label} onPick={(item) => {
+    acceptItem(editor, item);
+    recordAcceptance(popup.language, item);
+    show(null);
+  }} />;
+}
+
+function SuggestionList({ popup, label, onPick }: { popup: Popup; label: string; onPick: (item: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Placed after it is drawn, so its real size is known: kept inside the window, on the side of the
+  // caret that has room, and right-to-left lists align their right edge with the caret.
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const margin = 8;
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    const preferredLeft = popup.dir === 'rtl' ? popup.right - width : popup.left;
+    const left = Math.min(Math.max(preferredLeft, margin), window.innerWidth - width - margin);
+    const below = popup.bottom + 4;
+    const fitsBelow = below + height <= window.innerHeight - margin;
+    const top = fitsBelow ? below : Math.max(popup.top - height - 4, margin);
+    element.style.left = `${Math.max(left, margin)}px`;
+    element.style.top = `${top}px`;
+  });
   return (
-    <div
-      className="likhari-autocomplete"
-      role="listbox"
-      aria-label={label}
-      dir={popup.dir}
-      style={{ position: 'fixed', left: popup.x, top: popup.y + 4 }}
-    >
+    <div ref={ref} className="likhari-autocomplete" role="listbox" aria-label={label} dir={popup.dir} style={{ position: 'fixed' }}>
       {popup.items.map((item, i) => (
         <div
           key={item}
@@ -257,9 +286,7 @@ export function AutocompletePlugin({
           className={i === popup.index ? 'likhari-autocomplete-item likhari-autocomplete-item--active' : 'likhari-autocomplete-item'}
           onMouseDown={(event) => {
             event.preventDefault();
-            acceptItem(editor, item);
-            recordAcceptance(popup.language, item);
-            show(null);
+            onPick(item);
           }}
         >
           {item}
@@ -287,14 +314,16 @@ function prefixAtCaret(editor: LexicalEditor): string | null {
 }
 
 /** Where to put the popup: under the caret, or the editor's top-left if the caret has no position yet. */
-function caretRect(editor: LexicalEditor): { left: number; bottom: number } {
+function caretRect(editor: LexicalEditor): { left: number; right: number; top: number; bottom: number } {
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     const rect = selection.getRangeAt(0).getBoundingClientRect();
-    if (rect.width > 0 || rect.height > 0) return { left: rect.left, bottom: rect.bottom };
+    if (rect.width > 0 || rect.height > 0) return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
   }
   const root = editor.getRootElement()?.getBoundingClientRect();
-  return { left: root?.left ?? 0, bottom: root?.top ?? 0 };
+  const left = root?.left ?? 0;
+  const top = root?.top ?? 0;
+  return { left, right: left, top, bottom: top };
 }
 
 function acceptItem(editor: LexicalEditor, item: string): void {
