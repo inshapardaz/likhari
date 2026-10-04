@@ -207,3 +207,34 @@ export function $spacePunctuationDocument(): number {
   }
   return changed;
 }
+
+/**
+ * Corrects the word that ends at the caret when nothing follows it, which is the
+ * end of a line: the caret is about to leave the line (Enter). The caret ends
+ * after the replacement.
+ */
+export function $correctWordEndingAtCaret(table: Map<string, string>, normalize?: (word: string) => string): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const anchor = selection.anchor;
+  const node = anchor.getNode();
+  if (!$isTextNode(node)) return false;
+
+  const before = node.getTextContent().slice(0, anchor.offset);
+  const word = WORD_END.exec(before)?.[0];
+  if (!word) return false;
+  const replacement = correctionFor(word, table, normalize);
+  if (replacement === undefined || replacement === word) return false;
+
+  const start = before.length - word.length;
+  $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, replacement);
+  const after = $getSelection();
+  if ($isRangeSelection(after)) {
+    const caret = start + replacement.length;
+    after.anchor.set(node.getKey(), caret, 'text');
+    after.focus.set(node.getKey(), caret, 'text');
+  }
+  return true;
+}
+

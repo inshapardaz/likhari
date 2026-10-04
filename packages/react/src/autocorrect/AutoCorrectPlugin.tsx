@@ -1,11 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical';
+import {
+  $getSelection,
+  $isRangeSelection,
+  COMMAND_PRIORITY_EDITOR,
+  COMMAND_PRIORITY_HIGH,
+  KEY_ENTER_COMMAND,
+  createCommand,
+  type LexicalCommand,
+} from 'lexical';
 import {
   $correctDocument,
   $correctPunctuationBeforeCaret,
   $correctPunctuationDocument,
   $correctWordBeforeCaret,
+  $correctWordEndingAtCaret,
   $preservingSelection,
   $spacePunctuationDocument,
 } from './autoCorrectActions';
@@ -133,8 +142,22 @@ export function AutoCorrectPlugin({
       root?.addEventListener('keydown', onKeyDown);
     };
     const unregister = editor.registerRootListener((next) => attach(next));
+    // Enter ends a line, so the word before the caret is corrected before the line breaks.
+    const unregisterEnter = editor.registerCommand(
+      KEY_ENTER_COMMAND,
+      () => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return false;
+        const rtl = selection.anchor.getNode().getTopLevelElement()?.getDirection() === 'rtl';
+        const table = tableFor(rtl);
+        if (table) $correctWordEndingAtCaret(table, rtl ? normalizeRtl : undefined);
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH,
+    );
     return () => {
       unregister();
+      unregisterEnter();
       attach(null);
     };
   }, [editor, enabled, typing]);
