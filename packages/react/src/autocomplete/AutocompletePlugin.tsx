@@ -12,19 +12,23 @@ import {
   type LexicalEditor,
 } from 'lexical';
 import { $replaceMatch } from '../find/findReplaceActions';
-import { getDictionaryWords, type SpellLanguage } from '../spellcheck/spellDictionaries';
-import { acceptedWords, onSpellWordsChange } from '../spellcheck/userWords';
+import type { SpellLanguage } from '../spellcheck/spellDictionaries';
+import { onSpellWordsChange } from '../spellcheck/userWords';
 import { WordIndex } from './wordIndex';
+import type { CompletionStore } from './completionStores';
 
 /** The letters at the end of the text before the caret. */
 const WORD_END = /[\p{L}\p{M}]+$/u;
 const LETTER = /[\p{L}\p{M}]/u;
+const MOVEMENT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
 /** Suggestions only appear once the typed part of a word is this long. */
 const MIN_PREFIX = 2;
 
 interface Popup {
   items: string[];
   index: number;
+  /** Whether the user has moved into the list. Enter only accepts after that, so it still starts a new line. */
+  selected: boolean;
   x: number;
   y: number;
   dir: 'ltr' | 'rtl';
@@ -37,8 +41,22 @@ interface Popup {
  * moving the caret) dismisses it. Left-to-right text uses the English dictionary,
  * right-to-left text the Urdu one.
  */
-export function AutocompletePlugin({ label }: { label: string }) {
+export function AutocompletePlugin({
+  label,
+  stores,
+  language: chosenLanguage,
+}: {
+  label: string;
+  stores: CompletionStore[];
+  /** The language to complete in, or 'auto' to follow the block's direction. */
+  language: SpellLanguage | 'auto';
+}) {
   const [editor] = useLexicalComposerContext();
+  // Effects run once per editor, so they read the latest props through refs.
+  const storesRef = useRef(stores);
+  storesRef.current = stores;
+  const languageRef = useRef(chosenLanguage);
+  languageRef.current = chosenLanguage;
   const [popup, setPopup] = useState<Popup | null>(null);
   const popupRef = useRef<Popup | null>(null);
   const typing = useRef(false);
@@ -50,12 +68,12 @@ export function AutocompletePlugin({ label }: { label: string }) {
   };
 
   useEffect(() => {
-    const indexFor = (language: SpellLanguage): Promise<WordIndex> | null => {
+    const indexFor = (language: SpellLanguage): Promise<WordIndex> => {
       let index = indexes.current.get(language);
       if (!index) {
-        const words = getDictionaryWords(language);
-        if (!words) return null;
-        index = words.then((dictionary) => new WordIndex([...dictionary, ...acceptedWords(language)]));
+        index = Promise.all(storesRef.current.map((store) => store.load(language).catch(() => [] as string[]))).then(
+          (lists) => new WordIndex(lists.flat()),
+        );
         indexes.current.set(language, index);
       }
       return index;
@@ -65,7 +83,7 @@ export function AutocompletePlugin({ label }: { label: string }) {
 
     const refresh = () => {
       if (!typing.current) return hide();
-      let target = null as { prefix: string; language: SpellLanguage; dir: 'ltr' | 'rtl' } | null;
+      let target = null as { prefix: string; rtl: boolean } | null;
       editor.getEditorState().read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection) || !selection.isCollapsed()) return;
@@ -76,18 +94,16 @@ export function AutocompletePlugin({ label }: { label: string }) {
         const prefix = WORD_END.exec(before)?.[0];
         const after = text.charAt(selection.anchor.offset);
         if (!prefix || prefix.length < MIN_PREFIX || (after !== '' && LETTER.test(after))) return;
-        const rtl = node.getParentOrThrow().getDirection() === 'rtl';
-        target = { prefix, language: rtl ? 'ur' : 'en', dir: rtl ? 'rtl' : 'ltr' };
+        target = { prefix, rtl: node.getParentOrThrow().getDirection() === 'rtl' };
       });
       if (target === null) return hide();
-      const { prefix, language, dir } = target;
-      const index = indexFor(language);
-      if (!index) return hide();
-      void index.then((loaded) => {
+      const { prefix, rtl } = target;
+      const language: SpellLanguage = languageRef.current === 'auto' ? (rtl ? 'ur' : 'en') : languageRef.current;
+      void indexFor(language).then((loaded) => {
         const items = loaded.complete(prefix);
         if (items.length === 0) return hide();
         const rect = caretRect(editor);
-        show({ items, index: 0, x: rect.left, y: rect.bottom, dir });
+        show({ items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
       });
     };
 
@@ -95,17 +111,26 @@ export function AutocompletePlugin({ label }: { label: string }) {
       const current = popupRef.current;
       if (!current) return false;
       const count = current.items.length;
-      show({ ...current, index: (current.index + delta + count) % count });
+      show({ ...current, index: (current.index + delta + count) % count, selected: true });
       return true;
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      // Up, Down, Tab and Enter act on the list through their editor commands, which
+      // run after this listener, so the list must stay open for them.
+      const current = popupRef.current;
+      if (current && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Tab' || (event.key === 'Enter' && current.selected))) return;
       if (event.key === 'Escape' && popupRef.current) {
         event.preventDefault();
         show(null);
         return;
       }
-      // Printable keys and Backspace are typing; any other key (arrows, Home, ...) moves the caret.
+      // Left, Right, Home and End move the caret away from the word, so the list closes.
+      if (MOVEMENT_KEYS.has(event.key)) {
+        typing.current = false;
+        return hide();
+      }
+      // Printable keys and Backspace are typing; anything else (Enter, Tab, ...) ends the word.
       typing.current = (event.key.length === 1 && !event.ctrlKey && !event.metaKey) || event.key === 'Backspace';
       if (!typing.current) hide();
       setTimeout(refresh, 0);
@@ -144,7 +169,7 @@ export function AutocompletePlugin({ label }: { label: string }) {
       ),
       editor.registerCommand(
         KEY_ENTER_COMMAND,
-        (event: KeyboardEvent | null) => acceptHighlighted(event),
+        (event: KeyboardEvent | null) => (popupRef.current?.selected ? acceptHighlighted(event) : false),
         COMMAND_PRIORITY_HIGH,
       ),
     ];
@@ -167,6 +192,11 @@ export function AutocompletePlugin({ label }: { label: string }) {
       show(null);
     };
   }, [editor]);
+
+  // The index is per store set and language; a change of stores starts again.
+  useEffect(() => {
+    indexes.current.clear();
+  }, [stores]);
 
   if (!popup) return null;
   return (

@@ -36,6 +36,7 @@ import type { PunctuationOptions } from './autocorrect/punctuationRules';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { AutocompletePlugin } from './autocomplete/AutocompletePlugin';
+import { dictionaryCompletionStore, type CompletionStore } from './autocomplete/completionStores';
 import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
 import type { SpellLanguage } from './spellcheck/spellDictionaries';
 import { LeaveDialog } from './components/LeaveDialog';
@@ -65,6 +66,8 @@ export interface EditorInitialContent {
 
 /** Used when the host passes no stores: corrections are kept in this browser. */
 const DEFAULT_AUTOCORRECT_STORES: AutoCorrectStore[] = [localStorageAutoCorrectStore()];
+/** Used when the host passes no completion stores: the dictionary's words and the user's added words. */
+const DEFAULT_COMPLETION_STORES: CompletionStore[] = [dictionaryCompletionStore()];
 /** Used when the host passes no dictionary stores: added words are kept in this browser. */
 const DEFAULT_DICTIONARY_STORES: UserWordStore[] = [localStorageUserWordStore()];
 
@@ -76,6 +79,10 @@ export interface EditorRootProps {
   autoCorrectStores?: AutoCorrectStore[];
   /** Where words added to the spelling dictionary are saved, in priority order. Pass a stable array. */
   dictionaryStores?: UserWordStore[];
+  /** Where autocomplete words come from, combined per language. Defaults to the dictionaries and the user's words. Pass a stable array. */
+  completionStores?: CompletionStore[];
+  /** The language autocomplete works in: 'auto' follows each block's direction (English for LTR, Urdu for RTL). */
+  autoCompleteLanguage?: SpellLanguage | 'auto';
   /** Urdu normalisation applied as part of auto-correct. Diacritics are kept unless `removeDiacritics` is set. */
   urduNormalization?: UrduNormalizationOptions;
   /** Common punctuation fixes, and whether a straight " becomes ”. Both on by default. */
@@ -215,6 +222,8 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     documentId,
     autoCorrectStores,
     dictionaryStores,
+    completionStores,
+    autoCompleteLanguage = 'auto',
     urduNormalization,
     punctuation,
     initialContent,
@@ -281,6 +290,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const [autoCorrectVersion, setAutoCorrectVersion] = useState(0);
   const stores = autoCorrectStores ?? DEFAULT_AUTOCORRECT_STORES;
   const wordStores = dictionaryStores ?? DEFAULT_DICTIONARY_STORES;
+  const resolvedCompletionStores = completionStores ?? DEFAULT_COMPLETION_STORES;
   useEffect(() => {
     void loadUserWords(wordStores);
   }, [wordStores]);
@@ -595,7 +605,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin />}
-          {config.language.autocomplete && <AutocompletePlugin label={strings.autoComplete.label} />}
+          {config.language.autocomplete && (
+            <AutocompletePlugin label={strings.autoComplete.label} stores={resolvedCompletionStores} language={autoCompleteLanguage} />
+          )}
           {(config.language.autocorrect || config.language.textCleanup) && <AutoCorrectPlugin
               stores={stores}
               version={autoCorrectVersion}
