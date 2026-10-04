@@ -1,4 +1,4 @@
-import { $getSelection, $isRangeSelection, $isTextNode } from 'lexical';
+import { $getRoot, $getSelection, $isRangeSelection, $isTextNode } from 'lexical';
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
 
@@ -12,7 +12,7 @@ const WORD_CHAR = /[\p{L}\p{M}'’]/u;
  * correction replaces only the word, and the caret stays right after the
  * boundary. Returns true if a correction was made.
  */
-export function $correctWordBeforeCaret(table: Map<string, string>): boolean {
+export function $correctWordBeforeCaret(table: Map<string, string>, normalize?: (word: string) => string): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
 
@@ -27,7 +27,7 @@ export function $correctWordBeforeCaret(table: Map<string, string>): boolean {
   const body = before.slice(0, -1);
   const word = WORD_END.exec(body)?.[0];
   if (!word) return false;
-  const replacement = table.get(word);
+  const replacement = correctionFor(word, table, normalize);
   if (replacement === undefined || replacement === word) return false;
 
   const start = body.length - word.length;
@@ -53,22 +53,44 @@ export function $correctWordBeforeCaret(table: Map<string, string>): boolean {
  * word split by formatting is still one word. Each block uses the table for its
  * direction. Returns how many words were corrected.
  */
-export function $correctDocument(ltr: Map<string, string>, rtl: Map<string, string>): number {
+export function $correctDocument(
+  ltr: Map<string, string>,
+  rtl: Map<string, string>,
+  normalizeRtl?: (text: string) => string,
+): number {
+  if (normalizeRtl) {
+    for (const node of $getRoot().getAllTextNodes()) {
+      if (node.getParentOrThrow().getDirection() !== 'rtl') continue;
+      const text = node.getTextContent();
+      const normalized = normalizeRtl(text);
+      if (normalized !== text) node.setTextContent(normalized);
+    }
+  }
+
   let corrected = 0;
   for (const group of $textGroups()) {
-    const table = group[0].getParentOrThrow().getDirection() === 'rtl' ? rtl : ltr;
+    const rightToLeft = group[0].getParentOrThrow().getDirection() === 'rtl';
+    const table = rightToLeft ? rtl : ltr;
     const text = group.map((node) => node.getTextContent()).join('');
-    const spans = wordsIn(text).filter((span) => table.has(span.word) && table.get(span.word) !== span.word);
+    const spans = wordsIn(text)
+      .map((span) => ({ span, replacement: correctionFor(span.word, table, rightToLeft ? normalizeRtl : undefined) }))
+      .filter((item) => item.replacement !== undefined && item.replacement !== item.span.word);
     // Right to left, so earlier positions stay valid as each word is replaced.
-    for (const span of spans.reverse()) {
+    for (const { span, replacement } of spans.reverse()) {
       const start = $locate(group, span.start, false);
       const end = $locate(group, span.end, true);
       $replaceMatch(
         { anchorKey: start.key, anchorOffset: start.offset, focusKey: end.key, focusOffset: end.offset },
-        table.get(span.word)!,
+        replacement!,
       );
       corrected += 1;
     }
   }
   return corrected;
+}
+
+/** What a word should become: its normalised form, then any table correction for that. */
+function correctionFor(word: string, table: Map<string, string>, normalize?: (word: string) => string): string | undefined {
+  const normalized = normalize ? normalize(word) : word;
+  return table.get(normalized) ?? (normalized !== word ? normalized : undefined);
 }

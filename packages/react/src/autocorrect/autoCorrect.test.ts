@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor } from 'lexical';
 import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
+import { normalizeUrdu } from '../normalization/urduNormalize';
 import {
   apiAutoCorrectStore,
   appendAutoCorrection,
@@ -197,5 +198,30 @@ describe('$correctDocument', () => {
     );
     expect(count).toBe(2);
     expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('the cat\n\nthe end');
+  });
+});
+
+describe('auto-correct with Urdu normalisation', () => {
+  it('normalises the word before the caret before looking it up', () => {
+    const editor = createEditor({
+      namespace: 'normalise-test',
+      onError: (e) => {
+        throw e;
+      },
+    });
+    editor.update(
+      () => {
+        $getRoot().clear().append($createParagraphNode().append($createTextNode('ﮔیا ')));
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(4, 4);
+        $correctWordBeforeCaret(new Map(), (word) => normalizeUrdu(word));
+      },
+      { discrete: true },
+    );
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('گیا ');
   });
 });

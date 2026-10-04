@@ -12,3 +12,5 @@ export type { Locale, Strings } from './i18n';
 export { registerSpellDictionary, hasSpellDictionary, type HunspellFiles, type SpellLanguage } from './spellcheck/spellDictionaries';
 export { localStorageAutoCorrectStore, apiAutoCorrectStore, fileAutoCorrectStore } from './autocorrect/autoCorrectStores';
 export type { AutoCorrectStore, AutoCorrectEntry } from './autocorrect/autoCorrectStores';
+export { normalizeUrdu, normalizeUrduCharacters, removeUrduDiacritics, replaceUrduDigits } from './normalization/urduNormalize';
+export type { UrduNormalizationOptions } from './normalization/urduNormalize';

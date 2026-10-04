@@ -3,6 +3,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical';
 import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
 import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
+import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
 import type { SpellLanguage } from '../spellcheck/spellDictionaries';
 
 /** Keys that end a word: a space or punctuation, in Latin and Arabic-script forms. */
@@ -20,8 +21,23 @@ const RTL_LANGUAGES: SpellLanguage[] = ['ur', 'pa-shahmukhi'];
  * the table reloads). The table used depends on the block's direction: RTL
  * blocks use the Urdu and Shahmukhi tables, LTR blocks the English one.
  */
-export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCorrectStore[]; version: number; enabled: boolean }) {
+export function AutoCorrectPlugin({
+  stores,
+  version,
+  enabled,
+  urduNormalization,
+}: {
+  stores: AutoCorrectStore[];
+  version: number;
+  enabled: boolean;
+  /** Urdu normalisation for right-to-left text; character mapping always applies. */
+  urduNormalization?: UrduNormalizationOptions;
+}) {
   const [editor] = useLexicalComposerContext();
+  // Effects below run once per editor, so they reach the latest options through this ref.
+  const normalizeOptions = useRef(urduNormalization);
+  normalizeOptions.current = urduNormalization;
+  const normalizeRtl = (text: string) => normalizeUrdu(text, normalizeOptions.current);
   const tables = useRef(new Map<SpellLanguage, Map<string, string>>());
   const rtlTable = useRef(new Map<string, string>());
 
@@ -50,7 +66,7 @@ export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCo
       () => {
         editor.update(
           () => {
-            $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current);
+            $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
           },
           { discrete: true },
         );
@@ -74,8 +90,9 @@ export function AutoCorrectPlugin({ stores, version, enabled }: { stores: AutoCo
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
             const block = selection.anchor.getNode().getTopLevelElement();
-            const table = tableFor(block?.getDirection() === 'rtl');
-            if (table) $correctWordBeforeCaret(table);
+            const rtl = block?.getDirection() === 'rtl';
+            const table = tableFor(rtl);
+            if (table) $correctWordBeforeCaret(table, rtl ? normalizeRtl : undefined);
           },
           { discrete: true },
         );

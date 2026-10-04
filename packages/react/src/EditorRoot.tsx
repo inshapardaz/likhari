@@ -31,6 +31,7 @@ import { FindReplaceBar } from './components/FindReplaceBar';
 import { AutoCorrectPanel } from './components/AutoCorrectPanel';
 import { AutoCorrectPlugin } from './autocorrect/AutoCorrectPlugin';
 import { localStorageAutoCorrectStore, type AutoCorrectStore } from './autocorrect/autoCorrectStores';
+import type { UrduNormalizationOptions } from './normalization/urduNormalize';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { LeaveDialog } from './components/LeaveDialog';
@@ -67,6 +68,8 @@ export interface EditorRootProps {
   documentId?: string;
   /** Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. */
   autoCorrectStores?: AutoCorrectStore[];
+  /** Urdu normalisation applied as part of auto-correct. Diacritics are kept unless `removeDiacritics` is set. */
+  urduNormalization?: UrduNormalizationOptions;
   initialContent?: EditorInitialContent;
   featureConfig?: EditorFeatureConfig;
   featurePreset?: FeatureConfigPresetName;
@@ -201,6 +204,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   {
     documentId,
     autoCorrectStores,
+    urduNormalization,
     initialContent,
     featureConfig,
     featurePreset,
@@ -559,7 +563,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin />}
-          {config.language.autocorrect && <AutoCorrectPlugin stores={stores} version={autoCorrectVersion} enabled />}
+          {config.language.autocorrect && <AutoCorrectPlugin stores={stores} version={autoCorrectVersion} enabled urduNormalization={urduNormalization} />}
           {config.columns && <LayoutPlugin />}
           {config.footnotes && <FootnotePlugin />}
           {config.poetry.enabled && <PoetryPlugin />}
