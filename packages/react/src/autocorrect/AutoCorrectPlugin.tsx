@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical';
-import { $correctDocument, $correctWordBeforeCaret } from './autoCorrectActions';
+import { $correctDocument, $correctPunctuationBeforeCaret, $correctPunctuationDocument, $correctWordBeforeCaret } from './autoCorrectActions';
+import { activePunctuationRules, type PunctuationOptions } from './punctuationRules';
 import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
 import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
 import type { SpellLanguage } from '../spellcheck/spellDictionaries';
@@ -26,17 +27,22 @@ export function AutoCorrectPlugin({
   version,
   enabled,
   urduNormalization,
+  punctuation,
 }: {
   stores: AutoCorrectStore[];
   version: number;
   enabled: boolean;
   /** Urdu normalisation for right-to-left text; character mapping always applies. */
   urduNormalization?: UrduNormalizationOptions;
+  /** Common punctuation fixes (from the bundled Urdu rule list). */
+  punctuation?: PunctuationOptions;
 }) {
   const [editor] = useLexicalComposerContext();
   // Effects below run once per editor, so they reach the latest options through this ref.
   const normalizeOptions = useRef(urduNormalization);
   normalizeOptions.current = urduNormalization;
+  const punctuationRules = useRef(activePunctuationRules(punctuation));
+  punctuationRules.current = activePunctuationRules(punctuation);
   const normalizeRtl = (text: string) => normalizeUrdu(text, normalizeOptions.current);
   const tables = useRef(new Map<SpellLanguage, Map<string, string>>());
   const rtlTable = useRef(new Map<string, string>());
@@ -66,6 +72,7 @@ export function AutoCorrectPlugin({
       () => {
         editor.update(
           () => {
+            $correctPunctuationDocument(punctuationRules.current);
             $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
           },
           { discrete: true },
@@ -82,13 +89,17 @@ export function AutoCorrectPlugin({
     const tableFor = (rtl: boolean): Map<string, string> | undefined => (rtl ? rtlTable.current : tables.current.get('en'));
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.isComposing || !BOUNDARY_KEYS.has(event.key)) return;
-      // The character is inserted after this event; correct the word once it is there.
+      if (event.isComposing || event.key.length !== 1) return;
+      const boundary = BOUNDARY_KEYS.has(event.key);
+      // The character is inserted after this event; correct once it is there.
       setTimeout(() => {
         editor.update(
           () => {
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
+            // Punctuation can end in any character (e.g. the letter ه), so every key is checked.
+            $correctPunctuationBeforeCaret(punctuationRules.current);
+            if (!boundary) return;
             const block = selection.anchor.getNode().getTopLevelElement();
             const rtl = block?.getDirection() === 'rtl';
             const table = tableFor(rtl);

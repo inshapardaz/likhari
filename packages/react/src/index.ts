@@ -14,3 +14,4 @@ export { localStorageAutoCorrectStore, apiAutoCorrectStore, fileAutoCorrectStore
 export type { AutoCorrectStore, AutoCorrectEntry } from './autocorrect/autoCorrectStores';
 export { normalizeUrdu, normalizeUrduCharacters, removeUrduDiacritics, replaceUrduDigits } from './normalization/urduNormalize';
 export type { UrduNormalizationOptions } from './normalization/urduNormalize';
+export type { PunctuationOptions, PunctuationRule } from './autocorrect/punctuationRules';

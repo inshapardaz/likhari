@@ -1,6 +1,7 @@
 import { $getRoot, $getSelection, $isRangeSelection, $isTextNode } from 'lexical';
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
+import type { PunctuationRule } from './punctuationRules';
 
 /** The part of a word that counts as word characters at its end. */
 const WORD_END = /[\p{L}\p{M}'’]+$/u;
@@ -93,4 +94,65 @@ export function $correctDocument(
 function correctionFor(word: string, table: Map<string, string>, normalize?: (word: string) => string): string | undefined {
   const normalized = normalize ? normalize(word) : word;
   return table.get(normalized) ?? (normalized !== word ? normalized : undefined);
+}
+
+/**
+ * Applies a punctuation rule to the text just before the caret, when that text
+ * ends with a rule's incorrect form. Longest match first. The caret ends after
+ * the replacement.
+ */
+export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const anchor = selection.anchor;
+  const node = anchor.getNode();
+  if (!$isTextNode(node)) return false;
+
+  const before = node.getTextContent().slice(0, anchor.offset);
+  const rule = rules.find((r) => before.endsWith(r.incorrect) && (!r.completeWord || !WORD_CHAR.test(before.charAt(before.length - r.incorrect.length - 1) || ' ')));
+  if (!rule) return false;
+
+  const start = before.length - rule.incorrect.length;
+  $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, rule.correct);
+  const after = $getSelection();
+  if ($isRangeSelection(after)) {
+    const caret = start + rule.correct.length;
+    after.anchor.set(node.getKey(), caret, 'text');
+    after.focus.set(node.getKey(), caret, 'text');
+  }
+  return true;
+}
+
+/**
+ * Applies the punctuation rules to every paragraph and cell in the document.
+ * Where two matches overlap, the longer one wins. Returns how many were applied.
+ */
+export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
+  let applied = 0;
+  for (const group of $textGroups()) {
+    const text = group.map((node) => node.getTextContent()).join('');
+    const candidates: { start: number; end: number; correct: string }[] = [];
+    for (const rule of rules) {
+      let index = text.indexOf(rule.incorrect);
+      while (index !== -1) {
+        candidates.push({ start: index, end: index + rule.incorrect.length, correct: rule.correct });
+        index = text.indexOf(rule.incorrect, index + 1);
+      }
+    }
+    // Longest first, then earliest; keep only matches that do not overlap a kept one.
+    candidates.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+    const kept: typeof candidates = [];
+    for (const c of candidates) {
+      if (!kept.some((k) => c.start < k.end && k.start < c.end)) kept.push(c);
+    }
+    // Right to left, so earlier positions stay valid as each match is replaced.
+    for (const c of kept.sort((a, b) => b.start - a.start)) {
+      const start = $locate(group, c.start, false);
+      const end = $locate(group, c.end, true);
+      $replaceMatch({ anchorKey: start.key, anchorOffset: start.offset, focusKey: end.key, focusOffset: end.offset }, c.correct);
+      applied += 1;
+    }
+  }
+  return applied;
 }
