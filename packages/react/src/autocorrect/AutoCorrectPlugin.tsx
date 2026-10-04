@@ -4,6 +4,7 @@ import {
   $getSelection,
   $isRangeSelection,
   COMMAND_PRIORITY_EDITOR,
+  BLUR_COMMAND,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
   createCommand,
@@ -142,22 +143,22 @@ export function AutoCorrectPlugin({
       root?.addEventListener('keydown', onKeyDown);
     };
     const unregister = editor.registerRootListener((next) => attach(next));
-    // Enter ends a line, so the word before the caret is corrected before the line breaks.
-    const unregisterEnter = editor.registerCommand(
-      KEY_ENTER_COMMAND,
-      () => {
-        const selection = $getSelection();
-        if (!$isRangeSelection(selection)) return false;
-        const rtl = selection.anchor.getNode().getTopLevelElement()?.getDirection() === 'rtl';
-        const table = tableFor(rtl);
-        if (table) $correctWordEndingAtCaret(table, rtl ? normalizeRtl : undefined);
-        return false;
-      },
-      COMMAND_PRIORITY_HIGH,
-    );
+    // A word with nothing after it (end of line or document) is corrected when the
+    // caret leaves it: Enter splits the line, and blur means the user has moved on.
+    const correctEndingWord = () => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return false;
+      const rtl = selection.anchor.getNode().getTopLevelElement()?.getDirection() === 'rtl';
+      const table = tableFor(rtl);
+      if (table) $correctWordEndingAtCaret(table, rtl ? normalizeRtl : undefined);
+      return false;
+    };
+    const unregisterEnter = editor.registerCommand(KEY_ENTER_COMMAND, correctEndingWord, COMMAND_PRIORITY_HIGH);
+    const unregisterBlur = editor.registerCommand(BLUR_COMMAND, correctEndingWord, COMMAND_PRIORITY_EDITOR);
     return () => {
       unregister();
       unregisterEnter();
+      unregisterBlur();
       attach(null);
     };
   }, [editor, enabled, typing]);
