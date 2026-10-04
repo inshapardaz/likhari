@@ -140,7 +140,6 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
-  IconCheckupList,
   IconSearch,
   IconColumns1,
   IconColumns2,
@@ -1145,7 +1144,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
     config.columns ||
     config.footnotes ||
     config.poetry.enabled;
-  const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
+  const showLanguageGroup = config.language.autocorrect || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
   // as normal inline toolbar groups whenever there's room, and only move
@@ -1560,12 +1559,11 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
         )}
         {config.language.autocorrect && (
           <ToolbarButton
-            icon={IconCheckupList}
+            icon={IconSparkles}
             title={strings.autoCorrect.correctDocument}
             onClick={() => editor.dispatchCommand(CORRECT_DOCUMENT_COMMAND, undefined)}
           />
         )}
-        {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
         {config.language.spellCheck && (
           <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
         )}
