@@ -622,6 +622,9 @@ export interface ToolbarProps {
   /** Whether the find-and-replace widget is open, and how to toggle it (owned by EditorRoot). */
   findOpen?: boolean;
   onToggleFind?: () => void;
+  /** Whether the spellcheck panel is open, and how to toggle it (owned by EditorRoot). */
+  spellOpen?: boolean;
+  onToggleSpell?: () => void;
   onSave?: () => void;
   isDirty?: boolean;
   showSave?: boolean;
@@ -635,7 +638,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1549,7 +1552,9 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
       <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
         {config.language.autocorrect && <StubButton icon={IconWand} title={strings.toolbar.autocorrect} comingSoon={strings.toolbar.comingSoon} />}
         {config.language.textCleanup && <StubButton icon={IconSparkles} title={strings.toolbar.textCleanup} comingSoon={strings.toolbar.comingSoon} />}
-        {config.language.spellCheck && <StubButton icon={IconAbc} title={strings.toolbar.spellChecker} comingSoon={strings.toolbar.comingSoon} />}
+        {config.language.spellCheck && (
+          <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
+        )}
       </div>
     ),
   ];

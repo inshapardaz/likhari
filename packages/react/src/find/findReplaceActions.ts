@@ -14,7 +14,7 @@ export interface FindMatch {
  * cells, but it can span the several text nodes that formatting splits a
  * paragraph into.
  */
-function $textGroups(): TextNode[][] {
+export function $textGroups(): TextNode[][] {
   const groups = new Map<string, TextNode[]>();
   for (const node of $getRoot().getAllTextNodes()) {
     const parentKey = node.getParentOrThrow().getKey();
@@ -26,7 +26,7 @@ function $textGroups(): TextNode[][] {
 }
 
 /** The text node and offset that a character index in a group falls in. */
-function $locate(group: TextNode[], index: number, end: boolean): { key: string; offset: number } {
+export function $locate(group: TextNode[], index: number, end: boolean): { key: string; offset: number } {
   let start = 0;
   for (const node of group) {
     const length = node.getTextContent().length;
