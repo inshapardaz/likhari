@@ -11,6 +11,8 @@ export default defineConfig({
       formats: ['es'],
       fileName: () => 'likhari-webcomponent.js',
     },
+    // The spellcheck dictionaries are loaded by URL at runtime; they must stay separate files.
+    assetsInlineLimit: 0,
     outDir: 'dist',
     emptyOutDir: true,
   },
