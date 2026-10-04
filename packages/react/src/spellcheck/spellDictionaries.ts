@@ -20,6 +20,7 @@ export interface Speller {
 type Loader = () => Promise<HunspellFiles>;
 
 const loaders = new Map<SpellLanguage, Loader>();
+const loadedFiles = new Map<SpellLanguage, Promise<HunspellFiles>>();
 const spellers = new Map<SpellLanguage, Promise<Speller>>();
 
 async function fetchText(url: string): Promise<string> {
@@ -45,6 +46,7 @@ loaders.set('en', englishLoader);
 export function registerSpellDictionary(language: SpellLanguage, files: HunspellFiles | Loader): void {
   loaders.set(language, typeof files === 'function' ? files : async () => files);
   spellers.delete(language);
+  loadedFiles.delete(language);
 }
 
 /** Whether a dictionary is registered for the language. */
@@ -58,11 +60,10 @@ export function hasSpellDictionary(language: SpellLanguage): boolean {
  * can skip spellchecking that language rather than flag every word.
  */
 export function getSpeller(language: SpellLanguage): Promise<Speller> | null {
-  const loader = loaders.get(language);
-  if (!loader) return null;
+  if (!loaders.has(language)) return null;
   let speller = spellers.get(language);
   if (!speller) {
-    speller = loader()
+    speller = filesFor(language)
       .then(({ aff, dic }) => nspell(aff, dic))
       .then((base) => ({
         // Words the user added or ignored count as correct, whatever the dictionary says.
@@ -72,6 +73,32 @@ export function getSpeller(language: SpellLanguage): Promise<Speller> | null {
     spellers.set(language, speller);
   }
   return speller;
+}
+
+/** The dictionary's files, loaded once per language and shared by the speller and the word list. */
+function filesFor(language: SpellLanguage): Promise<HunspellFiles> {
+  let loaded = loadedFiles.get(language);
+  if (!loaded) {
+    loaded = loaders.get(language)!();
+    loadedFiles.set(language, loaded);
+  }
+  return loaded;
+}
+
+/** The dictionary's root words (its .dic entries without affix flags), for completion. */
+export function dictionaryWords(dic: string): string[] {
+  const words = new Set<string>();
+  for (const line of dic.split(/\r?\n/).slice(1)) {
+    const word = line.split('/')[0].trim();
+    if (word) words.add(word);
+  }
+  return [...words];
+}
+
+/** The language's dictionary words, or null when no dictionary is registered. */
+export function getDictionaryWords(language: SpellLanguage): Promise<string[]> | null {
+  if (!loaders.has(language)) return null;
+  return filesFor(language).then(({ dic }) => dictionaryWords(dic));
 }
 
 /** A word in a text, with its position as character offsets. */

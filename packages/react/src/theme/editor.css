@@ -1055,3 +1055,25 @@
   cursor: default;
 }
 
+/* Autocomplete suggestions, shown under the caret while typing. */
+.likhari-autocomplete {
+  z-index: 20;
+  min-width: 160px;
+  max-width: 280px;
+  padding: 4px 0;
+  border: 1px solid var(--editor-line);
+  border-radius: 6px;
+  background: var(--editor-paper-dim);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  font-size: 14px;
+}
+
+.likhari-autocomplete-item {
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.likhari-autocomplete-item--active {
+  background: var(--editor-accent-soft);
+}
+

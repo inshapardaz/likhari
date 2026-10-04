@@ -92,6 +92,11 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
+/** The words the user has added to the dictionary for a language. */
+export function acceptedWords(language: SpellLanguage): string[] {
+  return [...(accepted.get(language) ?? [])];
+}
+
 /** Calls `listener` whenever accepted or ignored words change. Returns an unsubscribe function. */
 export function onSpellWordsChange(listener: () => void): () => void {
   listeners.add(listener);

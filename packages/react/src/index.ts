@@ -17,3 +17,5 @@ export type { UrduNormalizationOptions } from './normalization/urduNormalize';
 export type { PunctuationOptions, PunctuationRule } from './autocorrect/punctuationRules';
 export { localStorageUserWordStore, apiUserWordStore, ignoreWord, addUserWord, onSpellWordsChange } from './spellcheck/userWords';
 export type { UserWordStore } from './spellcheck/userWords';
+export { dictionaryCompletionStore, apiCompletionStore } from './autocomplete/completionStores';
+export type { CompletionStore } from './autocomplete/completionStores';
