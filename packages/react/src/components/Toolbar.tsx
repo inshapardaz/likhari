@@ -7,6 +7,7 @@ import {
   $isElementNode,
   $setSelection,
   $getRoot,
+  $selectAll,
   $getNearestNodeFromDOMNode,
   $createTextNode,
   KEY_MODIFIER_COMMAND,
@@ -38,6 +39,9 @@ import {
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { CORRECT_DOCUMENT_COMMAND } from '../autocorrect/AutoCorrectPlugin';
+import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
+import { getSpeller } from '../spellcheck/spellDictionaries';
+import { $wordAtDomPoint, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -140,7 +144,11 @@ import {
   IconColumnInsertRight,
   IconColumnRemove,
   IconColumns,
+  IconClipboard,
+  IconCopy,
+  IconCut,
   IconSearch,
+  IconSelectAll,
   IconColumns1,
   IconColumns2,
   IconNumber1Small,
@@ -428,6 +436,16 @@ function OverflowItem({
 
 /** The link menu's contents — shared by the toolbar button and the right-click
  * menu: the URL (opens in a new tab), Edit link, Remove link. */
+/** What the right-click menu offers, based on what is under the pointer. */
+interface EditorContextMenu {
+  x: number;
+  y: number;
+  link?: string;
+  table?: { rows: number; columns: number };
+  poetry?: boolean;
+  spelling?: { suggestions: string[]; match: FindMatch };
+}
+
 function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings }) {
   // Only offer the link as clickable if it's a URL the editor would have accepted.
   const safeUrl = normalizeLinkUrl(url);
@@ -962,112 +980,122 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
     closeLinkDialog();
   };
 
-  // Right-clicking a link in the text opens the same menu, at the pointer.
-  const [linkContext, setLinkContext] = useState<{ x: number; y: number; url: string } | null>(null);
-
-  useEffect(() => {
-    if (!config.links) return;
-    const onContextMenu = (event: MouseEvent) => {
-      const anchor = (event.target as HTMLElement | null)?.closest?.('a');
-      if (!anchor) return;
-      let url: string | null = null;
-      // Select the whole link first, so Edit / Remove act on it wherever the caret was.
-      editor.update(
-        () => {
-          const node = $getNearestNodeFromDOMNode(anchor);
-          const link = node ? $findMatchingParent(node, $isLinkNode) : null;
-          if (!link || !$isLinkNode(link)) return;
-          url = link.getURL();
-          link.select(0, link.getChildrenSize());
-        },
-        { discrete: true },
-      );
-      if (url === null) return;
-      event.preventDefault();
-      snapshotSelectionRef.current();
-      setLinkContext({ x: event.clientX, y: event.clientY, url });
-    };
-    return editor.registerRootListener((root, previous) => {
-      previous?.removeEventListener('contextmenu', onContextMenu);
-      root?.addEventListener('contextmenu', onContextMenu);
-    });
-  }, [editor, config.links]);
-
-  // Table/poetry contextual-menu actions. The menu takes focus, so the
-  // selection is snapshotted when it opens and restored before an action runs.
+  // One right-click menu for the whole editor, replacing the browser's own. It
+  // adds what applies to what is under the pointer (a spelling fix, a link, a
+  // table cell, a poetry couplet) and always offers cut, copy, paste and select all.
   const runMenuAction = (action: () => void) => () => {
     restoreSelection();
     editor.update(action);
     editor.focus();
   };
 
-  // Right-clicking a table cell opens the same actions at the pointer.
-  const [tableContext, setTableContext] = useState<{ x: number; y: number; rows: number; columns: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<EditorContextMenu | null>(null);
 
   useEffect(() => {
-    if (!config.tables) return;
-    const onContextMenu = (event: MouseEvent) => {
-      if (event.defaultPrevented) return; // a link inside the cell already took it
-      const cellElement = (event.target as HTMLElement | null)?.closest?.('td, th');
-      if (!cellElement) return;
-      let handled = false;
+    const onContextMenu = async (event: MouseEvent) => {
+      event.preventDefault();
+      snapshotSelectionRef.current();
+      const target = event.target as HTMLElement | null;
+      const anchor = config.links ? (target?.closest?.('a') ?? null) : null;
+      const cell = config.tables ? (target?.closest?.('td, th') ?? null) : null;
+      const couplet = config.poetry.enabled ? (target?.closest?.('.likhari-poetry') ?? null) : null;
+      const point = config.language.spellCheck ? textPointAt(event.clientX, event.clientY) : null;
+      const menu: EditorContextMenu = { x: event.clientX, y: event.clientY };
+      let word = null as WordAtPoint | null;
+
       editor.update(
         () => {
-          const node = $getNearestNodeFromDOMNode(cellElement);
-          const cell = node ? $getTableCellNodeFromLexicalNode(node) : null;
-          if (!cell) return;
-          handled = true;
-          const selection = $getSelection();
-          // Keep a multi-cell selection that includes this cell, so "insert
-          // rows" / "delete columns" act on everything selected.
-          const insideSelection =
-            $isTableSelection(selection) && selection.getNodes().some((n) => n.getKey() === cell.getKey());
-          if (!insideSelection) cell.selectEnd();
+          if (anchor) {
+            const node = $getNearestNodeFromDOMNode(anchor);
+            const link = node ? $findMatchingParent(node, $isLinkNode) : null;
+            if ($isLinkNode(link)) {
+              menu.link = link.getURL();
+              // Select the whole link first, so Edit / Remove act on it wherever the caret was.
+              link.select(0, link.getChildrenSize());
+            }
+          }
+          if (cell) {
+            const node = $getNearestNodeFromDOMNode(cell);
+            const tableCell = node ? $getTableCellNodeFromLexicalNode(node) : null;
+            if (tableCell) {
+              const selection = $getSelection();
+              // Keep a multi-cell selection that includes this cell.
+              const insideSelection =
+                $isTableSelection(selection) && selection.getNodes().some((n) => n.getKey() === tableCell.getKey());
+              if (!insideSelection) tableCell.selectEnd();
+              const size = $getTableSelectionSize();
+              menu.table = { rows: size.rows, columns: size.columns };
+            }
+          }
+          if (couplet) {
+            const node = $getNearestNodeFromDOMNode(couplet);
+            const block = node ? $findMatchingParent(node, $isPoetryBlockNode) : null;
+            if (block) {
+              menu.poetry = true;
+              if (!$getPoetryBlockFromSelection()) block.selectStart();
+            }
+          }
+          if (point) word = $wordAtDomPoint(point.node, point.offset);
         },
         { discrete: true },
       );
-      if (!handled) return;
-      event.preventDefault();
-      snapshotSelectionRef.current();
-      const size = editor.getEditorState().read($getTableSelectionSize);
-      setTableContext({ x: event.clientX, y: event.clientY, rows: size.rows, columns: size.columns });
+
+      if (word) {
+        const speller = getSpeller(word.direction === 'rtl' ? 'ur' : 'en');
+        if (speller) {
+          const checked = await speller;
+          if (!checked.correct(word.word)) {
+            menu.spelling = { suggestions: checked.suggest(word.word).slice(0, 5), match: word.match };
+          }
+        }
+      }
+      setContextMenu(menu);
     };
     return editor.registerRootListener((root, previous) => {
       previous?.removeEventListener('contextmenu', onContextMenu);
       root?.addEventListener('contextmenu', onContextMenu);
     });
-  }, [editor, config.tables]);
+  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck]);
 
-  // Right-clicking a poetry couplet opens the same options menu at the pointer.
-  const [poetryContext, setPoetryContext] = useState<{ x: number; y: number } | null>(null);
+  // Cut and copy put the selected text on the clipboard as plain text.
+  const copyOrCut = (cut: boolean) => async () => {
+    restoreSelection();
+    let text = '';
+    editor.update(
+      () => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        text = selection.getTextContent();
+        if (cut) selection.removeText();
+      },
+      { discrete: true },
+    );
+    if (text) await navigator.clipboard?.writeText(text).catch(() => undefined);
+    editor.focus();
+  };
 
-  useEffect(() => {
-    if (!config.poetry.enabled) return;
-    const onContextMenu = (event: MouseEvent) => {
-      if (event.defaultPrevented) return; // a link inside the couplet already took it
-      const coupletElement = (event.target as HTMLElement | null)?.closest?.('.likhari-poetry');
-      if (!coupletElement) return;
-      let handled = false;
-      editor.update(
-        () => {
-          const node = $getNearestNodeFromDOMNode(coupletElement);
-          const couplet = node ? $findMatchingParent(node, $isPoetryBlockNode) : null;
-          if (!couplet) return;
-          handled = true;
-          if (!$getPoetryBlockFromSelection()) couplet.selectStart();
-        },
-        { discrete: true },
-      );
-      if (!handled) return;
-      event.preventDefault();
-      snapshotSelectionRef.current();
-      setPoetryContext({ x: event.clientX, y: event.clientY });
-    };
-    return editor.registerRootListener((root, previous) => {
-      previous?.removeEventListener('contextmenu', onContextMenu);
-      root?.addEventListener('contextmenu', onContextMenu);
-    });
-  }, [editor, config.poetry.enabled]);
+  // Paste reads plain text from the clipboard (the browser may ask for permission).
+  const paste = async () => {
+    restoreSelection();
+    let text: string;
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      return;
+    }
+    editor.update(
+      () => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        text.split(/\r?\n/).forEach((line, index) => {
+          if (index > 0) selection.insertParagraph();
+          selection.insertText(line);
+        });
+      },
+      { discrete: true },
+    );
+    editor.focus();
+  };
 
   // Ctrl/Cmd+K opens the link dialog.
   useEffect(() => {
@@ -1614,96 +1642,92 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
         </Menu>
       )}
 
-      {config.links && (
-        <Menu
-          opened={linkContext !== null}
-          onChange={(opened) => {
-            if (!opened) setLinkContext(null);
-          }}
-          position="bottom-start"
-          withinPortal
-          portalProps={{ target: portalTarget }}
-          shadow="sm"
-          width={240}
-        >
-          <Menu.Target>
-            {/* Invisible 1px anchor positioned at the right-click */}
-            <span
-              aria-hidden="true"
-              style={{ position: 'fixed', left: linkContext?.x ?? -9999, top: linkContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
-            />
-          </Menu.Target>
-          <Menu.Dropdown>
-            <LinkMenuItems
-              url={linkContext?.url ?? ''}
-              onEdit={() => {
-                restoreSelection();
-                openLinkDialog();
-              }}
-              onRemove={removeLink}
-              strings={strings}
-            />
-          </Menu.Dropdown>
-        </Menu>
-      )}
-
-      {config.tables && (
-        <Menu
-          opened={tableContext !== null}
-          onChange={(opened) => {
-            if (!opened) setTableContext(null);
-          }}
-          position="bottom-start"
-          withinPortal
-          portalProps={{ target: portalTarget }}
-          shadow="sm"
-          width={240}
-        >
-          <Menu.Target>
-            {/* Invisible 1px anchor positioned at the right-click */}
-            <span
-              aria-hidden="true"
-              style={{ position: 'fixed', left: tableContext?.x ?? -9999, top: tableContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
-            />
-          </Menu.Target>
-          <Menu.Dropdown>
-            <TableMenuItems
-              strings={strings}
-              direction={direction}
-              rows={tableContext?.rows ?? 1}
-              columns={tableContext?.columns ?? 1}
-              canMergeCells={state.canMergeCells}
-              canUnmergeCell={state.canUnmergeCell}
-              onAction={runMenuAction}
-            />
-          </Menu.Dropdown>
-        </Menu>
-      )}
-
-      {config.poetry.enabled && (
-        <Menu
-          opened={poetryContext !== null}
-          onChange={(opened) => {
-            if (!opened) setPoetryContext(null);
-          }}
-          position="bottom-start"
-          withinPortal
-          portalProps={{ target: portalTarget }}
-          shadow="sm"
-          width={200}
-        >
-          <Menu.Target>
-            {/* Invisible 1px anchor positioned at the right-click */}
-            <span
-              aria-hidden="true"
-              style={{ position: 'fixed', left: poetryContext?.x ?? -9999, top: poetryContext?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
-            />
-          </Menu.Target>
-          <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
-          </Menu.Dropdown>
-        </Menu>
-      )}
+      <Menu
+        opened={contextMenu !== null}
+        onChange={(opened) => {
+          if (!opened) setContextMenu(null);
+        }}
+        position="bottom-start"
+        withinPortal
+        portalProps={{ target: portalTarget }}
+        shadow="sm"
+        width={260}
+      >
+        <Menu.Target>
+          {/* Invisible 1px anchor positioned at the right-click */}
+          <span
+            aria-hidden="true"
+            style={{ position: 'fixed', left: contextMenu?.x ?? -9999, top: contextMenu?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+          />
+        </Menu.Target>
+        <Menu.Dropdown>
+          {contextMenu?.spelling && (
+            <>
+              <Menu.Label>{strings.contextMenu.spelling}</Menu.Label>
+              {contextMenu.spelling.suggestions.length === 0 && <Menu.Item disabled>{strings.contextMenu.noSuggestions}</Menu.Item>}
+              {contextMenu.spelling.suggestions.map((suggestion) => (
+                <Menu.Item
+                  key={suggestion}
+                  onClick={() => {
+                    const match = contextMenu.spelling!.match;
+                    editor.update(() => $replaceMatch(match, suggestion), { discrete: true });
+                    editor.focus();
+                  }}
+                >
+                  {suggestion}
+                </Menu.Item>
+              ))}
+              <Menu.Divider />
+            </>
+          )}
+          {contextMenu?.link !== undefined && (
+            <>
+              <LinkMenuItems
+                url={contextMenu.link}
+                onEdit={() => {
+                  restoreSelection();
+                  openLinkDialog();
+                }}
+                onRemove={removeLink}
+                strings={strings}
+              />
+              <Menu.Divider />
+            </>
+          )}
+          {contextMenu?.table && (
+            <>
+              <TableMenuItems
+                strings={strings}
+                direction={direction}
+                rows={contextMenu.table.rows}
+                columns={contextMenu.table.columns}
+                canMergeCells={state.canMergeCells}
+                canUnmergeCell={state.canUnmergeCell}
+                onAction={runMenuAction}
+              />
+              <Menu.Divider />
+            </>
+          )}
+          {contextMenu?.poetry && (
+            <>
+              <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
+              <Menu.Divider />
+            </>
+          )}
+          <Menu.Item leftSection={<IconCut size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(true)()}>
+            {strings.contextMenu.cut}
+          </Menu.Item>
+          <Menu.Item leftSection={<IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(false)()}>
+            {strings.contextMenu.copy}
+          </Menu.Item>
+          <Menu.Item leftSection={<IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void paste()}>
+            {strings.contextMenu.paste}
+          </Menu.Item>
+          <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
+            {strings.contextMenu.selectAll}
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
 
       {/* Hidden clone, rendering every group (fixed + movable) inline with
           no wrapping — its natural (unclipped) width is what the effect

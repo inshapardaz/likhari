@@ -195,6 +195,14 @@ export interface Strings {
     close: string;
     correctDocument: string;
   },
+  contextMenu: {
+    cut: string;
+    copy: string;
+    paste: string;
+    selectAll: string;
+    spelling: string;
+    noSuggestions: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -452,6 +460,14 @@ const en: Strings = {
     failed: 'Could not save the correction',
     close: 'Close',
     correctDocument: 'Correct whole document',
+  },
+  contextMenu: {
+    cut: 'Cut',
+    copy: 'Copy',
+    paste: 'Paste',
+    selectAll: 'Select all',
+    spelling: 'Spelling suggestions',
+    noSuggestions: 'No suggestions',
   },
   link: {
     menuLabel: 'Link',
@@ -712,6 +728,14 @@ const ur: Strings = {
     close: 'بند کریں',
     correctDocument: 'تمام متن کی تصحیح کریں',
   },
+  contextMenu: {
+    cut: 'کاٹیں',
+    copy: 'کاپی کریں',
+    paste: 'چسپاں کریں',
+    selectAll: 'سب منتخب کریں',
+    spelling: 'ہجے کی تجاویز',
+    noSuggestions: 'کوئی تجویز نہیں',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -970,6 +994,14 @@ const paShahmukhi: Strings = {
     failed: 'درستی سانبھی نئیں جا سکی',
     close: 'بند کرو',
     correctDocument: 'پورے متن دی درستی کرو',
+  },
+  contextMenu: {
+    cut: 'کٹو',
+    copy: 'کاپی کرو',
+    paste: 'چسپاں کرو',
+    selectAll: 'سارا چنو',
+    spelling: 'ہجے دیاں تجویزاں',
+    noSuggestions: 'کوئی تجویز نئیں',
   },
   link: {
     menuLabel: 'لنک',
