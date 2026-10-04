@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { EditorRoot, type DraftRestoreMode, type EditorRef, type NavigationGuardMode } from '@inshapardaz/likhari-react';
+import { EditorRoot, registerSpellDictionary, type DraftRestoreMode, type EditorRef, type NavigationGuardMode } from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
+
+// Urdu spelling list built from the headwords of the reader demo's فرہنگ آصفیہ
+// dictionary (demo/public/dictionaries/ur-spell). Loaded on first use only.
+// Inflected forms are not in it, so some correct words will be flagged.
+registerSpellDictionary('ur', async () => {
+  const base = `${import.meta.env.BASE_URL}dictionaries/ur-spell/`;
+  const [aff, dic] = await Promise.all([
+    fetch(`${base}index.aff`).then((r) => r.text()),
+    fetch(`${base}index.dic`).then((r) => r.text()),
+  ]);
+  return { aff, dic };
+});
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
