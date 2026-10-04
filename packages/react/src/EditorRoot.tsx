@@ -36,6 +36,7 @@ import type { PunctuationOptions } from './autocorrect/punctuationRules';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { AutocompletePlugin } from './autocomplete/AutocompletePlugin';
+import { wordNetThesaurusStore, type ThesaurusStore } from './thesaurus/thesaurusStores';
 import { dictionaryCompletionStore, type CompletionStore } from './autocomplete/completionStores';
 import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
 import type { SpellLanguage } from './spellcheck/spellDictionaries';
@@ -66,6 +67,8 @@ export interface EditorInitialContent {
 
 /** Used when the host passes no stores: corrections are kept in this browser. */
 const DEFAULT_AUTOCORRECT_STORES: AutoCorrectStore[] = [localStorageAutoCorrectStore()];
+/** Used when the host passes no thesaurus stores: English synonyms from WordNet, loaded on first use. */
+const DEFAULT_THESAURUS_STORES: ThesaurusStore[] = [wordNetThesaurusStore()];
 /** Used when the host passes no completion stores: the dictionary's words and the user's added words. */
 const DEFAULT_COMPLETION_STORES: CompletionStore[] = [dictionaryCompletionStore()];
 /** Used when the host passes no dictionary stores: added words are kept in this browser. */
@@ -81,6 +84,8 @@ export interface EditorRootProps {
   dictionaryStores?: UserWordStore[];
   /** Where autocomplete words come from, combined per language. Defaults to the dictionaries and the user's words. Pass a stable array. */
   completionStores?: CompletionStore[];
+  /** Where synonyms come from, merged in order. Defaults to English WordNet. Pass a stable array. */
+  thesaurusStores?: ThesaurusStore[];
   /** The language autocomplete works in: 'auto' follows each block's direction (English for LTR, Urdu for RTL). */
   autoCompleteLanguage?: SpellLanguage | 'auto';
   /** Urdu normalisation applied as part of auto-correct. Diacritics are kept unless `removeDiacritics` is set. */
@@ -223,6 +228,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     autoCorrectStores,
     dictionaryStores,
     completionStores,
+    thesaurusStores,
     autoCompleteLanguage = 'auto',
     urduNormalization,
     punctuation,
@@ -537,6 +543,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <Toolbar
             config={config}
             dictionaryStores={wordStores}
+            thesaurusStores={thesaurusStores ?? DEFAULT_THESAURUS_STORES}
             onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}
             onSave={handleSave}
             findOpen={openPanel === 'find'}

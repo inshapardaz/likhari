@@ -41,6 +41,7 @@ import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { CORRECT_DOCUMENT_COMMAND } from '../autocorrect/AutoCorrectPlugin';
 import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
 import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
+import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStores';
 import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
 import { $wordAtDomPoint, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
@@ -445,6 +446,8 @@ interface EditorContextMenu {
   table?: { rows: number; columns: number };
   poetry?: boolean;
   spelling?: { word: string; language: SpellLanguage; suggestions: string[]; match: FindMatch };
+  /** Synonyms of the word under the pointer; `items` is undefined while they load. */
+  thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
 }
 
 function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings }) {
@@ -639,6 +642,8 @@ function PoetryMenuItems({
 
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
+  /** Where synonyms come from. */
+  thesaurusStores?: ThesaurusStore[];
   /** Where words added to the dictionary are saved. */
   dictionaryStores?: UserWordStore[];
   /** Opens the auto-correct panel with the word filled in. */
@@ -665,7 +670,7 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1004,7 +1009,7 @@ export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSav
       const anchor = config.links ? (target?.closest?.('a') ?? null) : null;
       const cell = config.tables ? (target?.closest?.('td, th') ?? null) : null;
       const couplet = config.poetry.enabled ? (target?.closest?.('.likhari-poetry') ?? null) : null;
-      const point = config.language.spellCheck ? textPointAt(event.clientX, event.clientY) : null;
+      const point = config.language.spellCheck || config.language.thesaurus ? textPointAt(event.clientX, event.clientY) : null;
       const menu: EditorContextMenu = { x: event.clientX, y: event.clientY };
       let word = null as WordAtPoint | null;
 
@@ -1045,8 +1050,11 @@ export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSav
         { discrete: true },
       );
 
-      if (word) {
-        const language: SpellLanguage = word.direction === 'rtl' ? 'ur' : 'en';
+      const language: SpellLanguage = word?.direction === 'rtl' ? 'ur' : 'en';
+      if (word && config.language.thesaurus) {
+        menu.thesaurus = { language, word: word.word, match: word.match };
+      }
+      if (word && config.language.spellCheck) {
         const speller = getSpeller(language);
         if (speller) {
           const checked = await speller;
@@ -1056,12 +1064,22 @@ export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSav
         }
       }
       setContextMenu(menu);
+      if (word && menu.thesaurus) {
+        // Synonyms can take a while (the first WordNet lookup downloads the database), so the menu
+        // is already open and fills in when they arrive, unless the user has moved on.
+        const items = await lookupSynonyms(thesaurusStores, word.word, language);
+        setContextMenu((current) =>
+          current && current.x === menu.x && current.y === menu.y && current.thesaurus
+            ? { ...current, thesaurus: { ...current.thesaurus, items } }
+            : current,
+        );
+      }
     };
     return editor.registerRootListener((root, previous) => {
       previous?.removeEventListener('contextmenu', onContextMenu);
       root?.addEventListener('contextmenu', onContextMenu);
     });
-  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck]);
+  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, thesaurusStores]);
 
   // Cut and copy put the selected text on the clipboard as plain text.
   const copyOrCut = (cut: boolean) => async () => {
@@ -1713,6 +1731,26 @@ export function Toolbar({ config, dictionaryStores = [], onAddAutoCorrect, onSav
                   {strings.contextMenu.addToAutoCorrect}
                 </Menu.Item>
               )}
+              <Menu.Divider />
+            </>
+          )}
+          {contextMenu?.thesaurus && (
+            <>
+              <Menu.Label>{strings.thesaurus.synonyms}</Menu.Label>
+              {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
+              {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
+              {contextMenu.thesaurus.items?.map((synonym) => (
+                <Menu.Item
+                  key={synonym}
+                  onClick={() => {
+                    const match = contextMenu.thesaurus!.match;
+                    editor.update(() => $replaceMatch(match, synonym), { discrete: true });
+                    editor.focus();
+                  }}
+                >
+                  {synonym}
+                </Menu.Item>
+              ))}
               <Menu.Divider />
             </>
           )}
