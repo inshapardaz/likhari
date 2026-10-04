@@ -1144,7 +1144,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
     config.columns ||
     config.footnotes ||
     config.poetry.enabled;
-  const showLanguageGroup = config.language.autocorrect || config.language.spellCheck;
+  const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
   // as normal inline toolbar groups whenever there's room, and only move
@@ -1557,7 +1557,7 @@ export function Toolbar({ config, onSave, isDirty, showSave, findOpen = false, o
         {config.language.autocorrect && (
           <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
         )}
-        {config.language.autocorrect && (
+        {config.language.textCleanup && (
           <ToolbarButton
             icon={IconSparkles}
             title={strings.autoCorrect.correctDocument}

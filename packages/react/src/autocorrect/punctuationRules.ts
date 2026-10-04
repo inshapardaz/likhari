@@ -53,6 +53,8 @@ export interface PunctuationOptions {
   enabled?: boolean;
   /** Replace a straight double quote (") with a closing curly quote (”). On by default. */
   straightDoubleQuote?: boolean;
+  /** Space after Urdu punctuation and remove spaces before it, as urduhack's punctuations_space. Off by default. */
+  spacing?: boolean;
 }
 
 /** The rules in use for the options, longest match first, so `۔"` wins over `"`. */
@@ -61,4 +63,14 @@ export function activePunctuationRules(options: PunctuationOptions = {}): Punctu
   const rules = URDU_PUNCTUATION_RULES.filter((rule) => rule.incorrect !== rule.correct);
   if (options.straightDoubleQuote !== false) rules.push({ incorrect: '"', correct: '”', completeWord: false });
   return rules.sort((a, b) => b.incorrect.length - a.incorrect.length);
+}
+
+/** Space after Urdu punctuation, when the next character is not punctuation, a digit or a space. */
+const SPACE_AFTER_PUNCTUATION = /(?<=[؛،٫؟۔٪])(?=[^؛،٫؟۔٪0-9 \n])/gu;
+/** Spaces before Urdu punctuation. */
+const SPACE_BEFORE_PUNCTUATION = /\s+([؛،٫؟۔٪])/gu;
+
+/** Spaces after Urdu punctuation (not inside numbers), and none before it. */
+export function spacePunctuationText(text: string): string {
+  return text.replace(SPACE_AFTER_PUNCTUATION, ' ').replace(SPACE_BEFORE_PUNCTUATION, '$1');
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical';
 import { $getSelection, $isRangeSelection } from 'lexical';
 import { $correctPunctuationBeforeCaret, $correctPunctuationDocument, $preservingSelection } from './autoCorrectActions';
-import { activePunctuationRules } from './punctuationRules';
+import { activePunctuationRules, spacePunctuationText } from './punctuationRules';
 
 function editorWith(text: string, caret: number) {
   const editor = createEditor({
@@ -88,5 +88,13 @@ describe('$preservingSelection', () => {
       expect($isRangeSelection(selection) && selection.anchor.offset).toBe(2);
       expect($isRangeSelection(selection) && selection.anchor.getNode().getTextContent()).toBe('ہے۔ وہ ہے۔');
     });
+  });
+});
+
+describe('spacePunctuationText', () => {
+  it('spaces after Urdu punctuation and removes spaces before it, but not inside numbers', () => {
+    expect(spacePunctuationText('ہے۔وہ ہے')).toBe('ہے۔ وہ ہے');
+    expect(spacePunctuationText('ہے ۔ وہ')).toBe('ہے۔ وہ');
+    expect(spacePunctuationText('۹.۰۰ روپے')).toBe('۹.۰۰ روپے');
   });
 });

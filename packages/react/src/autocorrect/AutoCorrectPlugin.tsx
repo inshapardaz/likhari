@@ -7,7 +7,9 @@ import {
   $correctPunctuationDocument,
   $correctWordBeforeCaret,
   $preservingSelection,
+  $spacePunctuationDocument,
 } from './autoCorrectActions';
+import { $cleanUpText } from '../cleanup/textCleanupActions';
 import { activePunctuationRules, type PunctuationOptions } from './punctuationRules';
 import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
 import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
@@ -32,12 +34,16 @@ export function AutoCorrectPlugin({
   stores,
   version,
   enabled,
+  typing,
   urduNormalization,
   punctuation,
 }: {
   stores: AutoCorrectStore[];
   version: number;
+  /** Whether the tables and the whole-document command are active. */
   enabled: boolean;
+  /** Whether corrections run as the user types (auto-correct), not only on demand. */
+  typing: boolean;
   /** Urdu normalisation for right-to-left text; character mapping always applies. */
   urduNormalization?: UrduNormalizationOptions;
   /** Common punctuation fixes (from the bundled Urdu rule list). */
@@ -79,6 +85,8 @@ export function AutoCorrectPlugin({
         editor.update(
           () => {
             $preservingSelection(() => {
+              $cleanUpText();
+              if (punctuation?.spacing) $spacePunctuationDocument();
               $correctPunctuationDocument(punctuationRules.current);
               $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
             });
@@ -89,10 +97,10 @@ export function AutoCorrectPlugin({
       },
       COMMAND_PRIORITY_EDITOR,
     );
-  }, [editor, enabled]);
+  }, [editor, enabled, punctuation?.spacing]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !typing) return;
 
     const tableFor = (rtl: boolean): Map<string, string> | undefined => (rtl ? rtlTable.current : tables.current.get('en'));
 
@@ -129,7 +137,7 @@ export function AutoCorrectPlugin({
       unregister();
       attach(null);
     };
-  }, [editor, enabled]);
+  }, [editor, enabled, typing]);
 
   return null;
 }

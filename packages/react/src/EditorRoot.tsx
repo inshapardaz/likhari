@@ -567,10 +567,11 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin />}
-          {config.language.autocorrect && <AutoCorrectPlugin
+          {(config.language.autocorrect || config.language.textCleanup) && <AutoCorrectPlugin
               stores={stores}
               version={autoCorrectVersion}
               enabled
+              typing={config.language.autocorrect}
               urduNormalization={urduNormalization}
               punctuation={punctuation}
             />}

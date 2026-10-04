@@ -9,7 +9,7 @@ import {
 } from 'lexical';
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
-import type { PunctuationRule } from './punctuationRules';
+import { spacePunctuationText, type PunctuationRule } from './punctuationRules';
 
 /** The part of a word that counts as word characters at its end. */
 const WORD_END = /[\p{L}\p{M}'’]+$/u;
@@ -192,4 +192,18 @@ export function $preservingSelection(change: () => void): void {
   selection.anchor.set(saved.anchor.key, saved.anchor.offset, saved.anchor.type);
   selection.focus.set(saved.focus.key, saved.focus.offset, saved.focus.type);
   $setSelection(selection);
+}
+
+/** Applies urduhack-style punctuation spacing to every text node. Returns how many changed. */
+export function $spacePunctuationDocument(): number {
+  let changed = 0;
+  for (const node of $getRoot().getAllTextNodes()) {
+    const text = node.getTextContent();
+    const spaced = spacePunctuationText(text);
+    if (spaced !== text) {
+      node.setTextContent(spaced);
+      changed += 1;
+    }
+  }
+  return changed;
 }
