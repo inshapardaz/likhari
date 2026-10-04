@@ -8,6 +8,7 @@ import {
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_ENTER_COMMAND,
+  KEY_ESCAPE_COMMAND,
   KEY_TAB_COMMAND,
   type LexicalEditor,
 } from 'lexical';
@@ -154,11 +155,6 @@ export function AutocompletePlugin({
       const current = popupRef.current;
       if (current && (event.key === 'Tab' || (event.key === 'Enter' && current.selected))) return;
       if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && (current || prefixAtCaret(editor) !== null)) return;
-      if (event.key === 'Escape' && popupRef.current) {
-        event.preventDefault();
-        show(null);
-        return;
-      }
       // Left, Right, Home and End move the caret away from the word, so the list closes.
       if (MOVEMENT_KEYS.has(event.key)) {
         typing.current = false;
@@ -196,6 +192,16 @@ export function AutocompletePlugin({
     const unregisterCommands = [
       editor.registerCommand(KEY_ARROW_DOWN_COMMAND, (event: KeyboardEvent | null) => move(1, event), COMMAND_PRIORITY_HIGH),
       editor.registerCommand(KEY_ARROW_UP_COMMAND, (event: KeyboardEvent | null) => move(-1, event), COMMAND_PRIORITY_HIGH),
+      // While the list is open, Escape only closes it. Lexical would otherwise blur the editor.
+      editor.registerCommand(
+        KEY_ESCAPE_COMMAND,
+        () => {
+          if (!popupRef.current) return false;
+          show(null);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
       editor.registerCommand(
         KEY_TAB_COMMAND,
         (event: KeyboardEvent | null) => acceptHighlighted(event),
