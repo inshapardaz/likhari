@@ -34,7 +34,6 @@ export function SpellcheckPanel({ strings, dir, onClose }: { strings: Strings; d
   const [index, setIndex] = useState(0);
   const [checking, setChecking] = useState(false);
 
-  const available = hasSpellDictionary(language);
   const current = items?.[index];
 
   // Selects an item in the editor and focuses the editor, so the selection is
@@ -108,18 +107,16 @@ export function SpellcheckPanel({ strings, dir, onClose }: { strings: Strings; d
             setItems(null);
           }}
         >
-          {LANGUAGES.map((l) => (
+          {LANGUAGES.filter((l) => hasSpellDictionary(l.value)).map((l) => (
             <option key={l.value} value={l.value}>
               {l.label}
-              {hasSpellDictionary(l.value) ? '' : ` (${t.noDictionary})`}
             </option>
           ))}
         </select>
-        <button type="button" onClick={check} disabled={!available || checking}>
+        <button type="button" onClick={check} disabled={checking}>
           {t.check}
         </button>
       </div>
-      {!available && <p className="likhari-spell-note">{t.noDictionary}</p>}
       {items !== null && (
         <div className="likhari-spell-nav">
           <span className="likhari-spell-status" aria-live="polite">
