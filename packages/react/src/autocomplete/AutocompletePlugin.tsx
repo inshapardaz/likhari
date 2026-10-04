@@ -25,6 +25,8 @@ const MOVEMENT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp
 const MIN_PREFIX = 2;
 
 interface Popup {
+  /** The typed part of the word the list is for. */
+  prefix: string;
   items: string[];
   index: number;
   /** Whether the user has moved into the list. Enter only accepts after that, so it still starts a new line. */
@@ -100,18 +102,26 @@ export function AutocompletePlugin({
       const { prefix, rtl } = target;
       const language: SpellLanguage = languageRef.current === 'auto' ? (rtl ? 'ur' : 'en') : languageRef.current;
       void indexFor(language).then((loaded) => {
+        // Same word as the open list: keep the user's highlight rather than resetting it.
+        const open = popupRef.current;
+        if (open && open.prefix === prefix && open.dir === (rtl ? 'rtl' : 'ltr')) return;
         const items = loaded.complete(prefix);
         if (items.length === 0) return hide();
         const rect = caretRect(editor);
-        show({ items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
+        show({ prefix, items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
       });
     };
 
-    const move = (delta: 1 | -1) => {
+    // Handles an arrow key for the list, and cancels the browser's own caret movement.
+    const move = (delta: 1 | -1, event: KeyboardEvent | null) => {
       const current = popupRef.current;
-      if (!current) return false;
-      const count = current.items.length;
-      show({ ...current, index: (current.index + delta + count) % count, selected: true });
+      // Still loading the list for the word being typed: the arrow is for the list, not the caret.
+      if (!current && prefixAtCaret(editor) === null) return false;
+      event?.preventDefault();
+      if (current) {
+        const count = current.items.length;
+        show({ ...current, index: (current.index + delta + count) % count, selected: true });
+      }
       return true;
     };
 
@@ -119,7 +129,8 @@ export function AutocompletePlugin({
       // Up, Down, Tab and Enter act on the list through their editor commands, which
       // run after this listener, so the list must stay open for them.
       const current = popupRef.current;
-      if (current && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Tab' || (event.key === 'Enter' && current.selected))) return;
+      if (current && (event.key === 'Tab' || (event.key === 'Enter' && current.selected))) return;
+      if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && (current || prefixAtCaret(editor) !== null)) return;
       if (event.key === 'Escape' && popupRef.current) {
         event.preventDefault();
         show(null);
@@ -160,8 +171,8 @@ export function AutocompletePlugin({
     });
 
     const unregisterCommands = [
-      editor.registerCommand(KEY_ARROW_DOWN_COMMAND, () => move(1), COMMAND_PRIORITY_HIGH),
-      editor.registerCommand(KEY_ARROW_UP_COMMAND, () => move(-1), COMMAND_PRIORITY_HIGH),
+      editor.registerCommand(KEY_ARROW_DOWN_COMMAND, (event: KeyboardEvent | null) => move(1, event), COMMAND_PRIORITY_HIGH),
+      editor.registerCommand(KEY_ARROW_UP_COMMAND, (event: KeyboardEvent | null) => move(-1, event), COMMAND_PRIORITY_HIGH),
       editor.registerCommand(
         KEY_TAB_COMMAND,
         (event: KeyboardEvent | null) => acceptHighlighted(event),
@@ -223,6 +234,23 @@ export function AutocompletePlugin({
       ))}
     </div>
   );
+}
+
+/** The typed part of the word at the caret, when the caret is at its end and the word is long enough to complete. */
+function prefixAtCaret(editor: LexicalEditor): string | null {
+  let prefix: string | null = null;
+  editor.getEditorState().read(() => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection) || !selection.isCollapsed()) return;
+    const node = selection.anchor.getNode();
+    if (!$isTextNode(node)) return;
+    const text = node.getTextContent();
+    const before = text.slice(0, selection.anchor.offset);
+    const word = WORD_END.exec(before)?.[0];
+    const after = text.charAt(selection.anchor.offset);
+    if (word && word.length >= MIN_PREFIX && !(after !== '' && LETTER.test(after))) prefix = word;
+  });
+  return prefix;
 }
 
 /** Where to put the popup: under the caret, or the editor's top-left if the caret has no position yet. */
