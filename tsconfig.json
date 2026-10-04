@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/converters" },
-    { "path": "packages/react" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/converters"
+    },
+    {
+      "path": "packages/react"
+    },
+    {
+      "path": "packages/webcomponent"
+    }
   ]
 }

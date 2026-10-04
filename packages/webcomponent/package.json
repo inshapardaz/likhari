@@ -1,0 +1,45 @@
+{
+  "name": "@inshapardaz/likhari-webcomponent",
+  "version": "0.1.0",
+  "description": "The Likhari editor as a <likhari-editor> custom element, built on the React implementation.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inshapardaz/likhari"
+  },
+  "type": "module",
+  "main": "./dist/likhari-webcomponent.js",
+  "module": "./dist/likhari-webcomponent.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/likhari-webcomponent.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@inshapardaz/likhari-converters": "^0.1.0",
+    "@inshapardaz/likhari-core": "^0.1.0",
+    "@inshapardaz/likhari-react": "^0.1.0",
+    "@mantine/core": "^9.6.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.0",
+    "vite": "^5.4.10"
+  }
+}
