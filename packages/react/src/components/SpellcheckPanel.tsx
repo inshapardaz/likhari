@@ -31,11 +31,13 @@ export function SpellcheckPanel({
   strings,
   dir,
   dictionaryStores,
+  onAddAutoCorrect,
   onClose,
 }: {
   strings: Strings;
   dir: 'ltr' | 'rtl';
   dictionaryStores: UserWordStore[];
+  onAddAutoCorrect?: (word: string, language: SpellLanguage) => void;
   onClose: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -181,6 +183,11 @@ export function SpellcheckPanel({
             >
               {strings.contextMenu.addToDictionary}
             </button>
+            {onAddAutoCorrect && (
+              <button type="button" className="likhari-spell-suggestion" onClick={() => onAddAutoCorrect(current.word, language)}>
+                {strings.contextMenu.addToAutoCorrect}
+              </button>
+            )}
           </div>
           {current.suggestions.length === 0 ? (
             <span className="likhari-spell-note">{t.noSuggestions}</span>

@@ -36,6 +36,7 @@ import type { PunctuationOptions } from './autocorrect/punctuationRules';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
+import type { SpellLanguage } from './spellcheck/spellDictionaries';
 import { LeaveDialog } from './components/LeaveDialog';
 import {
   clearDraft,
@@ -271,6 +272,11 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const lastSavedJsonRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
+  const [autoCorrectPrefill, setAutoCorrectPrefill] = useState<{ id: number; from: string; language: SpellLanguage } | null>(null);
+  const openAutoCorrectFor = (from: string, language: SpellLanguage) => {
+    setAutoCorrectPrefill({ id: Date.now(), from, language });
+    setOpenPanel('autocorrect');
+  };
   const [autoCorrectVersion, setAutoCorrectVersion] = useState(0);
   const stores = autoCorrectStores ?? DEFAULT_AUTOCORRECT_STORES;
   const wordStores = dictionaryStores ?? DEFAULT_DICTIONARY_STORES;
@@ -520,6 +526,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <Toolbar
             config={config}
             dictionaryStores={wordStores}
+            onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}
             onSave={handleSave}
             findOpen={openPanel === 'find'}
             onToggleFind={() => togglePanel('find')}
@@ -550,13 +557,22 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <div className="likhari-canvas-frame">
             {config.findReplace && openPanel === 'find' && <FindReplaceBar strings={strings} dir={dir} onClose={() => setOpenPanel(null)} />}
             {config.language.spellCheck && openPanel === 'spell' && (
-              <SpellcheckPanel strings={strings} dir={dir} dictionaryStores={wordStores} onClose={() => setOpenPanel(null)} />
+              <SpellcheckPanel
+                strings={strings}
+                dir={dir}
+                dictionaryStores={wordStores}
+                onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}
+                onClose={() => setOpenPanel(null)}
+              />
             )}
             {config.language.autocorrect && openPanel === 'autocorrect' && (
               <AutoCorrectPanel
+                key={autoCorrectPrefill?.id ?? 0}
                 strings={strings}
                 dir={dir}
                 stores={stores}
+                initialFrom={autoCorrectPrefill?.from}
+                initialLanguage={autoCorrectPrefill?.language}
                 onSaved={() => setAutoCorrectVersion((v) => v + 1)}
                 onClose={() => setOpenPanel(null)}
               />
