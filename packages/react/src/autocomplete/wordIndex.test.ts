@@ -25,4 +25,9 @@ describe('WordIndex', () => {
     const urdu = new WordIndex(['کتاب', 'کتابیں', 'قلم']);
     expect(urdu.complete('کتا')).toEqual(['کتاب', 'کتابیں']);
   });
+
+  it('suggests the most accepted words first', () => {
+    const counted = new WordIndex(['car', 'cat', 'cane'], { cane: 5, cat: 1 });
+    expect(counted.complete('ca')).toEqual(['cane', 'cat', 'car']);
+  });
 });

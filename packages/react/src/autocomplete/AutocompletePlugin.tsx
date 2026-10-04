@@ -27,6 +27,7 @@ const MIN_PREFIX = 2;
 interface Popup {
   /** The typed part of the word the list is for. */
   prefix: string;
+  language: SpellLanguage;
   items: string[];
   index: number;
   /** Whether the user has moved into the list. Enter only accepts after that, so it still starts a new line. */
@@ -69,13 +70,35 @@ export function AutocompletePlugin({
     setPopup(next);
   };
 
+  /** Counts an accepted completion in every store that keeps counts, then drops the cached lists. */
+  const recordAcceptance = (language: SpellLanguage, word: string) => {
+    for (const store of storesRef.current) {
+      store.recordAccept?.(language, word).catch(() => undefined);
+    }
+    indexes.current.clear();
+  };
+
   useEffect(() => {
     const indexFor = (language: SpellLanguage): Promise<WordIndex> => {
       let index = indexes.current.get(language);
       if (!index) {
-        index = Promise.all(storesRef.current.map((store) => store.load(language).catch(() => [] as string[]))).then(
-          (lists) => new WordIndex(lists.flat()),
-        );
+        index = Promise.all(
+          storesRef.current.map(async (store) => {
+            try {
+              const [words, counts] = await Promise.all([
+                store.load(language),
+                store.loadCounts ? store.loadCounts(language) : Promise.resolve({} as Record<string, number>),
+              ]);
+              return { words, counts };
+            } catch {
+              return { words: [] as string[], counts: {} as Record<string, number> };
+            }
+          }),
+        ).then((parts) => {
+          const counts: Record<string, number> = {};
+          for (const part of parts) for (const [word, count] of Object.entries(part.counts)) counts[word] = (counts[word] ?? 0) + count;
+          return new WordIndex(parts.flatMap((part) => part.words), counts);
+        });
         indexes.current.set(language, index);
       }
       return index;
@@ -108,7 +131,7 @@ export function AutocompletePlugin({
         const items = loaded.complete(prefix);
         if (items.length === 0) return hide();
         const rect = caretRect(editor);
-        show({ prefix, items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
+        show({ prefix, language, items, index: 0, selected: false, x: rect.left, y: rect.bottom, dir: rtl ? 'rtl' : 'ltr' });
       });
     };
 
@@ -189,7 +212,9 @@ export function AutocompletePlugin({
       const current = popupRef.current;
       if (!current) return false;
       event?.preventDefault();
-      acceptItem(editor, current.items[current.index]);
+      const word = current.items[current.index];
+      acceptItem(editor, word);
+      recordAcceptance(current.language, word);
       show(null);
       return true;
     }
@@ -227,6 +252,8 @@ export function AutocompletePlugin({
           onMouseDown={(event) => {
             event.preventDefault();
             acceptItem(editor, item);
+            recordAcceptance(popup.language, item);
+            show(null);
           }}
         >
           {item}
