@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-react",
-  "version": "0.1.21",
+  "version": "0.1.23",
   "description": "React implementation of the Likhari editor, built on @lexical/react.",
   "license": "MIT",
   "repository": {
