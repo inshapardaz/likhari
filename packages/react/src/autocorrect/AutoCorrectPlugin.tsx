@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical';
-import { $correctDocument, $correctPunctuationBeforeCaret, $correctPunctuationDocument, $correctWordBeforeCaret } from './autoCorrectActions';
+import {
+  $correctDocument,
+  $correctPunctuationBeforeCaret,
+  $correctPunctuationDocument,
+  $correctWordBeforeCaret,
+  $preservingSelection,
+} from './autoCorrectActions';
 import { activePunctuationRules, type PunctuationOptions } from './punctuationRules';
 import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
 import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
@@ -72,8 +78,10 @@ export function AutoCorrectPlugin({
       () => {
         editor.update(
           () => {
-            $correctPunctuationDocument(punctuationRules.current);
-            $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
+            $preservingSelection(() => {
+              $correctPunctuationDocument(punctuationRules.current);
+              $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
+            });
           },
           { discrete: true },
         );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical';
-import { $correctPunctuationBeforeCaret, $correctPunctuationDocument } from './autoCorrectActions';
+import { $getSelection, $isRangeSelection } from 'lexical';
+import { $correctPunctuationBeforeCaret, $correctPunctuationDocument, $preservingSelection } from './autoCorrectActions';
 import { activePunctuationRules } from './punctuationRules';
 
 function editorWith(text: string, caret: number) {
@@ -67,5 +68,25 @@ describe('$correctPunctuationDocument', () => {
     );
     expect(count).toBeGreaterThan(0);
     expect(textOf(editor)).toBe('ہے۔ وہ ”ٹھیک” ہے۔“');
+  });
+});
+
+describe('$preservingSelection', () => {
+  it('leaves the caret where it was after a whole-document pass', () => {
+    const editor = editorWith('ہے. وہ ہے.', 2);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(2, 2);
+        $preservingSelection(() => {
+          $correctPunctuationDocument(activePunctuationRules());
+        });
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      expect($isRangeSelection(selection) && selection.anchor.offset).toBe(2);
+      expect($isRangeSelection(selection) && selection.anchor.getNode().getTextContent()).toBe('ہے۔ وہ ہے۔');
+    });
   });
 });

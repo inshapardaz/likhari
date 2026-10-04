@@ -1,4 +1,12 @@
-import { $getRoot, $getSelection, $isRangeSelection, $isTextNode } from 'lexical';
+import {
+  $createRangeSelection,
+  $getNodeByKey,
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  $setSelection,
+} from 'lexical';
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
 import type { PunctuationRule } from './punctuationRules';
@@ -155,4 +163,33 @@ export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
     }
   }
   return applied;
+}
+
+type SavedPoint = { key: string; offset: number; type: 'text' | 'element' };
+
+/**
+ * Runs `change` and then puts the caret back where it was. Replacements move the
+ * selection onto each match they make, so a whole-document pass would otherwise
+ * leave the caret at the last match, or at the end of the document.
+ */
+export function $preservingSelection(change: () => void): void {
+  const before = $getSelection();
+  const saved = $isRangeSelection(before)
+    ? {
+        anchor: { key: before.anchor.key, offset: before.anchor.offset, type: before.anchor.type } as SavedPoint,
+        focus: { key: before.focus.key, offset: before.focus.offset, type: before.focus.type } as SavedPoint,
+      }
+    : null;
+
+  change();
+
+  if (!saved) {
+    $setSelection(null);
+    return;
+  }
+  if (!$getNodeByKey(saved.anchor.key) || !$getNodeByKey(saved.focus.key)) return;
+  const selection = $createRangeSelection();
+  selection.anchor.set(saved.anchor.key, saved.anchor.offset, saved.anchor.type);
+  selection.focus.set(saved.focus.key, saved.focus.offset, saved.focus.type);
+  $setSelection(selection);
 }
