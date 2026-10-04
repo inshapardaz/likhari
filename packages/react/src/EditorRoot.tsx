@@ -35,6 +35,7 @@ import type { UrduNormalizationOptions } from './normalization/urduNormalize';
 import type { PunctuationOptions } from './autocorrect/punctuationRules';
 import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
+import { AutocompletePlugin } from './autocomplete/AutocompletePlugin';
 import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
 import type { SpellLanguage } from './spellcheck/spellDictionaries';
 import { LeaveDialog } from './components/LeaveDialog';
@@ -594,6 +595,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin />}
+          {config.language.autocomplete && <AutocompletePlugin label={strings.autoComplete.label} />}
           {(config.language.autocorrect || config.language.textCleanup) && <AutoCorrectPlugin
               stores={stores}
               version={autoCorrectVersion}

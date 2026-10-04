@@ -206,6 +206,9 @@ export interface Strings {
     spelling: string;
     noSuggestions: string;
   },
+  autoComplete: {
+    label: string;
+  },
   link: {
     menuLabel: string;
     noUrl: string;
@@ -474,6 +477,9 @@ const en: Strings = {
     addToAutoCorrect: 'Add to auto-correct',
     spelling: 'Spelling suggestions',
     noSuggestions: 'No suggestions',
+  },
+  autoComplete: {
+    label: 'Suggestions',
   },
   link: {
     menuLabel: 'Link',
@@ -745,6 +751,9 @@ const ur: Strings = {
     spelling: 'ہجے کی تجاویز',
     noSuggestions: 'کوئی تجویز نہیں',
   },
+  autoComplete: {
+    label: 'تجاویز',
+  },
   link: {
     menuLabel: 'لنک',
     noUrl: '(کوئی یو آر ایل نہیں)',
@@ -1014,6 +1023,9 @@ const paShahmukhi: Strings = {
     addToAutoCorrect: 'خودکار درستی وچ پاؤ',
     spelling: 'ہجے دیاں تجویزاں',
     noSuggestions: 'کوئی تجویز نئیں',
+  },
+  autoComplete: {
+    label: 'تجویزاں',
   },
   link: {
     menuLabel: 'لنک',
