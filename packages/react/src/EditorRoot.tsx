@@ -18,7 +18,7 @@ import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPrese
 import { EDITOR_NODES } from './nodes';
 import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
-import { Toolbar } from './components/Toolbar';
+import { Toolbar, type ToolbarStyle } from './components/Toolbar';
 import { injectUrduWebFontsCss, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { PageBreakPlugin } from './plugins/PageBreakPlugin';
@@ -105,6 +105,8 @@ export interface EditorRootProps {
    * default tokens (packages/core/src/theme/tokens.ts).
    */
   accentColor?: string;
+  /** Toolbar appearance: whether it is outlined, and the button variant. */
+  toolbarStyle?: ToolbarStyle;
   locale?: Locale;
   placeholder?: string;
   /**
@@ -238,6 +240,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     theme,
     colorScheme,
     accentColor,
+    toolbarStyle,
     locale = 'en',
     placeholder,
     height = '480px',
@@ -542,6 +545,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
         <LexicalComposer initialConfig={initialConfig}>
           <Toolbar
             config={config}
+            toolbarStyle={toolbarStyle}
             dictionaryStores={wordStores}
             thesaurusStores={thesaurusStores ?? DEFAULT_THESAURUS_STORES}
             onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}

@@ -251,6 +251,23 @@ import { EditorRoot } from '@inshapardaz/likhari-react';
 <EditorRoot unstyled classNames={{ toolbar: 'my-toolbar', toolbarButton: 'my-btn' }} />
 ```
 
+### Toolbar appearance
+
+`toolbarStyle` sets how the toolbar looks. The toolbar takes its colour from the
+editor's `accentColor`.
+
+```tsx
+<EditorRoot
+  accentColor="#2B6E6E"
+  toolbarStyle={{ bordered: false, variant: 'filled' }}
+/>
+```
+
+- `bordered` (default `true`): outlines the toolbar and each group of buttons.
+  `false` removes the outlines and keeps the dividers between sections.
+- `variant` (default `'light'`): `'light'` tints the active button; `'filled'`
+  fills it with the accent colour.
+
 ### Behavior worth knowing
 
 Borrowed from the sibling EPUB reader [qari](https://github.com/inshapardaz/qari):

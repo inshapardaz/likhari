@@ -609,8 +609,17 @@ function PoetryMenuItems({
   );
 }
 
+/** Appearance of the toolbar. The accent colour comes from the editor's `accentColor`. */
+export interface ToolbarStyle {
+  /** Outline the toolbar and each button cluster. Default true. */
+  bordered?: boolean;
+  /** `light` tints the active button, `filled` fills it with the accent. Default `light`. */
+  variant?: 'light' | 'filled';
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
+  toolbarStyle?: ToolbarStyle;
   /** Where synonyms come from. */
   thesaurusStores?: ThesaurusStore[];
   /** Where words added to the dictionary are saved. */
@@ -639,7 +648,9 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+  const bordered = toolbarStyle?.bordered ?? true;
+  const variant = toolbarStyle?.variant ?? 'light';
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1503,7 +1514,13 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
   ];
 
   return (
-    <MantineToolbar aria-label={strings.toolbar.ariaLabel} className="likhari-toolbar">
+    <MantineToolbar
+      aria-label={strings.toolbar.ariaLabel}
+      className={bordered ? 'likhari-toolbar' : 'likhari-toolbar likhari-toolbar--plain'}
+      withBorder={bordered}
+      variant={variant}
+      color="var(--editor-accent)"
+    >
       {withDividers(startSections)}
       {endSection}
 

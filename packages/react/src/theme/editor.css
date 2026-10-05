@@ -25,7 +25,6 @@
   min-height: 46px;
   padding: 4px 8px;
   background: var(--editor-paper-dim);
-  border-bottom: 1px solid var(--editor-line);
   /* Wrap instead of scroll: an overflow container would clip menus and grow
      a scrollbar. Dropdowns (Select/Menu) portal out, so nothing needs to
      escape this box. */
@@ -71,6 +70,15 @@
 }
 
 /* A cluster of related buttons (undo/redo, bold/italic/underline/strikethrough, ...) reads as one control. */
+.likhari-toolbar--plain .likhari-toolbar-cluster {
+  border: none;
+  background: transparent;
+}
+
+.likhari-toolbar--plain .likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle] {
+  border-inline-start: none;
+}
+
 .likhari-toolbar-cluster {
   border: 1px solid var(--editor-line-strong);
   border-radius: 6px;
