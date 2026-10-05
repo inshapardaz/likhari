@@ -19,12 +19,6 @@
    its own height so only the canvas below scrolls. */
 .likhari-toolbar {
   display: flex;
-  /* Containing block for the hidden width-measuring clone (Toolbar.tsx):
-     without this, its position: absolute would resolve against the
-     viewport instead, and its intentionally-unwrapped (possibly very wide)
-     content could inflate the host page's scroll area instead of being
-     clipped by .likhari-root's overflow: hidden. */
-  position: relative;
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
@@ -57,55 +51,6 @@
   pointer-events: auto;
 }
 
-.likhari-toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 6px;
-  border-inline-end: 0.5px solid var(--editor-line);
-}
-
-.likhari-toolbar-group:last-child {
-  border-inline-end: none;
-}
-
-.likhari-toolbar-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--editor-ink);
-  cursor: pointer;
-}
-
-.likhari-toolbar-button svg {
-  display: block;
-}
-
-.likhari-toolbar-button:hover {
-  background: var(--editor-line);
-}
-
-.likhari-toolbar-button[data-active='true'] {
-  background: var(--editor-accent-soft);
-  color: var(--editor-accent);
-}
-
-.likhari-toolbar-button:focus-visible {
-  outline: 2px solid var(--editor-accent);
-  outline-offset: 1px;
-}
-
-.likhari-toolbar-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* Mantine Select inside the toolbar — sized to the 30px control height and
    themed from the --editor-* tokens (the closed input only; the dropdown is
    portaled to <body>, outside the token scope, so it uses Mantine's own
@@ -125,35 +70,35 @@
   cursor: not-allowed;
 }
 
-.likhari-overflow-item[data-active='true'] {
-  background: var(--mantine-primary-color-light);
-  color: var(--mantine-primary-color-filled);
+/* A cluster of related buttons (undo/redo, bold/italic/underline/strikethrough, ...) reads as one control. */
+.likhari-toolbar-cluster {
+  border: 1px solid var(--editor-line-strong);
+  border-radius: 6px;
+  background: var(--editor-paper);
+  overflow: hidden;
 }
 
-/* Responsive collapse — editor-ui-design-spec.md §3.3. These groups hold
-   only not-yet-implemented placeholders, so hiding them below the tablet
-   breakpoint costs nothing functional while keeping the primary row usable
-   on small screens; the toolbar wraps onto a second row if the
-   still-visible controls alone overflow a narrow viewport. */
-@media (max-width: 900px) {
-  .likhari-toolbar-group--collapse-tablet {
-    display: none;
-  }
+.likhari-toolbar-cluster [data-toolbar-toggle] {
+  border: none;
+  border-radius: 0;
 }
 
-/* Save (icon-only ToolbarButton): filled accent while there are unsaved
-   changes, back to the plain outline once saved — editor-ui-design-spec.md §7. */
-.likhari-toolbar-button[data-dirty='true'] {
+.likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle] {
+  border-inline-start: 1px solid var(--editor-line);
+}
+
+/* Save: filled accent while there are unsaved changes, back to the plain outline once saved. */
+.likhari-toolbar [data-dirty='true'] {
   background: var(--editor-accent);
   color: var(--editor-paper);
 }
 
-.likhari-toolbar-button[data-dirty='true']:hover {
+.likhari-toolbar [data-dirty='true']:hover {
   background: var(--editor-accent);
   filter: brightness(1.1);
 }
 
-.likhari-toolbar-button[data-dirty='false'] {
+.likhari-toolbar [data-dirty='false'] {
   color: var(--editor-accent);
 }
 

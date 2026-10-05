@@ -47,14 +47,14 @@
     "nspell": "^2.1.5"
   },
   "peerDependencies": {
-    "@mantine/core": "^9.6.3",
-    "@mantine/hooks": "^9.6.3",
+    "@mantine/core": "^9.7.0",
+    "@mantine/hooks": "^9.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@mantine/core": "^9.6.3",
-    "@mantine/hooks": "^9.6.3",
+    "@mantine/core": "^9.7.0",
+    "@mantine/hooks": "^9.7.0",
     "@types/nspell": "^2.1.6"
   }
 }

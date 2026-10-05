@@ -12,8 +12,8 @@
     "@inshapardaz/likhari-core": "*",
     "@inshapardaz/likhari-converters": "*",
     "@inshapardaz/likhari-react": "*",
-    "@mantine/core": "^9.6.3",
-    "@mantine/hooks": "^9.6.3",
+    "@mantine/core": "^9.7.0",
+    "@mantine/hooks": "^9.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
