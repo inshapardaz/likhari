@@ -29,10 +29,22 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
+// Where the English dictionary files are. Built from this module's own URL, so the
+// files shipped next to it are found; a host that bundles the editor can point this
+// elsewhere with setEnglishDictionaryBaseUrl.
+let englishBaseUrl = import.meta.url.replace(/[^/]*$/, 'dictionaries/en/');
+
+/** Sets where the English dictionary files are served from. Takes effect on the next load. */
+export function setEnglishDictionaryBaseUrl(url: string): void {
+  englishBaseUrl = url.endsWith('/') ? url : `${url}/`;
+  loadedFiles.delete('en');
+  spellers.delete('en');
+}
+
 /** English ships with the editor: its files are fetched on first use. */
 const englishLoader: Loader = async () => ({
-  aff: await fetchText(new URL('./dictionaries/en/index.aff', import.meta.url).href),
-  dic: await fetchText(new URL('./dictionaries/en/index.dic', import.meta.url).href),
+  aff: await fetchText(`${englishBaseUrl}index.aff`),
+  dic: await fetchText(`${englishBaseUrl}index.dic`),
 });
 
 loaders.set('en', englishLoader);

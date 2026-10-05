@@ -1,5 +1,6 @@
 import editorCss from '@inshapardaz/likhari-react/styles.css?inline';
 import mantineCss from '@mantine/core/styles.css?inline';
+import { setEnglishDictionaryBaseUrl } from '@inshapardaz/likhari-react';
 import { defineLikhariEditor } from './likhari-editor';
 
 export { LikhariEditorElement, defineLikhariEditor } from './likhari-editor';
@@ -16,5 +17,7 @@ function ensureStyles(): void {
   document.head.append(style);
 }
 
+// The dictionaries are copied to dictionaries/ beside this bundle (see package.json).
+setEnglishDictionaryBaseUrl(import.meta.url.replace(/[^/]*$/, 'dictionaries/en/'));
 ensureStyles();
 defineLikhariEditor();
