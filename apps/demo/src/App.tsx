@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { EditorRoot, registerSpellDictionary, type DraftRestoreMode, type EditorRef, type NavigationGuardMode } from '@inshapardaz/likhari-react';
+import { EditorRoot, registerSpellDictionary, type DraftRestoreMode, type EditorRef, type NavigationGuardMode, setEnglishDictionaryBaseUrl } from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
+
+// The English dictionary is copied into public/dictionaries/en at build time (see package.json).
+setEnglishDictionaryBaseUrl(`${import.meta.env.BASE_URL}dictionaries/en/`);
 
 // Urdu spelling list built from the headwords of the reader demo's فرہنگ آصفیہ
 // dictionary (demo/public/dictionaries/ur-spell). Loaded on first use only.
