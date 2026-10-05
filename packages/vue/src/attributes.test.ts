@@ -13,6 +13,8 @@ describe('toElementAttributes', () => {
       'show-save': null,
       autosave: null,
       'feature-preset': null,
+      'toolbar-bordered': null,
+      'toolbar-variant': null,
     });
   });
 

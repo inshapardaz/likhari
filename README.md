@@ -391,7 +391,7 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 
 | Attribute | Values | Default |
 | --- | --- | --- |
-| `feature-preset` | `minimal`, `standard`, `full`, `poetry` | `standard` |
+| `feature-preset` | `minimal`, `standard`, `full`, `poetry` | `full` |
 | `locale` | `en`, `ur`, `pa-shahmukhi` | `en` |
 | `color-scheme` | `light`, `dark` | `light` |
 | `accent-color` | any CSS colour | the editor's accent |
@@ -400,6 +400,8 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 | `document-id` | any string; enables autosave for that document | none |
 | `show-save` | present (or `"true"`) to show; `"false"` to hide | hidden |
 | `autosave` | `"false"` to turn off | on |
+| `toolbar-bordered` | present (or `"true"`) to outline the toolbar; `"false"` for a plain toolbar | bordered |
+| `toolbar-variant` | `light` (tints the active button), `filled` (fills it with the accent) | `light` |
 
 **Property**
 
@@ -495,7 +497,7 @@ function onSave({ content, format }: { content: string; format: string }) {
 
 Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
 `colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
-`featurePreset`, and `featureConfig` (an object). Boolean props left unset use the
+`featurePreset`, `toolbarBordered`, `toolbarVariant`, and `featureConfig` (an object). Boolean props left unset use the
 editor's default; they are not sent as `false`.
 
 Template ref methods: `getContent(format)`, `setContent(value, format)`,

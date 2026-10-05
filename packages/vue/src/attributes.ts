@@ -9,6 +9,8 @@ export interface LikhariEditorProps {
   showSave?: boolean;
   autosave?: boolean;
   featurePreset?: 'minimal' | 'standard' | 'full' | 'poetry';
+  toolbarBordered?: boolean;
+  toolbarVariant?: 'light' | 'filled';
 }
 
 /**
@@ -27,5 +29,7 @@ export function toElementAttributes(props: LikhariEditorProps): Record<string, s
     'show-save': props.showSave === undefined ? null : props.showSave ? '' : 'false',
     autosave: props.autosave === undefined ? null : props.autosave ? '' : 'false',
     'feature-preset': props.featurePreset ?? null,
+    'toolbar-bordered': props.toolbarBordered === undefined ? null : props.toolbarBordered ? '' : 'false',
+    'toolbar-variant': props.toolbarVariant ?? null,
   };
 }
