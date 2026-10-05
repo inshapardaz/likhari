@@ -222,6 +222,8 @@ export function App() {
   const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, savedPrefs.preset ?? 'standard')));
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(savedPrefs.colorScheme ?? 'light');
   const [accentColor, setAccentColor] = useState(savedPrefs.accentColor ?? DEFAULT_ACCENT_COLOR);
+  const [toolbarBordered, setToolbarBordered] = useState(true);
+  const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
   const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
@@ -341,6 +343,17 @@ export function App() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={dark} onChange={(e) => setColorScheme(e.target.checked ? 'dark' : 'light')} />
             {t.darkMode}
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={toolbarBordered} onChange={(e) => setToolbarBordered(e.target.checked)} />
+            Bordered toolbar
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            Toolbar variant
+            <select value={toolbarVariant} onChange={(e) => setToolbarVariant(e.target.value as 'light' | 'filled')} style={{ fontSize: 12 }}>
+              <option value="light">Light</option>
+              <option value="filled">Filled</option>
+            </select>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
@@ -497,6 +510,7 @@ export function App() {
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}
+              toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant }}
               locale={locale}
               placeholder="Start writing…"
               height="100%"

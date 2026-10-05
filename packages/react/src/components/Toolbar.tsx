@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { Menu, Select, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
+import { Fragment, forwardRef, useCallback, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type ReactNode } from 'react';
+import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -293,46 +293,41 @@ function iconOptionRenderer(icons: Record<string, TablerIcon>, fallback: TablerI
   };
 }
 
-function ToolbarButton({
-  icon: Icon,
-  title,
-  active,
-  dirty,
-  disabled,
-  onClick,
-}: {
+interface ToolbarButtonProps extends Omit<ComponentPropsWithoutRef<'button'>, 'title'> {
   icon: TablerIcon;
   title: string;
   active?: boolean;
   /** Save button only: filled while there are unsaved changes (UI spec §7). */
   dirty?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="likhari-toolbar-button"
-      data-active={active ? 'true' : 'false'}
-      data-dirty={dirty === undefined ? undefined : dirty ? 'true' : 'false'}
-      disabled={disabled}
-      aria-pressed={active}
-      aria-label={title}
-      title={title}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-    >
-      <Icon size={ICON_SIZE} stroke={ICON_STROKE} />
-    </button>
-  );
 }
 
-/** A disabled placeholder for a feature whose config flag is on but that
- * isn't implemented yet (link/image/poetry/font/language-tooling — see
- * docs/lexical-editor-spec.md §13's phasing). Renders so the toolbar's
- * layout is final now and only needs its onClick wired up later. */
-function StubButton({ icon, title, comingSoon }: { icon: TablerIcon; title: string; comingSoon: (label: string) => string }) {
-  return <ToolbarButton icon={icon} title={comingSoon(title)} disabled onClick={undefined} />;
+const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(function ToolbarButton(
+  { icon: Icon, title, active, dirty, onMouseDown, ...rest },
+  ref,
+) {
+  return (
+    <MantineToolbar.Toggle
+      ref={ref}
+      aria-label={title}
+      title={title}
+      active={active}
+      data-dirty={dirty === undefined ? undefined : dirty ? 'true' : 'false'}
+      // Keep the editor's selection: a mousedown here would blur the canvas.
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onMouseDown?.(e);
+      }}
+      {...rest}
+    >
+      <Icon size={ICON_SIZE} stroke={ICON_STROKE} />
+    </MantineToolbar.Toggle>
+  );
+});
+
+function withDividers(sections: (ReactNode | false)[]): ReactNode[] {
+  return sections
+    .filter((section): section is ReactNode => Boolean(section))
+    .flatMap((section, index) => (index === 0 ? [section] : [<MantineToolbar.Divider key={`divider-${index}`} />, section]));
 }
 
 interface ToolbarSelectProps {
@@ -386,32 +381,8 @@ interface ActionItem {
   onClick: () => void;
 }
 
-interface MovableGroup {
-  key: string;
-  items: ActionItem[];
-}
-
-const EMPTY_OVERFLOW: ReadonlySet<string> = new Set();
-
-function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
-  if (a.size !== b.size) return false;
-  for (const v of a) if (!b.has(v)) return false;
-  return true;
-}
-
-/** Renders a movable group's items as normal inline toolbar buttons (used
- * both in the real toolbar and in the hidden width-measuring clone). */
-function MovableGroupButtons({ group }: { group: MovableGroup }) {
-  return (
-    <div className="likhari-toolbar-group" data-group-key={group.key}>
-      {group.items.map((item) => (
-        <ToolbarButton key={item.key} icon={item.icon} title={item.label} active={item.active} onClick={item.onClick} />
-      ))}
-    </div>
-  );
-}
-
-function OverflowItem({
+/** An item in the "..." menu. A mousedown here would blur the canvas, so it is kept. */
+function MoreMenuItem({
   icon: Icon,
   label,
   active,
@@ -426,8 +397,6 @@ function OverflowItem({
     <Menu.Item
       leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
       data-active={active ? 'true' : 'false'}
-      className="likhari-overflow-item"
-      // Keep the editor's selection: a mousedown here would blur the canvas.
       onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
       onClick={onClick}
     >
@@ -640,8 +609,17 @@ function PoetryMenuItems({
   );
 }
 
+/** Appearance of the toolbar. The accent colour comes from the editor's `accentColor`. */
+export interface ToolbarStyle {
+  /** Outline the toolbar and each button cluster. Default true. */
+  bordered?: boolean;
+  /** `light` tints the active button, `filled` fills it with the accent. Default `light`. */
+  variant?: 'light' | 'filled';
+}
+
 export interface ToolbarProps {
   config: ResolvedEditorFeatureConfig;
+  toolbarStyle?: ToolbarStyle;
   /** Where synonyms come from. */
   thesaurusStores?: ThesaurusStore[];
   /** Where words added to the dictionary are saved. */
@@ -670,7 +648,9 @@ export interface ToolbarProps {
   drafts?: DraftsToolbarOptions;
 }
 
-export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+  const bordered = toolbarStyle?.bordered ?? true;
+  const variant = toolbarStyle?.variant ?? 'light';
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -678,16 +658,6 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
   const [draftsOpen, setDraftsOpen] = useState(false);
   const rtl = direction === 'rtl';
   const ALIGN_ICONS = rtl ? ALIGN_ICONS_RTL : ALIGN_ICONS_LTR;
-
-  // Responsive "priority+" overflow: the toolbar's outer container and a
-  // hidden nowrap clone (rendered with every movable group forced inline)
-  // are both measured; whenever the clone's natural width exceeds the
-  // container's available width, the lowest-priority movable groups are
-  // moved into the "..." menu, lowest-priority first, until what remains
-  // inline fits (or there's nothing left to move).
-  const toolbarContainerRef = useRef<HTMLDivElement | null>(null);
-  const toolbarMeasureRef = useRef<HTMLDivElement | null>(null);
-  const [overflowGroupKeys, setOverflowGroupKeys] = useState<ReadonlySet<string>>(EMPTY_OVERFLOW);
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -852,7 +822,7 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
   };
   const snapshotSelectionRef = useRef(snapshotSelection);
   snapshotSelectionRef.current = snapshotSelection;
-  const runOverflowAction = (action: () => void) => () => {
+  const runMenuItem = (action: () => void) => () => {
     const saved = menuSelectionRef.current;
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
     action();
@@ -1184,10 +1154,10 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
 
   const showFormattingGroup =
     headingLevels.length > 0 || config.lists.bullet || config.lists.numbered || config.lists.check || config.blocks.quote;
-  const showInlineGroup = fmt.bold || fmt.italic || fmt.underline;
   const showAlignGroup =
     config.alignment.start || config.alignment.center || config.alignment.justify || config.alignment.left || config.alignment.right;
-  const showStubInsertGroup =
+  const showInsertGroup =
+    config.links ||
     config.images.linked ||
     config.images.embedded ||
     config.tables ||
@@ -1195,27 +1165,14 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
     config.blocks.pageBreak ||
     config.columns ||
     config.footnotes ||
-    config.poetry.enabled;
+    (config.poetry.enabled && locale !== 'en') ||
+    (config.tables && state.inTable) ||
+    (config.poetry.enabled && state.inPoetry);
   const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
-  // The "script & cleanup" and "indent/outdent" groups (UI spec §3.3) render
-  // as normal inline toolbar groups whenever there's room, and only move
-  // into the "..." overflow menu when the measured toolbar content doesn't
-  // fit the available width (see the ResizeObserver effect below) — this
-  // replaces the old always-on overflow menu, which was driven purely by
-  // these config flags regardless of actual space.
-  const scriptCleanupItems: ActionItem[] = [];
-  if (fmt.strikethrough) {
-    scriptCleanupItems.push({
-      key: 'strikethrough',
-      icon: IconStrikethrough,
-      label: strings.toolbar.strikethrough,
-      active: state.activeFormats.has('strikethrough'),
-      onClick: () => formatText('strikethrough'),
-    });
-  }
+  const moreItems: ActionItem[] = [];
   if (fmt.superscript) {
-    scriptCleanupItems.push({
+    moreItems.push({
       key: 'superscript',
       icon: IconSuperscript,
       label: strings.toolbar.superscript,
@@ -1224,7 +1181,7 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
     });
   }
   if (fmt.subscript) {
-    scriptCleanupItems.push({
+    moreItems.push({
       key: 'subscript',
       icon: IconSubscript,
       label: strings.toolbar.subscript,
@@ -1233,14 +1190,14 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
     });
   }
   if (fmt.caseTransforms) {
-    scriptCleanupItems.push(
+    moreItems.push(
       { key: 'upper', icon: IconLetterCaseUpper, label: strings.toolbar.uppercase, onClick: () => applyCaseTransform('upper') },
       { key: 'lower', icon: IconLetterCaseLower, label: strings.toolbar.lowercase, onClick: () => applyCaseTransform('lower') },
       { key: 'capitalize', icon: IconLetterCase, label: strings.toolbar.capitalize, onClick: () => applyCaseTransform('capitalize') },
     );
   }
   if (fmt.clearFormatting) {
-    scriptCleanupItems.push({ key: 'clear', icon: IconClearFormatting, label: strings.toolbar.clearFormatting, onClick: clearFormatting });
+    moreItems.push({ key: 'clear', icon: IconClearFormatting, label: strings.toolbar.clearFormatting, onClick: clearFormatting });
   }
 
   // UI spec §5: indent/outdent arrows are direction-relative and swap in RTL
@@ -1261,57 +1218,6 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
         },
       ]
     : [];
-
-  // Low to high priority: the first group here is the first one pushed into
-  // overflow once content stops fitting (UI spec §3.3).
-  const movableGroups: MovableGroup[] = [
-    { key: 'scriptCleanup', items: scriptCleanupItems },
-    { key: 'indentOutdent', items: indentItems },
-  ].filter((g) => g.items.length > 0);
-  const movableGroupKeys = useMemo(() => movableGroups.map((g) => g.key).join(','), [movableGroups]);
-
-  // Re-measure whenever the container is resized, or whenever the set of
-  // movable groups (and so the hidden clone's content) changes.
-  useLayoutEffect(() => {
-    const container = toolbarContainerRef.current;
-    const measure = toolbarMeasureRef.current;
-    if (!container || !measure) return;
-
-    // Rough width of the "..." button itself (icon button + its gap) —
-    // only charged against the budget once something has actually moved
-    // into it, since it isn't rendered at all otherwise.
-    const OVERFLOW_BUTTON_WIDTH = 38;
-
-    const recompute = () => {
-      const available = container.clientWidth;
-      const total = measure.scrollWidth;
-      if (total <= available) {
-        setOverflowGroupKeys((prev) => (prev.size === 0 ? prev : EMPTY_OVERFLOW));
-        return;
-      }
-      const widths = new Map<string, number>();
-      measure.querySelectorAll<HTMLElement>('[data-group-key]').forEach((el) => {
-        widths.set(el.dataset.groupKey as string, el.getBoundingClientRect().width);
-      });
-      let remaining = total;
-      const next = new Set<string>();
-      for (const key of movableGroupKeys.split(',').filter(Boolean)) {
-        if (remaining <= available) break;
-        const w = widths.get(key);
-        if (w === undefined) continue;
-        remaining -= w;
-        next.add(key);
-      }
-      if (next.size > 0) remaining += OVERFLOW_BUTTON_WIDTH;
-      setOverflowGroupKeys((prev) => (setsEqual(prev, next) ? prev : next));
-    };
-
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(container);
-    ro.observe(measure);
-    return () => ro.disconnect();
-  });
 
   // Grouped for the dropdown when options declare groups (Latin / Urdu).
   const fontData: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = (() => {
@@ -1358,136 +1264,117 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
   const formattingValue: FormattingValue = state.listType ?? state.blockType;
   const AlignIcon = ALIGN_ICONS[state.elementFormat] ?? IconAlignLeft;
 
-  // The toolbar's "always inline" groups (UI spec §3.3's Desktop tier) —
-  // built as an array so the exact same elements can be rendered both in
-  // the visible toolbar and in the hidden width-measuring clone below,
-  // without duplicating the JSX. The link right-click context menu is kept
-  // out of this list: it's a zero-size, fixed-position anchor, not part of
-  // the toolbar's own layout width.
-  const fixedGroups: ReactNode[] = [
-    showSave && (
-      <div className="likhari-toolbar-group" key="save">
-        <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
-      </div>
-    ),
-    drafts && (
-      <div className="likhari-toolbar-group" key="drafts">
-        <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />
-      </div>
-    ),
-    config.history && (
-      <div className="likhari-toolbar-group" key="history">
-        <ToolbarButton
-          icon={IconArrowBackUp}
-          title={strings.toolbar.undo}
-          disabled={!state.canUndo}
-          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-        />
-        <ToolbarButton
-          icon={IconArrowForwardUp}
-          title={strings.toolbar.redo}
-          disabled={!state.canRedo}
-          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-        />
-      </div>
-    ),
-    showFormattingGroup && (
-      <div className="likhari-toolbar-group" key="formatting">
-        <ToolbarSelect
-          icon={IconPilcrow}
-          label={strings.toolbar.formattingLabel}
-          width={148}
-          value={formattingValue}
-          data={formattingOptions}
-          comingSoon={strings.toolbar.comingSoon}
-          renderOption={iconOptionRenderer(FORMATTING_ICONS, IconPilcrow)}
-          onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
-        />
-      </div>
-    ),
-    showInlineGroup && (
-      <div className="likhari-toolbar-group" key="inline">
-        {fmt.bold && (
-          <ToolbarButton icon={IconBold} title={strings.toolbar.bold} active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />
-        )}
-        {fmt.italic && (
-          <ToolbarButton
-            icon={IconItalic}
-            title={strings.toolbar.italic}
-            active={state.activeFormats.has('italic')}
-            onClick={() => formatText('italic')}
-          />
-        )}
-        {fmt.underline && (
-          <ToolbarButton
-            icon={IconUnderline}
-            title={strings.toolbar.underline}
-            active={state.activeFormats.has('underline')}
-            onClick={() => formatText('underline')}
-          />
-        )}
-      </div>
-    ),
-    (config.font.family || config.font.size) && (
-      <div className="likhari-toolbar-group" key="font">
-        {config.font.family && (
+  const formatSection = (showFormattingGroup || fmt.bold || fmt.italic || fmt.underline || fmt.strikethrough || moreItems.length > 0) && (
+    <Fragment key="format">
+      {showFormattingGroup && (
+        <MantineToolbar.Group>
           <ToolbarSelect
-            icon={IconTypography}
-            label={strings.toolbar.fontFamily}
-            width={150}
-            value={fontOptions.some((f) => f.family === shownFontFamily) ? shownFontFamily : null}
-            placeholder={strings.toolbar.fontFamilyPlaceholder}
-            data={fontData}
-            searchable
-            noMatchMessage={strings.toolbar.noMatch}
-            renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
-            onChange={withRefocus((v: string) => applyFont('font-family', v))}
+            icon={IconPilcrow}
+            label={strings.toolbar.formattingLabel}
+            width={148}
+            value={formattingValue}
+            data={formattingOptions}
+            comingSoon={strings.toolbar.comingSoon}
+            renderOption={iconOptionRenderer(FORMATTING_ICONS, IconPilcrow)}
+            onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
           />
-        )}
-        {config.font.size && (
-          <ToolbarSelect
-            icon={IconTextSize}
-            label={strings.toolbar.fontSize}
-            width={84}
-            value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
-            placeholder={strings.toolbar.fontSizePlaceholder}
-            data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
-            onChange={withRefocus((v: string) => applyFont('font-size', v))}
-          />
-        )}
-      </div>
-    ),
-    showAlignGroup && (
-      <div className="likhari-toolbar-group" key="align">
-        <ToolbarSelect
-          icon={AlignIcon}
-          label={strings.toolbar.alignment}
-          width={138}
-          value={state.elementFormat || 'start'}
-          data={alignOptions}
-          renderOption={iconOptionRenderer(ALIGN_ICONS as Record<string, TablerIcon>, IconAlignLeft)}
-          onChange={withRefocus((v) => formatElement(v as ElementFormatType))}
+        </MantineToolbar.Group>
+      )}
+      {(fmt.bold || fmt.italic || fmt.underline || fmt.strikethrough || moreItems.length > 0) && (
+    <MantineToolbar.Group className="likhari-toolbar-cluster">
+      {fmt.bold && <ToolbarButton icon={IconBold} title={strings.toolbar.bold} active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
+      {fmt.italic && (
+        <ToolbarButton icon={IconItalic} title={strings.toolbar.italic} active={state.activeFormats.has('italic')} onClick={() => formatText('italic')} />
+      )}
+      {fmt.underline && (
+        <ToolbarButton icon={IconUnderline} title={strings.toolbar.underline} active={state.activeFormats.has('underline')} onClick={() => formatText('underline')} />
+      )}
+      {fmt.strikethrough && (
+        <ToolbarButton
+          icon={IconStrikethrough}
+          title={strings.toolbar.strikethrough}
+          active={state.activeFormats.has('strikethrough')}
+          onClick={() => formatText('strikethrough')}
         />
-      </div>
-    ),
-    config.links && (
-      <div className="likhari-toolbar-group" key="link">
-        {state.isLink ? (
-          // Caret is in a link: the button opens a menu to see, edit or remove it.
+      )}
+      {moreItems.length > 0 && (
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={210} closeOnItemClick onOpen={snapshotSelection}>
+          <Menu.Target>
+            <ToolbarButton icon={IconDots} title={strings.toolbar.moreFormatting} />
+          </Menu.Target>
+          <Menu.Dropdown>
+            {moreItems.map((item) => (
+              <MoreMenuItem key={item.key} icon={item.icon} label={item.label} active={item.active} onClick={runMenuItem(item.onClick)} />
+            ))}
+          </Menu.Dropdown>
+        </Menu>
+      )}
+    </MantineToolbar.Group>)}
+    </Fragment>
+  );
+
+  const alignSection = (showAlignGroup || indentItems.length > 0) && (
+    <Fragment key="align">
+      {showAlignGroup && (
+        <MantineToolbar.Group>
+          <ToolbarSelect
+            icon={AlignIcon}
+            label={strings.toolbar.alignment}
+            width={138}
+            value={state.elementFormat || 'start'}
+            data={alignOptions}
+            renderOption={iconOptionRenderer(ALIGN_ICONS as Record<string, TablerIcon>, IconAlignLeft)}
+            onChange={withRefocus((v) => formatElement(v as ElementFormatType))}
+          />
+        </MantineToolbar.Group>
+      )}
+      {indentItems.length > 0 && (
+        <MantineToolbar.Group className="likhari-toolbar-cluster">
+          {indentItems.map((item) => (
+            <ToolbarButton key={item.key} icon={item.icon} title={item.label} onClick={item.onClick} />
+          ))}
+        </MantineToolbar.Group>
+      )}
+    </Fragment>
+  );
+
+  const fontSection = (config.font.family || config.font.size) && (
+    <MantineToolbar.Group key="font">
+      {config.font.family && (
+        <ToolbarSelect
+          icon={IconTypography}
+          label={strings.toolbar.fontFamily}
+          width={150}
+          value={fontOptions.some((f) => f.family === shownFontFamily) ? shownFontFamily : null}
+          placeholder={strings.toolbar.fontFamilyPlaceholder}
+          data={fontData}
+          searchable
+          noMatchMessage={strings.toolbar.noMatch}
+          renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
+          onChange={withRefocus((v: string) => applyFont('font-family', v))}
+        />
+      )}
+      {config.font.size && (
+        <ToolbarSelect
+          icon={IconTextSize}
+          label={strings.toolbar.fontSize}
+          width={84}
+          value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
+          placeholder={strings.toolbar.fontSizePlaceholder}
+          data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
+          onChange={withRefocus((v: string) => applyFont('font-size', v))}
+        />
+      )}
+    </MantineToolbar.Group>
+  );
+
+  const insertSection = showInsertGroup && (
+    <MantineToolbar.Group key="insert" className="likhari-toolbar-cluster">
+      {config.links &&
+        (state.isLink ? (
           <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
             <Menu.Target>
-              <button
-                type="button"
-                className="likhari-toolbar-button"
-                data-active="true"
-                aria-pressed="true"
-                aria-haspopup="menu"
-                aria-label={strings.toolbar.linkOptions}
-                title={strings.toolbar.linkOptions}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                <IconLink size={ICON_SIZE} stroke={ICON_STROKE} />
-              </button>
+              <ToolbarButton icon={IconLink} title={strings.toolbar.linkOptions} active aria-haspopup="menu" />
             </Menu.Target>
             <Menu.Dropdown>
               <LinkMenuItems
@@ -1503,69 +1390,22 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
           </Menu>
         ) : (
           <ToolbarButton icon={IconLink} title={strings.toolbar.insertLink} onClick={openLinkDialog} />
-        )}
-      </div>
-    ),
-    showStubInsertGroup && (
-      <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="stubInsert">
-        {(config.images.linked || config.images.embedded) && (
-          <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
-        )}
-        {config.blocks.pageBreak && (
-          <ToolbarButton
-            icon={IconPageBreak}
-            title={strings.toolbar.insertPageBreak}
-            onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
-          />
-        )}
-        {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
-        {config.columns && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
-        {config.footnotes && (
-          <ToolbarButton
-            icon={IconNumber1Small}
-            title={strings.toolbar.insertFootnote}
-            onClick={() => editor.dispatchCommand(INSERT_FOOTNOTE_COMMAND, undefined)}
-          />
-        )}
-        {config.blocks.horizontalRule && (
-          <ToolbarButton
-            icon={IconSeparatorHorizontal}
-            title={strings.toolbar.insertHorizontalRule}
-            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
-          />
-        )}
-        {config.findReplace && (
-          <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
-        )}
-        {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
-            outside an Urdu/Punjabi editing context, not just when the feature is off. */}
-        {config.poetry.enabled && locale !== 'en' && (
-          <ToolbarButton
-            icon={IconFeather}
-            title={strings.toolbar.insertPoetryCouplet}
-            onClick={() =>
-              editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })
-            }
-          />
-        )}
-      </div>
-    ),
-    config.tables && state.inTable && (
-      <div className="likhari-toolbar-group" key="tableActions">
+        ))}
+      {(config.images.linked || config.images.embedded) && (
+        <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
+      )}
+      {config.blocks.horizontalRule && (
+        <ToolbarButton
+          icon={IconSeparatorHorizontal}
+          title={strings.toolbar.insertHorizontalRule}
+          onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+        />
+      )}
+      {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
+      {config.tables && state.inTable && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
           <Menu.Target>
-            <button
-              type="button"
-              className="likhari-toolbar-button"
-              data-active="true"
-              aria-pressed="true"
-              aria-haspopup="menu"
-              aria-label={strings.toolbar.tableOptions}
-              title={strings.toolbar.tableOptions}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <IconTableOptions size={ICON_SIZE} stroke={ICON_STROKE} />
-            </button>
+            <ToolbarButton icon={IconTableOptions} title={strings.toolbar.tableOptions} active aria-haspopup="menu" />
           </Menu.Target>
           <Menu.Dropdown>
             <TableMenuItems
@@ -1579,92 +1419,110 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
             />
           </Menu.Dropdown>
         </Menu>
-      </div>
-    ),
-    config.poetry.enabled && state.inPoetry && (
-      <div className="likhari-toolbar-group" key="poetryActions">
+      )}
+      {config.columns && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
+      {config.footnotes && (
+        <ToolbarButton
+          icon={IconNumber1Small}
+          title={strings.toolbar.insertFootnote}
+          onClick={() => editor.dispatchCommand(INSERT_FOOTNOTE_COMMAND, undefined)}
+        />
+      )}
+      {config.blocks.pageBreak && (
+        <ToolbarButton
+          icon={IconPageBreak}
+          title={strings.toolbar.insertPageBreak}
+          onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
+        />
+      )}
+      {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
+          outside an Urdu/Punjabi editing context, not just when the feature is off. */}
+      {config.poetry.enabled && locale !== 'en' && (
+        <ToolbarButton
+          icon={IconFeather}
+          title={strings.toolbar.insertPoetryCouplet}
+          onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })}
+        />
+      )}
+      {config.poetry.enabled && state.inPoetry && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200} onOpen={snapshotSelection}>
           <Menu.Target>
-            <button
-              type="button"
-              className="likhari-toolbar-button"
-              data-active="true"
-              aria-pressed="true"
-              aria-haspopup="menu"
-              aria-label={strings.toolbar.poetryOptions}
-              title={strings.toolbar.poetryOptions}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />
-            </button>
+            <ToolbarButton icon={IconFeather} title={strings.toolbar.poetryOptions} active aria-haspopup="menu" />
           </Menu.Target>
           <Menu.Dropdown>
             <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
           </Menu.Dropdown>
         </Menu>
-      </div>
+      )}
+    </MantineToolbar.Group>
+  );
+
+  const toolsSection = showLanguageGroup && (
+    <MantineToolbar.Group key="tools" className="likhari-toolbar-cluster">
+      {config.language.autocorrect && (
+        <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
+      )}
+      {config.language.textCleanup && (
+        <ToolbarButton
+          icon={IconSparkles}
+          title={strings.autoCorrect.correctDocument}
+          onClick={() => editor.dispatchCommand(CORRECT_DOCUMENT_COMMAND, undefined)}
+        />
+      )}
+      {config.language.spellCheck && (
+        <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
+      )}
+    </MantineToolbar.Group>
+  );
+
+  const endSection = (drafts || config.findReplace) && (
+    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={{ marginInlineStart: 'auto' }}>
+      {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
+      {config.findReplace && (
+        <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
+      )}
+    </MantineToolbar.Group>
+  );
+
+  const startSections: (ReactNode | false)[] = [
+    showSave && (
+      <MantineToolbar.Group key="save" className="likhari-toolbar-cluster">
+        <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
+      </MantineToolbar.Group>
     ),
-    showLanguageGroup && (
-      <div className="likhari-toolbar-group likhari-toolbar-group--collapse-tablet" key="language">
-        {config.language.autocorrect && (
-          <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
-        )}
-        {config.language.textCleanup && (
-          <ToolbarButton
-            icon={IconSparkles}
-            title={strings.autoCorrect.correctDocument}
-            onClick={() => editor.dispatchCommand(CORRECT_DOCUMENT_COMMAND, undefined)}
-          />
-        )}
-        {config.language.spellCheck && (
-          <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
-        )}
-      </div>
+    config.history && (
+      <MantineToolbar.Group key="history" className="likhari-toolbar-cluster">
+        <ToolbarButton
+          icon={IconArrowBackUp}
+          title={strings.toolbar.undo}
+          disabled={!state.canUndo}
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        />
+        <ToolbarButton
+          icon={IconArrowForwardUp}
+          title={strings.toolbar.redo}
+          disabled={!state.canRedo}
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        />
+      </MantineToolbar.Group>
     ),
+    formatSection,
+    alignSection,
+    fontSection,
+    insertSection,
+    toolsSection,
   ];
 
   return (
-    <div className="likhari-toolbar" role="toolbar" aria-label={strings.toolbar.ariaLabel} ref={toolbarContainerRef}>
-      {fixedGroups}
-
-      {/* Movable groups (script & cleanup, indent/outdent) — rendered as
-          normal inline buttons here whenever they aren't currently measured
-          as overflowing (see the ResizeObserver effect above). */}
-      {movableGroups
-        .filter((group) => !overflowGroupKeys.has(group.key))
-        .map((group) => (
-          <MovableGroupButtons key={group.key} group={group} />
-        ))}
-
-      {/* Overflow: whichever movable groups don't currently fit the
-          available width — genuinely empty (and hidden) otherwise, per the
-          responsive "priority+" pattern (UI spec §3.3). A Mantine Menu
-          portals its dropdown out of the toolbar, so it can't be clipped or
-          add a scrollbar. */}
-      {overflowGroupKeys.size > 0 && (
-        <Menu position="bottom-end" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={210} closeOnItemClick onOpen={snapshotSelection}>
-          <Menu.Target>
-            <button
-              type="button"
-              className="likhari-toolbar-button"
-              aria-label={strings.toolbar.moreFormatting}
-              title={strings.toolbar.moreFormatting}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <IconDots size={ICON_SIZE} stroke={ICON_STROKE} />
-            </button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {movableGroups
-              .filter((group) => overflowGroupKeys.has(group.key))
-              .flatMap((group) =>
-                group.items.map((item) => (
-                  <OverflowItem key={item.key} icon={item.icon} label={item.label} active={item.active} onClick={runOverflowAction(item.onClick)} />
-                )),
-              )}
-          </Menu.Dropdown>
-        </Menu>
-      )}
+    <MantineToolbar
+      aria-label={strings.toolbar.ariaLabel}
+      className={bordered ? 'likhari-toolbar' : 'likhari-toolbar likhari-toolbar--plain'}
+      withBorder={bordered}
+      variant={variant}
+      color="var(--editor-accent)"
+    >
+      {withDividers(startSections)}
+      {endSection}
 
       <Menu
         opened={contextMenu !== null}
@@ -1803,29 +1661,6 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
         </Menu.Dropdown>
       </Menu>
 
-      {/* Hidden clone, rendering every group (fixed + movable) inline with
-          no wrapping — its natural (unclipped) width is what the effect
-          above compares against the container's available width to decide
-          what, if anything, needs to move into the "..." menu. */}
-      <div
-        aria-hidden="true"
-        ref={toolbarMeasureRef}
-        style={{
-          position: 'absolute',
-          visibility: 'hidden',
-          pointerEvents: 'none',
-          top: 0,
-          left: 0,
-          display: 'flex',
-          flexWrap: 'nowrap',
-          gap: 8,
-        }}
-      >
-        {fixedGroups}
-        {movableGroups.map((group) => (
-          <MovableGroupButtons key={group.key} group={group} />
-        ))}
-      </div>
       {(config.images.linked || config.images.embedded) && (
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
       )}
@@ -1842,6 +1677,6 @@ export function Toolbar({ config, dictionaryStores = [], thesaurusStores = [], o
         />
       )}
       {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
-    </div>
+    </MantineToolbar>
   );
 }

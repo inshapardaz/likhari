@@ -348,7 +348,7 @@ const en: Strings = {
     subscript: 'Subscript',
     uppercase: 'UPPERCASE',
     lowercase: 'lowercase',
-    capitalize: 'Capitalize',
+    capitalize: 'InitCap',
     clearFormatting: 'Clear formatting',
     outdent: 'Outdent',
     indent: 'Indent',
