@@ -42,6 +42,66 @@ comment and updated on each push. The preview is removed when the PR is merged
 or closed. `main` deploys to the site root. Requires Pages set to
 **Deploy from a branch: `gh-pages` / root** (one-time setting).
 
+## React props (`<EditorRoot>`)
+
+Every prop is optional. Defaults are shown where they apply.
+
+### Document and content
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `documentId` | `string` | none | Names the document. Its drafts are stored under this id, and it is required for `restoreDraft` to find a draft. |
+| `initialContent` | `EditorInitialContent` | empty | Content to load when the editor mounts. |
+| `onChange` | `(state: SerializedEditorState) => void` | none | Called on every change, with the Lexical state. |
+| `placeholder` | `string` | the locale's text | Shown while the canvas is empty. |
+| `height` | `string \| number` | `'480px'` | Height of the toolbar and canvas together. The canvas scrolls inside it. Accepts any CSS length, such as `'100%'`, `'60vh'` or a number of pixels. |
+| `locale` | `Locale` | `'en'` | UI language for labels, tooltips and menus. Also picks the default font and direction. |
+
+### Features
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `featurePreset` | `FeatureConfigPresetName` | `'full'` | Starting set of features: `minimal`, `standard`, `full` or `poetry`. |
+| `featureConfig` | `EditorFeatureConfig` | from the preset | Turns individual features on or off. Overrides the preset. |
+| `fontOptions` | `FontOption[]` | `DEFAULT_FONT_OPTIONS` | Entries in the font-family dropdown. Spread the defaults to add your own. |
+| `punctuation` | `PunctuationOptions` | both on | Common punctuation fixes, and whether a straight `"` becomes `”`. |
+| `urduNormalization` | `UrduNormalizationOptions` | built-in | Urdu normalisation applied during auto-correct. Set `removeDiacritics` to strip diacritics. |
+| `autoCorrectStores` | `AutoCorrectStore[]` | built-in | Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. |
+| `dictionaryStores` | `UserWordStore[]` | built-in | Where words added to the spelling dictionary are saved, in priority order. Pass a stable array. |
+| `completionStores` | `CompletionStore[]` | dictionaries and user words | Where autocomplete words come from. Pass a stable array. |
+| `autoCompleteLanguage` | `SpellLanguage \| 'auto'` | `'auto'` | Language for autocomplete. `'auto'` follows each block's direction: English for left-to-right, Urdu for right-to-left. |
+| `thesaurusStores` | `ThesaurusStore[]` | English WordNet | Where synonyms come from, merged in order. Pass a stable array. |
+
+### Images and saving
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `onImageUpload` | `(file: File) => Promise<string>` | none | Stores an uploaded image and returns its URL. Without it, images are embedded as base64, which makes the document large. |
+| `fetchImage` | `(url: string) => Promise<Blob>` | browser fetch | Downloads a linked image when it is embedded or edited. Use this to route through your backend when the image server sends no CORS headers. |
+| `onSave` | `(content: string, format: FormatId) => void` | none | Called by the Save button with the serialized content. |
+| `showSave` | `boolean` | `true` when `onSave` is set | Shows the Save button. Set it to show the button without a handler, or to hide it while keeping `onSave`. |
+
+### Drafts and leaving
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `autosave` | `boolean` | `true` | Saves drafts to `localStorage` while the user types. |
+| `autosaveDelayMs` | `number` | `750` | How long to wait after typing before writing a draft, in milliseconds. |
+| `autosaveMaxBytes` | `number` | `2_000_000` | Skips a draft larger than this, so one document cannot fill browser storage. |
+| `autosaveMaxDrafts` | `number` | `20` | How many drafts to keep across all documents. The oldest are deleted first. |
+| `restoreDraft` | `'prompt' \| 'auto' \| 'off'` | `'prompt'` | On mount, when a newer draft exists: ask the user, load it, or keep the initial content and move the draft aside. |
+| `onDraftRestored` | `(draft: { documentId: string; savedAt: number }) => void` | none | Called when a draft is loaded into the editor. |
+| `navigationGuard` | `'confirm' \| 'save-draft' \| 'off'` | `'confirm'` | What happens when the user leaves with unsaved changes: ask, save a draft silently, or do nothing. |
+
+### Appearance
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `theme` | `MantineThemeOverride` | editor theme | Overrides the Mantine theme, deep-merged over the default. |
+| `colorScheme` | `'light' \| 'dark'` | none | Colour scheme for the editor. |
+| `accentColor` | `string` | editor default | A CSS colour for the accent. Sets Mantine's primary colour and the toolbar and canvas accent. |
+| `toolbarStyle` | `ToolbarStyle` | `{ bordered: true, variant: 'light' }` | `bordered` outlines the toolbar and its button groups. `variant` is `'light'`, which tints the active button, or `'filled'`, which fills it with the accent. |
+
 ## Content formats and `setContent`
 
 `ref.getContent(format)` and `ref.setContent(value, format)` accept `'lexical-json'`,
