@@ -34,6 +34,8 @@ export const LikhariEditor = defineComponent({
     showSave: { type: Boolean, default: undefined },
     autosave: { type: Boolean, default: undefined },
     featurePreset: String as PropType<'minimal' | 'standard' | 'full' | 'poetry'>,
+    toolbarBordered: { type: Boolean, default: undefined },
+    toolbarVariant: String as PropType<'light' | 'filled'>,
     featureConfig: Object as PropType<EditorFeatureConfig>,
   },
   emits: {

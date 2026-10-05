@@ -29,6 +29,14 @@ describe('attributesToProps', () => {
     });
   });
 
+  it('reads the toolbar style', () => {
+    expect(attributesToProps(from({ 'toolbar-bordered': 'false', 'toolbar-variant': 'filled' }))).toEqual({
+      toolbarStyle: { bordered: false, variant: 'filled' },
+    });
+    expect(attributesToProps(from({ 'toolbar-bordered': '' }))).toEqual({ toolbarStyle: { bordered: true } });
+    expect(attributesToProps(from({ 'toolbar-variant': 'outline' }))).toEqual({});
+  });
+
   it('keeps an empty placeholder, which means no placeholder text', () => {
     expect(attributesToProps(from({ placeholder: '' }))).toEqual({ placeholder: '' });
   });

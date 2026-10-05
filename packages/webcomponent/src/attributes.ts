@@ -1,4 +1,4 @@
-import type { EditorRootProps, Locale } from '@inshapardaz/likhari-react';
+import type { EditorRootProps, Locale, ToolbarStyle } from '@inshapardaz/likhari-react';
 import type { FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
 /** The HTML attributes the element reads, in kebab-case as written in markup. */
@@ -12,10 +12,13 @@ export const OBSERVED_ATTRIBUTES = [
   'show-save',
   'autosave',
   'feature-preset',
+  'toolbar-bordered',
+  'toolbar-variant',
 ] as const;
 
 const LOCALES: Locale[] = ['en', 'ur', 'pa-shahmukhi'];
 const PRESETS: FeatureConfigPresetName[] = ['minimal', 'standard', 'full', 'poetry'];
+const TOOLBAR_VARIANTS: NonNullable<ToolbarStyle['variant']>[] = ['light', 'filled'];
 
 /** A boolean attribute is on when present, unless it says "false". */
 function booleanAttribute(value: string | null): boolean | undefined {
@@ -56,6 +59,16 @@ export function attributesToProps(read: (name: string) => string | null): Partia
 
   const preset = read('feature-preset');
   if (preset && (PRESETS as string[]).includes(preset)) props.featurePreset = preset as FeatureConfigPresetName;
+
+  const toolbarBordered = booleanAttribute(read('toolbar-bordered'));
+  const toolbarVariant = read('toolbar-variant');
+  const variant = toolbarVariant && (TOOLBAR_VARIANTS as string[]).includes(toolbarVariant) ? (toolbarVariant as ToolbarStyle['variant']) : undefined;
+  if (toolbarBordered !== undefined || variant !== undefined) {
+    props.toolbarStyle = {
+      ...(toolbarBordered !== undefined && { bordered: toolbarBordered }),
+      ...(variant !== undefined && { variant }),
+    };
+  }
 
   return props;
 }
