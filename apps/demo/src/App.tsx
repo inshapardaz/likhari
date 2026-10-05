@@ -369,7 +369,12 @@ export function App() {
             }}
           >
             <ControlGroup title="Preset" dark={dark}>
-              <select value={preset} onChange={(e) => applyPreset(e.target.value as FeatureConfigPresetName)} style={{ fontSize: 13 }}>
+              <select
+                aria-label="Preset"
+                value={preset}
+                onChange={(e) => applyPreset(e.target.value as FeatureConfigPresetName)}
+                style={{ fontSize: 13 }}
+              >
                 <option value="minimal">minimal</option>
                 <option value="standard">standard</option>
                 <option value="full">full</option>
