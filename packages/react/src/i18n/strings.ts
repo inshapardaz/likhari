@@ -58,6 +58,8 @@ export interface Strings {
     autocorrect: string;
     textCleanup: string;
     spellChecker: string;
+    /** Joins the selected lines into one paragraph. */
+    joinLines: string;
     moreFormatting: string;
     strikethrough: string;
     superscript: string;
@@ -197,6 +199,7 @@ export interface Strings {
   },
   contextMenu: {
     cut: string;
+    joinLines: string;
     copy: string;
     paste: string;
     selectAll: string;
@@ -342,6 +345,7 @@ const en: Strings = {
     autocorrect: 'Auto-correct',
     textCleanup: 'Text cleanup',
     spellChecker: 'Spell-checker',
+    joinLines: 'Join lines',
     moreFormatting: 'More formatting',
     strikethrough: 'Strikethrough',
     superscript: 'Superscript',
@@ -474,6 +478,7 @@ const en: Strings = {
   },
   contextMenu: {
     cut: 'Cut',
+    joinLines: 'Join lines',
     copy: 'Copy',
     paste: 'Paste',
     selectAll: 'Select all',
@@ -620,6 +625,7 @@ const ur: Strings = {
     autocorrect: 'خودکار تصحیح',
     textCleanup: 'متن کی صفائی',
     spellChecker: 'ہجے چیک کرنے والا',
+    joinLines: 'سطریں ملائیں',
     moreFormatting: 'مزید فارمیٹنگ',
     strikethrough: 'خط زدہ',
     superscript: 'بالا نویس',
@@ -752,6 +758,7 @@ const ur: Strings = {
   },
   contextMenu: {
     cut: 'کاٹیں',
+    joinLines: 'سطریں ملائیں',
     copy: 'کاپی کریں',
     paste: 'چسپاں کریں',
     selectAll: 'سب منتخب کریں',
@@ -898,6 +905,7 @@ const paShahmukhi: Strings = {
     autocorrect: 'خودکار درستی',
     textCleanup: 'متن دی صفائی',
     spellChecker: 'ہجے چیکر',
+    joinLines: 'سطراں ملاؤ',
     moreFormatting: 'ہور فارمیٹنگ',
     strikethrough: 'کٹی لکیر',
     superscript: 'اُتلا لکھت',
@@ -1030,6 +1038,7 @@ const paShahmukhi: Strings = {
   },
   contextMenu: {
     cut: 'کٹو',
+    joinLines: 'سطراں ملاؤ',
     copy: 'کاپی کرو',
     paste: 'چسپاں کرو',
     selectAll: 'سارا چنو',
