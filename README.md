@@ -285,3 +285,156 @@ Not supported: Internet Explorer and other legacy browsers.
 The HTML export writes its styles inline, so exported poetry keeps its
 layout outside the editor. It only depends on the logical properties and
 `text-align-last` listed above.
+
+## Embedding the editor: Web Component and Vue
+
+Two wrappers are provided for pages that do not use React. Both use the same
+editor as the React component, so features and file formats are identical.
+
+> **Status:** `@inshapardaz/likhari-webcomponent` and `@inshapardaz/likhari-vue`
+> are not yet published to npm. Until they are, build them from this repository
+> (`npm install && npm run build -w packages/webcomponent`, then `-w packages/vue`)
+> and use the built `dist/` folders. Once published, install them with npm as
+> shown below.
+
+### Web Component (`<likhari-editor>`)
+
+Works in any page, with no framework.
+
+```html
+<script type="module" src="/node_modules/@inshapardaz/likhari-webcomponent/dist/likhari-webcomponent.js"></script>
+
+<likhari-editor feature-preset="full" locale="en" height="480px" show-save></likhari-editor>
+```
+
+The bundle is one module with React, the editor and Mantine included. It is
+about 2.5MB (about 700KB gzipped). Load it once per page.
+
+**Attributes**
+
+| Attribute | Values | Default |
+| --- | --- | --- |
+| `feature-preset` | `minimal`, `standard`, `full`, `poetry` | `standard` |
+| `locale` | `en`, `ur`, `pa-shahmukhi` | `en` |
+| `color-scheme` | `light`, `dark` | `light` |
+| `accent-color` | any CSS colour | the editor's accent |
+| `height` | any CSS length | fills its container |
+| `placeholder` | text | none |
+| `document-id` | any string; enables autosave for that document | none |
+| `show-save` | present (or `"true"`) to show; `"false"` to hide | hidden |
+| `autosave` | `"false"` to turn off | on |
+
+**Property**
+
+Use the `featureConfig` property for fine-grained feature control. It is nested,
+so it cannot be an attribute:
+
+```js
+const editor = document.querySelector('likhari-editor');
+editor.featureConfig = { ...someConfig };
+```
+
+**Events**
+
+Both events bubble and cross shadow boundaries.
+
+```js
+editor.addEventListener('editor-change', (event) => {
+  // event.detail: the editor's state
+});
+
+editor.addEventListener('editor-save', (event) => {
+  // event.detail: { content: string, format: 'markdown' | 'html' | 'plain-text' | 'lexical-json' }
+});
+```
+
+**Methods**
+
+```js
+editor.getContent('html');          // or 'markdown', 'plain-text', 'lexical-json'
+editor.setContent('# Hello', 'markdown');
+editor.hasUnsavedChanges();         // true when there are edits not yet saved
+await editor.confirmDiscard();      // resolves false if the user chose to stay
+editor.focus();
+```
+
+**Installation with npm (once published)**
+
+```sh
+npm install @inshapardaz/likhari-webcomponent
+```
+
+Then import it once in your entry file: `import '@inshapardaz/likhari-webcomponent';`
+
+**Spellcheck dictionaries**
+
+The English dictionary is copied into `dist/dictionaries/en/` beside the bundle
+and loaded from there. Serve that folder with the bundle. If you host the bundle
+somewhere else, point the editor at your copy from your own code:
+
+```js
+import { setEnglishDictionaryBaseUrl } from '@inshapardaz/likhari-react';
+setEnglishDictionaryBaseUrl('https://example.com/likhari/dictionaries/en/');
+```
+
+**Styles and Shadow DOM**
+
+The element renders into the page, not a shadow root, because the editor's
+menus and dialogs are attached to the document. Its styles are added to the page
+head once, so your page's own CSS can affect the editor. Keep the editor's
+class names (they start with `likhari-`) from being restyled by global rules.
+
+### Vue 3 (`<LikhariEditor>`)
+
+A component over the Web Component. Vue 3.5 or later is required.
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { LikhariEditor } from '@inshapardaz/likhari-vue';
+
+const editor = ref<InstanceType<typeof LikhariEditor> | null>(null);
+const config = { /* EditorFeatureConfig */ };
+
+function onSave({ content, format }: { content: string; format: string }) {
+  // send content to your server
+}
+</script>
+
+<template>
+  <LikhariEditor
+    ref="editor"
+    feature-preset="full"
+    locale="ur"
+    height="480px"
+    :show-save="true"
+    :feature-config="config"
+    @change="(state) => console.log(state)"
+    @save="onSave"
+  />
+  <button @click="editor?.getContent('markdown')">Export Markdown</button>
+</template>
+```
+
+Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
+`colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
+`featurePreset`, and `featureConfig` (an object). Boolean props left unset use the
+editor's default; they are not sent as `false`.
+
+Template ref methods: `getContent(format)`, `setContent(value, format)`,
+`hasUnsavedChanges()`, `confirmDiscard()`, `focus()`.
+
+**Installation with npm (once published)**
+
+```sh
+npm install @inshapardaz/likhari-vue @inshapardaz/likhari-webcomponent vue
+```
+
+The Vue package loads the Web Component from its own dependency, so both must be
+installed. Keep the `dictionaries/` folder that the Web Component copies next to
+its bundle served with your app (see the Web Component section).
+
+### Browser support
+
+Both wrappers follow the editor's [browser compatibility](#browser-compatibility)
+requirements.
