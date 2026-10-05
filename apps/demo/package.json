@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "prebuild": "node ../../scripts/copy-dictionaries.mjs ../../packages/react/src/spellcheck/dictionaries/en public/dictionaries/en"
   },
   "dependencies": {
     "@inshapardaz/likhari-core": "*",
