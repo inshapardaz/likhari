@@ -39,6 +39,7 @@ import {
 } from '@lexical/list';
 import { $findMatchingParent, $insertNodeToNearestRoot } from '@lexical/utils';
 import { CORRECT_DOCUMENT_COMMAND } from '../autocorrect/AutoCorrectPlugin';
+import { $canJoinLines, $joinSelectedLines } from '../join/joinLinesActions';
 import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
 import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
 import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStores';
@@ -106,6 +107,7 @@ import {
   IconAlignRight,
   IconArrowBackUp,
   IconArrowForwardUp,
+  IconArrowsJoin,
   IconBold,
   IconClearFormatting,
   IconDeviceFloppy,
@@ -178,6 +180,7 @@ type FormattingValue = BlockType | ListType;
 type TablerIcon = ComponentType<IconProps>;
 
 interface ToolbarState {
+  canJoinLines: boolean;
   blockType: BlockType;
   activeFormats: Set<TextFormatType>;
   elementFormat: ElementFormatType;
@@ -214,6 +217,7 @@ interface ToolbarState {
 const UNSET_STYLE = '__unset__';
 
 const INITIAL_STATE: ToolbarState = {
+  canJoinLines: false,
   blockType: 'paragraph',
   activeFormats: new Set(),
   elementFormat: 'start' as ElementFormatType,
@@ -411,6 +415,9 @@ function MoreMenuItem({
 interface EditorContextMenu {
   x: number;
   y: number;
+  /** Set for plain text, where joining lines applies; `canJoin` is false when the selection is one line. */
+  text?: boolean;
+  canJoin?: boolean;
   link?: string;
   table?: { rows: number; columns: number };
   poetry?: boolean;
@@ -706,6 +713,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       // Lexical's read/update context has already closed, so any $-prefixed
       // node method (getFormatType() included) must not be deferred into it.
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
+      const canJoinLines = $canJoinLines();
       const poetryLayout = poetryBlock?.getLayout();
       const poetryCentered = $getCoupletCenteredFromSelection();
       const poetryScale = poetryBlock
@@ -714,6 +722,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
       setState((s) => ({
         ...s,
+        canJoinLines,
         blockType,
         activeFormats,
         elementFormat,
@@ -1016,6 +1025,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             }
           }
           if (point) word = $wordAtDomPoint(point.node, point.offset);
+          if (!cell && !couplet) {
+            menu.text = true;
+            menu.canJoin = $canJoinLines();
+          }
         },
         { discrete: true },
       );
@@ -1168,7 +1181,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     (config.poetry.enabled && locale !== 'en') ||
     (config.tables && state.inTable) ||
     (config.poetry.enabled && state.inPoetry);
-  const showLanguageGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck;
 
   const moreItems: ActionItem[] = [];
   if (fmt.superscript) {
@@ -1457,7 +1469,14 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const toolsSection = showLanguageGroup && (
+  const joinLines = () => {
+    editor.update(() => {
+      $joinSelectedLines();
+    }, { discrete: true });
+    editor.focus();
+  };
+
+  const toolsSection = (
     <MantineToolbar.Group key="tools" className="likhari-toolbar-cluster">
       {config.language.autocorrect && (
         <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
@@ -1472,6 +1491,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {config.language.spellCheck && (
         <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
       )}
+      <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} disabled={!state.canJoinLines} onClick={joinLines} />
     </MantineToolbar.Group>
   );
 
@@ -1643,6 +1663,20 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           {contextMenu?.poetry && (
             <>
               <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
+              <Menu.Divider />
+            </>
+          )}
+          {contextMenu?.text && (
+            <>
+              <Menu.Item
+                leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
+                disabled={!contextMenu.canJoin}
+                onClick={runMenuAction(() => {
+                  $joinSelectedLines();
+                })}
+              >
+                {strings.contextMenu.joinLines}
+              </Menu.Item>
               <Menu.Divider />
             </>
           )}
