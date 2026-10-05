@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-core",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "Framework-agnostic pieces of the Likhari editor: feature-config schema, presets, and default theme tokens.",
   "license": "MIT",
   "repository": {
