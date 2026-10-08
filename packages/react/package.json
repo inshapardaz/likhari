@@ -33,8 +33,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@inshapardaz/likhari-converters": "^0.1.0",
-    "@inshapardaz/likhari-core": "^0.1.0",
+    "@inshapardaz/likhari-converters": "*",
+    "@inshapardaz/likhari-core": "*",
     "@lexical/link": "^0.20.0",
     "@lexical/list": "^0.20.0",
     "@lexical/react": "^0.20.0",
