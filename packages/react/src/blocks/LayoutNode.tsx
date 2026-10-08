@@ -82,6 +82,10 @@ export class LayoutContainerNode extends ElementNode {
     const element = document.createElement('div');
     addClassNamesToElement(element, config.theme.layoutContainer ?? 'likhari-layout-container');
     element.style.gridTemplateColumns = this.__templateColumns;
+    // Lets a single-item row (a centered poetry couplet — poetryActions.ts's
+    // $setCoupletCentered) be styled from CSS alone, without a :has() selector
+    // (issue #25: :has() needs Firefox 121+).
+    element.toggleAttribute('data-likhari-single-column', this.getChildrenSize() === 1);
     return element;
   }
 
@@ -89,6 +93,7 @@ export class LayoutContainerNode extends ElementNode {
     if (prevNode.__templateColumns !== this.__templateColumns) {
       dom.style.gridTemplateColumns = this.__templateColumns;
     }
+    dom.toggleAttribute('data-likhari-single-column', this.getChildrenSize() === 1);
     return false;
   }
 
