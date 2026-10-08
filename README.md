@@ -1,5 +1,9 @@
 # likhari
 
+[![npm: @inshapardaz/likhari-react](https://img.shields.io/npm/v/%40inshapardaz%2Flikhari-react?label=%40inshapardaz%2Flikhari-react)](https://www.npmjs.com/package/@inshapardaz/likhari-react)
+[![npm: @inshapardaz/likhari-core](https://img.shields.io/npm/v/%40inshapardaz%2Flikhari-core?label=%40inshapardaz%2Flikhari-core)](https://www.npmjs.com/package/@inshapardaz/likhari-core)
+[![npm: @inshapardaz/likhari-converters](https://img.shields.io/npm/v/%40inshapardaz%2Flikhari-converters?label=%40inshapardaz%2Flikhari-converters)](https://www.npmjs.com/package/@inshapardaz/likhari-converters)
+
 An Urdu-first multilingual rich text editor, built on [Lexical](https://lexical.dev/).
 See `CLAUDE.md` and `docs/` for the full specification; this file covers the
 implementation as it stands.
@@ -13,7 +17,62 @@ theme — English only. Later phases (Urdu/Punjabi + BiDi, Markdown/HTML,
 columns/footnotes/poetry, language tooling, Vue/Web Component wrappers) are
 not yet implemented; see the phasing table in the spec.
 
+## Installation
+
+```sh
+npm install @inshapardaz/likhari-react @mantine/core @mantine/hooks react react-dom
+```
+
+`@mantine/core`, `@mantine/hooks`, `react` and `react-dom` are peer
+dependencies — install them alongside the editor. `@inshapardaz/likhari-core`
+and `@inshapardaz/likhari-converters` come along as dependencies; install them
+directly only if you want their types or functions on their own (feature
+config presets, format converters) without the React component.
+
+### Quick start
+
+```tsx
+import '@mantine/core/styles.css';
+import '@inshapardaz/likhari-react/styles.css';
+import { EditorRoot } from '@inshapardaz/likhari-react';
+
+export function App() {
+  return (
+    <EditorRoot
+      documentId="chapter-3"
+      featurePreset="standard"
+      onSave={(content, format) => console.log(format, content)}
+    />
+  );
+}
+```
+
+This renders a toolbar and canvas with the `standard` feature set, autosaves
+drafts to `localStorage` as the user types, and calls `onSave` with the
+document's content when the toolbar's Save button is pressed. The editor
+mounts its own `MantineProvider`, so you do not need to add one yourself —
+see [Theming and customization](#theming-and-customization-mantine-headless)
+for how it behaves inside an app that already uses Mantine.
+
+From here:
+
+- [React props](#react-props-editorroot) — every prop `<EditorRoot>` takes.
+- [Content formats and `setContent`](#content-formats-and-setcontent) — reading
+  and writing the document as Markdown, HTML, plain text or Lexical JSON.
+- [Drafts and leaving with unsaved changes](#drafts-and-leaving-with-unsaved-changes)
+  — autosave, restoring a draft, and guarding navigation.
+- [Embedding the editor: Web Component and Vue](#embedding-the-editor-web-component-and-vue)
+  — for pages that are not React.
+
 ## Packages
+
+| Package | npm | Description |
+|---|---|---|
+| `@inshapardaz/likhari-core` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-core) | `EditorFeatureConfig` schema and presets, design tokens, `theme.css`. Framework-free. |
+| `@inshapardaz/likhari-converters` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-converters) | Format converters: plain text, Lexical JSON, HTML, and the extended Markdown dialect. |
+| `@inshapardaz/likhari-react` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-react) | The editor component and toolbar. The primary way to use Likhari from a React app. |
+| `@inshapardaz/likhari-webcomponent` | not yet published; see [Web Component](#web-component-likhari-editor) | `<likhari-editor>`, for pages without React. |
+| `@inshapardaz/likhari-vue` | not yet published; see [Vue 3](#vue-3-likharieditor) | `<LikhariEditor>`, a thin Vue wrapper over the Web Component. |
 
 ```
 packages/
@@ -21,6 +80,8 @@ packages/
   converters/       Format transformers (plain-text, Lexical JSON, HTML done;
                      Markdown draft dialect done)
   react/            @inshapardaz/likhari-react — the editor component + toolbar
+  webcomponent/     <likhari-editor> — not yet published to npm
+  vue/              <LikhariEditor> — not yet published to npm
 apps/
   demo/             Vite app for manually exercising the editor
 ```
@@ -100,7 +161,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `theme` | `MantineThemeOverride` | editor theme | Overrides the Mantine theme, deep-merged over the default. |
 | `colorScheme` | `'light' \| 'dark'` | none | Colour scheme for the editor. |
 | `accentColor` | `string` | editor default | A CSS colour for the accent. Sets Mantine's primary colour and the toolbar and canvas accent. |
-| `toolbarStyle` | `ToolbarStyle` | `{ bordered: true, variant: 'light' }` | `bordered` outlines the toolbar and its button groups. `variant` is `'light'`, which tints the active button, or `'filled'`, which fills it with the accent. |
+| `toolbarStyle` | `ToolbarStyle` | `{ bordered: true, variant: 'light', overflow: true }` | `bordered` outlines the toolbar and its button groups. `variant` is `'light'`, which tints the active button, or `'filled'`, which fills it with the accent. `overflow: false` lets the toolbar wrap onto multiple rows instead of collapsing into a "..." menu. |
 
 ## Content formats and `setContent`
 
@@ -327,6 +388,10 @@ editor's `accentColor`.
   `false` removes the outlines and keeps the dividers between sections.
 - `variant` (default `'light'`): `'light'` tints the active button; `'filled'`
   fills it with the accent colour.
+- `overflow` (default `true`): once the toolbar no longer fits its width, the
+  lowest-priority groups (tools, then font, then insert) move into a "..."
+  menu. `false` keeps every group inline and lets the toolbar wrap onto as
+  many rows as it needs instead.
 
 ### Behavior worth knowing
 

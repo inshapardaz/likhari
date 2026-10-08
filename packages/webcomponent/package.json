@@ -30,9 +30,9 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@inshapardaz/likhari-converters": "^0.1.0",
-    "@inshapardaz/likhari-core": "^0.1.0",
-    "@inshapardaz/likhari-react": "^0.1.0",
+    "@inshapardaz/likhari-converters": "*",
+    "@inshapardaz/likhari-core": "*",
+    "@inshapardaz/likhari-react": "*",
     "@mantine/core": "^9.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

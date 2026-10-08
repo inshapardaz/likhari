@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useCallback, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type ReactNode } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type ReactNode } from 'react';
 import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
@@ -334,6 +334,14 @@ function withDividers(sections: (ReactNode | false)[]): ReactNode[] {
     .flatMap((section, index) => (index === 0 ? [section] : [<MantineToolbar.Divider key={`divider-${index}`} />, section]));
 }
 
+const EMPTY_OVERFLOW: ReadonlySet<string> = new Set();
+
+function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 interface ToolbarSelectProps {
   icon: TablerIcon;
   label: string;
@@ -622,6 +630,12 @@ export interface ToolbarStyle {
   bordered?: boolean;
   /** `light` tints the active button, `filled` fills it with the accent. Default `light`. */
   variant?: 'light' | 'filled';
+  /**
+   * Move the lowest-priority groups into a "..." menu once the toolbar no
+   * longer fits its width (UI spec §3.3). `false` keeps every group inline
+   * and lets the toolbar wrap onto as many rows as it needs. Default `true`.
+   */
+  overflow?: boolean;
 }
 
 export interface ToolbarProps {
@@ -658,6 +672,7 @@ export interface ToolbarProps {
 export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
+  const overflowEnabled = toolbarStyle?.overflow ?? true;
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -665,6 +680,18 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const [draftsOpen, setDraftsOpen] = useState(false);
   const rtl = direction === 'rtl';
   const ALIGN_ICONS = rtl ? ALIGN_ICONS_RTL : ALIGN_ICONS_LTR;
+
+  // Responsive "priority+" overflow (UI spec §3.3): the toolbar's outer
+  // container and a hidden nowrap clone (every movable group forced inline)
+  // are both measured; whenever the clone's natural width exceeds the
+  // container's available width, the lowest-priority movable groups move
+  // into the "..." menu, lowest-priority first, until what remains inline
+  // fits (or nothing is left to move). Font and insert are overflow-menu
+  // items per spec §3.1's closing note, and tools (autocorrect, spellcheck,
+  // join lines) is lower priority still, so it is first to move.
+  const toolbarContainerRef = useRef<HTMLDivElement | null>(null);
+  const toolbarMeasureRef = useRef<HTMLDivElement | null>(null);
+  const [overflowGroupKeys, setOverflowGroupKeys] = useState<ReadonlySet<string>>(EMPTY_OVERFLOW);
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -1025,7 +1052,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             }
           }
           if (point) word = $wordAtDomPoint(point.node, point.offset);
-          if (!cell && !couplet) {
+          if (!cell && !couplet && config.joinLines) {
             menu.text = true;
             menu.canJoin = $canJoinLines();
           }
@@ -1062,7 +1089,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       previous?.removeEventListener('contextmenu', onContextMenu);
       root?.addEventListener('contextmenu', onContextMenu);
     });
-  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, thesaurusStores]);
+  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, config.joinLines, thesaurusStores]);
 
   // Cut and copy put the selected text on the clipboard as plain text.
   const copyOrCut = (cut: boolean) => async () => {
@@ -1491,7 +1518,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {config.language.spellCheck && (
         <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
       )}
-      <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} disabled={!state.canJoinLines} onClick={joinLines} />
+      {config.joinLines && (
+        <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} disabled={!state.canJoinLines} onClick={joinLines} />
+      )}
     </MantineToolbar.Group>
   );
 
@@ -1528,13 +1557,72 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     ),
     formatSection,
     alignSection,
-    fontSection,
-    insertSection,
-    toolsSection,
   ];
+
+  // Lowest priority first: the first to move into the "..." menu once the
+  // toolbar stops fitting its available width.
+  const movableSections: { key: string; node: ReactNode }[] = (
+    [
+      { key: 'tools', node: toolsSection },
+      { key: 'font', node: fontSection },
+      { key: 'insert', node: insertSection },
+    ] as { key: string; node: ReactNode | false }[]
+  ).filter((section): section is { key: string; node: ReactNode } => Boolean(section.node));
+  const movableGroupKeys = useMemo(() => movableSections.map((section) => section.key).join(','), [movableSections]);
+
+  // Re-measure whenever the container is resized, or whenever the set of
+  // movable sections (and so the hidden clone's content) changes.
+  useLayoutEffect(() => {
+    if (!overflowEnabled) {
+      setOverflowGroupKeys((prev) => (prev.size === 0 ? prev : EMPTY_OVERFLOW));
+      return;
+    }
+    const container = toolbarContainerRef.current;
+    const measure = toolbarMeasureRef.current;
+    if (!container || !measure) return;
+
+    // Rough width of the "..." button itself (icon button + its gap) —
+    // only charged against the budget once something has actually moved
+    // into it, since it isn't rendered at all otherwise.
+    const OVERFLOW_BUTTON_WIDTH = 38;
+
+    const recompute = () => {
+      const available = container.clientWidth;
+      const total = measure.scrollWidth;
+      if (total <= available) {
+        setOverflowGroupKeys((prev) => (prev.size === 0 ? prev : EMPTY_OVERFLOW));
+        return;
+      }
+      const widths = new Map<string, number>();
+      measure.querySelectorAll<HTMLElement>('[data-group-key]').forEach((el) => {
+        widths.set(el.dataset.groupKey as string, el.getBoundingClientRect().width);
+      });
+      let remaining = total;
+      const next = new Set<string>();
+      for (const key of movableGroupKeys.split(',').filter(Boolean)) {
+        if (remaining <= available) break;
+        const w = widths.get(key);
+        if (w === undefined) continue;
+        remaining -= w;
+        next.add(key);
+      }
+      if (next.size > 0) remaining += OVERFLOW_BUTTON_WIDTH;
+      setOverflowGroupKeys((prev) => (setsEqual(prev, next) ? prev : next));
+    };
+
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(container);
+    ro.observe(measure);
+    return () => ro.disconnect();
+  });
+
+  const visibleMovable = movableSections.filter((section) => !overflowGroupKeys.has(section.key));
+  const hiddenMovable = movableSections.filter((section) => overflowGroupKeys.has(section.key));
 
   return (
     <MantineToolbar
+      ref={toolbarContainerRef}
       aria-label={strings.toolbar.ariaLabel}
       className={bordered ? 'likhari-toolbar' : 'likhari-toolbar likhari-toolbar--plain'}
       withBorder={bordered}
@@ -1542,6 +1630,38 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       color="var(--editor-accent)"
     >
       {withDividers(startSections)}
+
+      {/* Movable sections (font, insert, tools) — rendered inline here
+          whenever they aren't currently measured as overflowing (see the
+          ResizeObserver effect above). */}
+      {visibleMovable.map((section) => (
+        <Fragment key={section.key}>
+          <MantineToolbar.Divider />
+          {section.node}
+        </Fragment>
+      ))}
+
+      {/* Overflow: whichever movable sections don't currently fit the
+          available width — genuinely empty (and hidden) otherwise, per the
+          responsive "priority+" pattern (UI spec §3.3). The sections keep
+          their own selects and nested menus, so they render as a small
+          vertical toolbar inside the dropdown rather than a flat item list. */}
+      {hiddenMovable.length > 0 && (
+        <>
+          <MantineToolbar.Divider />
+          <Menu position="bottom-end" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width="max-content" closeOnItemClick={false} onOpen={snapshotSelection}>
+            <Menu.Target>
+              <ToolbarButton icon={IconDots} title={strings.toolbar.moreFormatting} />
+            </Menu.Target>
+            <Menu.Dropdown p={6}>
+              <MantineToolbar withBorder={false} variant={variant} color="var(--editor-accent)" style={{ maxWidth: 320 }}>
+                {withDividers(hiddenMovable.map((section) => section.node))}
+              </MantineToolbar>
+            </Menu.Dropdown>
+          </Menu>
+        </>
+      )}
+
       {endSection}
 
       <Menu
@@ -1694,6 +1814,33 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
+
+      {/* Hidden clone, rendering every movable section inline with no
+          wrapping — its natural (unclipped) width is what the effect above
+          compares against the container's available width to decide what,
+          if anything, needs to move into the "..." menu. Needs its own
+          Toolbar ancestor: Toolbar.Group/Toggle read that context and throw
+          without one. Not needed (and not rendered) when overflow is off. */}
+      {overflowEnabled && (
+        <MantineToolbar
+          aria-hidden="true"
+          ref={toolbarMeasureRef}
+          withBorder={bordered}
+          variant={variant}
+          color="var(--editor-accent)"
+          style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', top: 0, left: 0, flexWrap: 'nowrap', width: 'max-content' }}
+        >
+          {withDividers(startSections)}
+          {movableSections.map((section) => (
+            <Fragment key={section.key}>
+              <MantineToolbar.Divider />
+              <span data-group-key={section.key} style={{ display: 'inline-flex' }}>
+                {section.node}
+              </span>
+            </Fragment>
+          ))}
+        </MantineToolbar>
+      )}
 
       {(config.images.linked || config.images.embedded) && (
         <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />

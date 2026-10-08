@@ -224,6 +224,7 @@ export function App() {
   const [accentColor, setAccentColor] = useState(savedPrefs.accentColor ?? DEFAULT_ACCENT_COLOR);
   const [toolbarBordered, setToolbarBordered] = useState(true);
   const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
+  const [toolbarOverflow, setToolbarOverflow] = useState(true);
   const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
@@ -354,6 +355,10 @@ export function App() {
               <option value="light">Light</option>
               <option value="filled">Filled</option>
             </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={toolbarOverflow} onChange={(e) => setToolbarOverflow(e.target.checked)} />
+            Toolbar overflow menu
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
@@ -510,7 +515,7 @@ export function App() {
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}
-              toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant }}
+              toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow }}
               locale={locale}
               placeholder="Start writing…"
               height="100%"
