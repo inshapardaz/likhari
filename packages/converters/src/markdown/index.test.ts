@@ -209,6 +209,17 @@ describe('poetry settings', () => {
     const [back] = parse(out);
     expect(back).toMatchObject({ layout: 'staggered', spacing: 'loose', stagger: 'compact', width: 400 });
   });
+
+  it('keeps a non-default centered-couplet width through a round trip (issue #27)', () => {
+    const block = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], {
+      layout: 'two-column',
+      centerWidth: 'relaxed',
+    });
+    const out = md([block]);
+    expect(out).toContain('centerWidth="relaxed"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ layout: 'two-column', centerWidth: 'relaxed' });
+  });
 });
 
 describe('markdown tables that Markdown cannot express', () => {

@@ -22,6 +22,7 @@ import {
   $getCouplets,
   $getMisraParagraphs,
   $getPoetryBlockFromSelection,
+  $adjustPoetryCenterWidth,
   $adjustPoetryGutter,
   $adjustPoetrySpacing,
   $adjustPoetryStagger,
@@ -154,6 +155,39 @@ describe('$setPoetryLayout', () => {
       expect(block.getChildren()[0].getType()).toBe('layout-container');
     });
     expect(misraTexts(editor)).toEqual(['first misra', 'second misra']);
+  });
+
+  it('keeps the caret in the same misra, instead of losing it outside the block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        const [a, b] = $getMisraParagraphs(block);
+        a.append($createTextNode('first misra'));
+        b.append($createTextNode('second misra'));
+      },
+      { discrete: true },
+    );
+    // Centering relies on the caret staying inside a misra across a layout
+    // change — this was the actual bug behind issue #27's menu items never
+    // being reachable (the caret landed outside the block instead). Selects,
+    // changes layout and centers all in one update, mirroring how the
+    // toolbar's poetry menu actually drives this (restoreSelection, then the
+    // action, in the same editor.update()).
+    editor.update(
+      () => {
+        $getMisraParagraphs(getBlock())[1].selectEnd();
+        $setPoetryLayout(getBlock(), 'two-column');
+        expect($isRangeSelection($getSelection())).toBe(true);
+        expect($getPoetryBlockFromSelection()).not.toBeNull();
+        expect($setCoupletCentered(true)).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      expect($getCoupletCenteredFromSelection()).toBe(true);
+    });
   });
 
   it('moves misra content from two-column back into single-column', () => {
@@ -715,6 +749,31 @@ describe('$adjustPoetryGutter', () => {
   });
 });
 
+describe('$adjustPoetryCenterWidth', () => {
+  it('steps the centered-couplet width narrower and wider and clamps at both ends', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
+    const centerWidthNow = () => editor.getEditorState().read(() => getBlock().getCenterWidth());
+    const step = (delta: 1 | -1) =>
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          $adjustPoetryCenterWidth(delta);
+        },
+        { discrete: true },
+      );
+    expect(centerWidthNow()).toBe('normal');
+    step(-1);
+    expect(centerWidthNow()).toBe('compact');
+    step(-1);
+    expect(centerWidthNow()).toBe('compact');
+    step(1);
+    step(1);
+    step(1);
+    expect(centerWidthNow()).toBe('loose');
+  });
+});
+
 describe('staggered layout', () => {
   it('keeps every couplet readable when switching single column to staggered', () => {
     const editor = makeEditor();
@@ -862,5 +921,84 @@ describe('$completeSingleCoupletBlock', () => {
       expect($deletePoetryOnBackspace()).toBe(true);
     }, { discrete: true });
     expect(misraTexts(editor)).toEqual(['a1', 'b1']);
+  });
+});
+
+describe('PoetryBlockNode.importJSON (issue #29)', () => {
+  it('falls back to defaults for invalid layout, spacing, gutter, stagger and centerWidth', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const block = PoetryBlockNode.importJSON({
+          type: 'poetry-couplet',
+          version: 1,
+          layout: 'quadruple-column' as unknown as 'single',
+          spacing: 'enormous' as unknown as 'normal',
+          gutter: 'huge' as unknown as 'normal',
+          stagger: 'gigantic' as unknown as 'normal',
+          centerWidth: 'massive' as unknown as 'normal',
+          children: [],
+          direction: null,
+          format: '',
+          indent: 0,
+        });
+        expect(block.getLayout()).toBe('single');
+        expect(block.getSpacing()).toBe('normal');
+        expect(block.getGutter()).toBe('normal');
+        expect(block.getStagger()).toBe('normal');
+        expect(block.getCenterWidth()).toBe('normal');
+      },
+      { discrete: true },
+    );
+  });
+
+  it('keeps valid settings, including a non-default centerWidth', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const block = PoetryBlockNode.importJSON({
+          type: 'poetry-couplet',
+          version: 1,
+          layout: 'two-column',
+          spacing: 'loose',
+          gutter: 'compact',
+          stagger: 'relaxed',
+          centerWidth: 'loose',
+          width: 400,
+          children: [],
+          direction: null,
+          format: '',
+          indent: 0,
+        });
+        expect(block.getLayout()).toBe('two-column');
+        expect(block.getSpacing()).toBe('loose');
+        expect(block.getGutter()).toBe('compact');
+        expect(block.getStagger()).toBe('relaxed');
+        expect(block.getCenterWidth()).toBe('loose');
+        expect(block.getWidth()).toBe(400);
+      },
+      { discrete: true },
+    );
+  });
+
+  it('round-trips through exportJSON', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        block.setCenterWidth('relaxed');
+      },
+      { discrete: true },
+    );
+    const json = editor.getEditorState().read(() => getBlock().exportJSON());
+    expect(json.centerWidth).toBe('relaxed');
+    editor.update(
+      () => {
+        const restored = PoetryBlockNode.importJSON(json);
+        expect(restored.getCenterWidth()).toBe('relaxed');
+      },
+      { discrete: true },
+    );
   });
 });

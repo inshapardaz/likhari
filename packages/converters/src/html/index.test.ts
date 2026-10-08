@@ -189,11 +189,22 @@ describe('poetry export', () => {
     const html = htmlConverter.serialize(makeState([block]));
     expect(html).toContain('text-align: justify; text-align-last: justify');
     expect(html).toContain('border-inline-start: 1px dashed');
-    expect(html).toContain('width: 60%');
+    expect(html).toContain('width: 60%'); // default centerWidth ('normal')
     expect(html).toContain('padding-inline-start: 48px');
     const [back] = blocksOf(roundTrip([block]));
-    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', spacing: 'relaxed', gutter: 'loose' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', spacing: 'relaxed', gutter: 'loose', centerWidth: 'normal' });
     expect(back.children![1].children![0].children).toHaveLength(2);
+  });
+
+  it('keeps a non-default centered-couplet width through a round trip (issue #27)', () => {
+    const centered = elementBase('layout-container', [elementBase('layout-item', [paragraph([textNode('c1')]), paragraph([textNode('c2')])])], {
+      templateColumns: '1fr',
+    });
+    const block = elementBase('poetry-couplet', [centered], { layout: 'two-column', centerWidth: 'loose' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: 85%');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'two-column', centerWidth: 'loose' });
   });
 
   it('keeps staggered placement and width through a round trip', () => {

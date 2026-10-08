@@ -155,6 +155,8 @@ export interface Strings {
     uncenterCouplet: string;
     tighterSpacing: string;
     looserSpacing: string;
+    narrowerCenter: string;
+    widerCenter: string;
     narrowerGutter: string;
     widerGutter: string;
     deleteCouplet: string;
@@ -434,6 +436,8 @@ const en: Strings = {
     uncenterCouplet: 'Un-center this couplet',
     tighterSpacing: 'Tighter couplet spacing',
     looserSpacing: 'Looser couplet spacing',
+    narrowerCenter: 'Narrower centered couplet',
+    widerCenter: 'Wider centered couplet',
     narrowerGutter: 'Narrower gutter',
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
@@ -714,6 +718,8 @@ const ur: Strings = {
     uncenterCouplet: 'وسط میں رکھنا ختم کریں',
     tighterSpacing: 'شعروں کے درمیان کم جگہ',
     looserSpacing: 'شعروں کے درمیان زیادہ جگہ',
+    narrowerCenter: 'وسط شعر کی چوڑائی کم',
+    widerCenter: 'وسط شعر کی چوڑائی زیادہ',
     narrowerGutter: 'کالمز کے درمیان کم جگہ',
     widerGutter: 'کالمز کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
@@ -994,6 +1000,8 @@ const paShahmukhi: Strings = {
     uncenterCouplet: 'وچکار رکھنا بند کرو',
     tighterSpacing: 'شعراں وچکار گھٹ جگہ',
     looserSpacing: 'شعراں وچکار ودھ جگہ',
+    narrowerCenter: 'وچکار شعر دی چوڑائی گھٹ',
+    widerCenter: 'وچکار شعر دی چوڑائی ودھ',
     narrowerGutter: 'کالماں وچکار گھٹ جگہ',
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',

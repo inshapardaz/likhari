@@ -31,7 +31,14 @@ export const POETRY_STAGGER_WIDTH: Record<PoetryScaleName, string> = {
   loose: '85%',
 };
 
-export const POETRY_CENTERED_WIDTH = '60%';
+/** Centered-couplet width, as a share of the block (issue #27) — 'normal' keeps the original fixed 60%. */
+export const POETRY_CENTER_WIDTH: Record<PoetryScaleName, string> = {
+  compact: '45%',
+  normal: '60%',
+  relaxed: '72%',
+  loose: '85%',
+};
+
 export const POETRY_RULE = '1px dashed #8a8880';
 
 export function scaleOrDefault(value: unknown): PoetryScaleName {

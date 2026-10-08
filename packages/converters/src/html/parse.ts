@@ -271,6 +271,7 @@ function convertPoetry(el: HTMLElement): SNode {
     spacing: scaleOrDefault(el.getAttribute('data-likhari-poetry-spacing')),
     gutter: scaleOrDefault(el.getAttribute('data-likhari-poetry-gutter')),
     stagger: scaleOrDefault(el.getAttribute('data-likhari-poetry-stagger')),
+    centerWidth: scaleOrDefault(el.getAttribute('data-likhari-poetry-center-width')),
     ...(Number(el.getAttribute('data-likhari-poetry-width')) > 0 ? { width: Number(el.getAttribute('data-likhari-poetry-width')) } : {}),
   };
 

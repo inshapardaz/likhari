@@ -1,7 +1,7 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
-  POETRY_CENTERED_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, layoutOrDefault, scaleOrDefault,
+  POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, layoutOrDefault, scaleOrDefault,
 } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
@@ -162,6 +162,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const spacing = scaleOrDefault(node.spacing);
   const gutter = scaleOrDefault(node.gutter);
   const stagger = scaleOrDefault(node.stagger);
+  const centerWidth = scaleOrDefault(node.centerWidth);
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
   const children = node.children ?? [];
   const dir = firstDirection(children);
@@ -181,7 +182,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
           `grid-template-columns: ${templateColumns}`,
           'margin: 0',
           ...(r > 0 ? [separator] : []),
-          ...(centered ? [`width: ${POETRY_CENTERED_WIDTH}`, 'margin-inline: auto'] : []),
+          ...(centered ? [`width: ${POETRY_CENTER_WIDTH[centerWidth]}`, 'margin-inline: auto'] : []),
         ].join('; ');
         const px = POETRY_GUTTER_PX[gutter];
         const cells = items
@@ -225,7 +226,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
     `line-height: ${rtl ? '2.1' : '1.6'}`,
   ].join('; ');
   const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

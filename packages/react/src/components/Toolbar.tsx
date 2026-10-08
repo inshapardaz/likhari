@@ -53,15 +53,18 @@ import { INSERT_LAYOUT_COMMAND } from '../blocks/LayoutNode';
 import { INSERT_FOOTNOTE_COMMAND } from '../blocks/FootnoteNode';
 import {
   $isPoetryBlockNode,
+  POETRY_CENTER_WIDTHS,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
   POETRY_STAGGERS,
+  type PoetryCenterWidth,
   type PoetryGutter,
   type PoetryLayout,
   type PoetrySpacing,
   type PoetryStagger,
 } from '../blocks/PoetryNode';
 import {
+  $adjustPoetryCenterWidth,
   $adjustPoetryGutter,
   $getCoupletCenteredFromSelection,
   $setCoupletCentered,
@@ -233,7 +236,7 @@ const INITIAL_STATE: ToolbarState = {
   canUnmergeCell: false,
   inPoetry: false,
   poetryLayout: 'single',
-  poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal' },
+  poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal', centerWidth: 'normal' },
   poetryCentered: false,
   canUndo: false,
   canRedo: false,
@@ -583,6 +586,7 @@ interface PoetryScale {
   spacing: PoetrySpacing;
   gutter: PoetryGutter;
   stagger: PoetryStagger;
+  centerWidth: PoetryCenterWidth;
 }
 
 /** Whether a one-notch step from `value` stays on the scale — a step that
@@ -645,6 +649,12 @@ function PoetryMenuItems({
       {layout === 'two-column' && (
         <>
           {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
+          {centered && (
+            <>
+              {item(IconArrowsMinimize, t.narrowerCenter, () => $adjustPoetryCenterWidth(-1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, -1))}
+              {item(IconArrowsMaximize, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
+            </>
+          )}
           {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
           {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
         </>
@@ -775,7 +785,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const poetryLayout = poetryBlock?.getLayout();
       const poetryCentered = $getCoupletCenteredFromSelection();
       const poetryScale = poetryBlock
-        ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger() }
+        ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger(), centerWidth: poetryBlock.getCenterWidth() }
         : null;
 
       setState((s) => ({
