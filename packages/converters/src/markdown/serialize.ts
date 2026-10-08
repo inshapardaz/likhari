@@ -33,11 +33,13 @@ const FORMAT_WRAPPERS: Array<[number, Wrapper]> = [
 ];
 
 const STYLE_ATTRS: Array<[string, string]> = [
-  ['font-family', 'font'],
-  ['font-size', 'size'],
   ['color', 'color'],
   ['background-color', 'bg'],
 ];
+
+// Dropped rather than kept in `style`: Markdown stays close to plain GFM, and
+// a font choice is rarely meaningful once the document leaves the editor.
+const DROPPED_STYLE_PROPS = new Set(['font-family', 'font-size']);
 
 function parseStyle(style: string): Array<[string, string]> {
   return style
@@ -56,6 +58,7 @@ export function styleToAttrs(style: string): Attrs {
   const attrs: Attrs = {};
   const rest: string[] = [];
   for (const [prop, value] of parseStyle(style)) {
+    if (DROPPED_STYLE_PROPS.has(prop)) continue;
     const mapped = STYLE_ATTRS.find(([p]) => p === prop);
     if (mapped) attrs[mapped[1]] = value;
     else rest.push(`${prop}: ${value}`);

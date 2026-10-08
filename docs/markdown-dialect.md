@@ -26,7 +26,7 @@ Attribute values are quoted: `{color="#f00"}`.
 | Underline | `:u[x]` | |
 | Superscript / subscript | `:sup[x]` / `:sub[x]` | |
 | Highlight | `:mark[x]` | |
-| Font, size, colour, background | `:span[x]{font="Amiri" size="20px" color="#f00" bg="#ff0"}` | Other CSS declarations round-trip verbatim in `style="…"` |
+| Colour, background | `:span[x]{color="#f00" bg="#ff0"}` | Other CSS declarations round-trip verbatim in `style="…"`. Font family and size are not part of the dialect — see §6 |
 | Link | `[x](url "title")` | |
 | Line break | backslash + newline | |
 
@@ -74,7 +74,8 @@ Round trip = editor → Markdown → editor.
 |---|---|
 | Paragraph text, headings, quotes, lists, tasks, nesting | lossless |
 | Bold, italic, strikethrough, code, underline, sup/sub, highlight | lossless |
-| Font family / size / colour / background | lossless (`:span`) |
+| Colour / background | lossless (`:span`) |
+| Font family / size | **dropped** — not part of the dialect, by design (keeps Markdown close to plain GFM) |
 | Links | URL, title and text kept; `rel` and `target` are not |
 | Alignment (all six values), indent, forced direction | lossless |
 | Inferred direction | not stored; recomputed from the text |
@@ -88,7 +89,10 @@ Round trip = editor → Markdown → editor.
 ## 6. Fallback rule
 
 Anything the editor can hold but the dialect cannot express is **degraded to its
-text**, never to a parse error, and is listed in the matrix above. (The spec's
-HTML-comment fallback for preserving unrepresentable data is not used yet because
-there is currently nothing the dialect cannot express that matters; revisit when
-columns/poetry land.)
+text**, never to a parse error, and is listed in the matrix above. Font family and
+size are the current example: a run styled with either loses that styling on
+export, keeping any other formatting (bold, colour, …) it also carries — it is a
+deliberate choice, not a `remark`/`unified` limitation, so that Markdown output
+stays close to plain GFM rather than growing its own styling dialect. The spec's
+HTML-comment fallback for preserving unrepresentable data is not used for this,
+since the loss is intentional, not accidental; revisit when columns/poetry land.

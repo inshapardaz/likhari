@@ -22,8 +22,13 @@ describe('markdownConverter', () => {
 
   it('uses directives for what Markdown lacks', () => {
     expect(md([paragraph([textNode('u', 8), textNode(' '), textNode('sup', 64), textNode(' '), textNode('red', 0, 'color: #f00; font-size: 20px')])])).toBe(
-      ':u[u] :sup[sup] :span[red]{color="#f00" size="20px"}\n',
+      ':u[u] :sup[sup] :span[red]{color="#f00"}\n',
     );
+  });
+
+  it('drops font family and size, keeping Markdown close to plain GFM', () => {
+    expect(md([paragraph([textNode('x', 0, 'font-family: Amiri; font-size: 20px; color: #f00')])])).toBe(':span[x]{color="#f00"}\n');
+    expect(md([paragraph([textNode('x', 0, 'font-family: Amiri')])])).toBe('x\n');
   });
 
   it('round-trips inline formats, styles and links', () => {
@@ -38,7 +43,9 @@ describe('markdownConverter', () => {
     expect(kids.map((k) => [k.text ?? k.type, Number(k.format ?? 0) || 0])).toEqual([
       ['plain ', 0], ['b', 1], [' ', 0], ['u', 10], [' ', 0], ['c', 16], [' ', 0], ['red', 0], ['link', 0],
     ]);
-    expect(kids[7].style).toContain('font-family: Amiri');
+    // font-family is dropped in Markdown; color round-trips.
+    expect(kids[7].style).not.toContain('font-family');
+    expect(kids[7].style).toContain('color: #f00');
     expect(kids[8]).toMatchObject({ url: 'https://x.test/' });
   });
 
