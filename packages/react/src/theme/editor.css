@@ -457,8 +457,10 @@
 
 /* A centered couplet: a two-column row holding one item (see poetryActions.ts's
    $setCoupletCentered) — narrowed to the middle of the block, with no column
-   divider or gutter since there's only one column. */
-.likhari-poetry--two-column > .likhari-layout-container:has(> .likhari-layout-item:only-child) {
+   divider or gutter since there's only one column. The row carries this
+   itself (LayoutNode.tsx), rather than :has(), which needs Firefox 121+
+   (issue #25). */
+.likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column] {
   width: 60%;
   margin-inline: auto;
 }
