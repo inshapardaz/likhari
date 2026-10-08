@@ -242,6 +242,27 @@ const INITIAL_STATE: ToolbarState = {
 const ICON_SIZE = 17;
 const ICON_STROKE = 1.75;
 
+/** The CSS Custom Highlight name; editor.css paints it like a native text selection. */
+const SELECTION_HIGHLIGHT = 'likhari-toolbar-selection';
+
+/** Paints the current native selection through the CSS Custom Highlight API, so it
+ * stays visible once a toolbar control (a Select, a Menu, a dialog) takes focus —
+ * which, unlike a ToolbarButton's onMouseDown/preventDefault, it must be able to do.
+ * The browser clears `window.getSelection()` on blur; this is called at the one
+ * moment before that happens (mousedown, or opening a menu/dialog), alongside the
+ * Lexical-level selection snapshot these controls already restore from. */
+function paintSelectionHighlight(): void {
+  if (typeof CSS === 'undefined' || !('highlights' in CSS)) return;
+  const domSelection = window.getSelection();
+  if (!domSelection || domSelection.isCollapsed || domSelection.rangeCount === 0) {
+    CSS.highlights.delete(SELECTION_HIGHLIGHT);
+    return;
+  }
+  const ranges: Range[] = [];
+  for (let i = 0; i < domSelection.rangeCount; i++) ranges.push(domSelection.getRangeAt(i).cloneRange());
+  CSS.highlights.set(SELECTION_HIGHLIGHT, new Highlight(...ranges));
+}
+
 const ALIGN_ICONS_LTR: Partial<Record<ElementFormatType, TablerIcon>> = {
   start: IconAlignLeft,
   left: IconAlignLeft,
@@ -353,6 +374,8 @@ interface ToolbarSelectProps {
   searchable?: boolean;
   renderOption?: SelectProps['renderOption'];
   onChange?: (value: string) => void;
+  /** Snapshot the editor's selection before the control steals focus (see ToolbarSelect's own doc comment). */
+  onMouseDown?: () => void;
   comingSoon?: (label: string) => string;
   noMatchMessage?: string;
 }
@@ -360,8 +383,15 @@ interface ToolbarSelectProps {
 /** Mantine Select (combobox) for the toolbar's dropdown controls. The icon
  * labels the control itself, since a dropdown can't show one per option in
  * its closed state. The dropdown portals to <body>, so it is not clipped by
- * the editor's `overflow: hidden` frame. */
-function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, searchable, renderOption, onChange, comingSoon, noMatchMessage }: ToolbarSelectProps) {
+ * the editor's `overflow: hidden` frame.
+ *
+ * Unlike a ToolbarButton, this can't keep focus on the canvas with
+ * onMouseDown/preventDefault — a combobox needs focus to open. So picking an
+ * option blurs the canvas first, which clears Lexical's selection; `onMouseDown`
+ * is the caller's chance to snapshot it (the browser moves focus only after
+ * mousedown's listeners run), to restore before applying the change
+ * (see Toolbar's `withRefocus`). */
+function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeholder, searchable, renderOption, onChange, onMouseDown, comingSoon, noMatchMessage }: ToolbarSelectProps) {
   const portalTarget = usePortalTarget();
   return (
     <Select
@@ -374,6 +404,7 @@ function ToolbarSelect({ icon: Icon, label, value, data, width, disabled, placeh
       placeholder={placeholder}
       disabled={disabled}
       searchable={searchable}
+      onMouseDown={onMouseDown}
       renderOption={renderOption}
       nothingFoundMessage={searchable ? noMatchMessage : undefined}
       allowDeselect={false}
@@ -855,9 +886,24 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const selection = $getSelection();
       menuSelectionRef.current = selection ? selection.clone() : null;
     });
+    paintSelectionHighlight();
   };
   const snapshotSelectionRef = useRef(snapshotSelection);
   snapshotSelectionRef.current = snapshotSelection;
+
+  // Clears the stand-in highlight once the canvas has a real selection to show again.
+  useEffect(() => {
+    if (typeof CSS === 'undefined' || !('highlights' in CSS)) return;
+    const clear = () => CSS.highlights.delete(SELECTION_HIGHLIGHT);
+    const unregister = editor.registerRootListener((root, previous) => {
+      previous?.removeEventListener('focus', clear);
+      root?.addEventListener('focus', clear);
+    });
+    return () => {
+      unregister();
+      clear();
+    };
+  }, [editor]);
   const runMenuItem = (action: () => void) => () => {
     const saved = menuSelectionRef.current;
     if (saved) editor.update(() => $setSelection(saved.clone()), { discrete: true });
@@ -1146,7 +1192,12 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     );
   }, [editor, config.links, openLinkDialog]);
 
+  // The Select has already blurred the canvas by the time this runs (see
+  // ToolbarSelect's doc comment), so the selection snapshotted on its
+  // mousedown is restored first, then the canvas regains focus afterward —
+  // the combobox otherwise keeps it, so typing after picking would go nowhere.
   const withRefocus = <T,>(fn: (value: T) => void) => (value: T) => {
+    restoreSelection();
     fn(value);
     editor.focus();
   };
@@ -1315,6 +1366,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             data={formattingOptions}
             comingSoon={strings.toolbar.comingSoon}
             renderOption={iconOptionRenderer(FORMATTING_ICONS, IconPilcrow)}
+            onMouseDown={snapshotSelection}
             onChange={withRefocus((v) => applyFormatting(v as FormattingValue))}
           />
         </MantineToolbar.Group>
@@ -1363,6 +1415,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             value={state.elementFormat || 'start'}
             data={alignOptions}
             renderOption={iconOptionRenderer(ALIGN_ICONS as Record<string, TablerIcon>, IconAlignLeft)}
+            onMouseDown={snapshotSelection}
             onChange={withRefocus((v) => formatElement(v as ElementFormatType))}
           />
         </MantineToolbar.Group>
@@ -1390,6 +1443,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           searchable
           noMatchMessage={strings.toolbar.noMatch}
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
+          onMouseDown={snapshotSelection}
           onChange={withRefocus((v: string) => applyFont('font-family', v))}
         />
       )}
@@ -1401,6 +1455,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           value={FONT_SIZES_PX.some((px) => `${px}px` === shownFontSize) ? shownFontSize : null}
           placeholder={strings.toolbar.fontSizePlaceholder}
           data={FONT_SIZES_PX.map((px) => ({ value: `${px}px`, label: String(px) }))}
+          onMouseDown={snapshotSelection}
           onChange={withRefocus((v: string) => applyFont('font-size', v))}
         />
       )}

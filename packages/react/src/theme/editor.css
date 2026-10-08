@@ -934,6 +934,13 @@
   text-decoration-skip-ink: none;
 }
 
+/* Stands in for the native text selection while a toolbar control (which must
+   take focus, e.g. a Select) has it — otherwise the browser clears it the
+   moment focus leaves the canvas, making a selection look lost mid-edit. */
+::highlight(likhari-toolbar-selection) {
+  background-color: var(--editor-accent-soft);
+}
+
 .likhari-spell-nav {
   display: flex;
   align-items: center;
