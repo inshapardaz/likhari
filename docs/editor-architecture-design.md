@@ -171,6 +171,7 @@ One plugin per feature area, each independently registerable, matching the shape
 | `FootnotePlugin` | `FootnoteReferenceNode` insert, renumbering, `FootnoteListPlugin` | `config.footnotes` |
 | `PoetryPlugin` | poetry insert menu, per-couplet layout toggle UI | `config.poetry.*` |
 | `FindReplacePlugin` | search overlay, match navigation | `config.findReplace` |
+| — (`Toolbar`'s own handler, no separate plugin) | Join lines: toolbar button and right-click menu item | `config.joinLines` |
 | `LanguageServicesPlugin` | spawns/manages workers, decorator marks for spellcheck | `config.language.*` |
 | `AutosavePlugin` | localStorage draft read/write, restore-draft prompt | always on if `documentId` present |
 | `NavigationGuardPlugin` | dirty tracking, `beforeunload`, exposes `hasUnsavedChanges()` | always on |

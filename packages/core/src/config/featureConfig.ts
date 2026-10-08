@@ -37,6 +37,8 @@ export interface EditorFeatureConfig {
   footnotes?: boolean;
   poetry?: { enabled?: boolean; defaultLayout?: 'single' | 'two-column' };
   findReplace?: boolean;
+  /** Joins the selected lines into one paragraph, from the toolbar and the right-click menu. */
+  joinLines?: boolean;
   language?: {
     spellCheck?: boolean;
     thesaurus?: boolean;
@@ -88,6 +90,7 @@ export const FULL_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   footnotes: true,
   poetry: { enabled: true, defaultLayout: 'single' },
   findReplace: true,
+  joinLines: true,
   language: {
     spellCheck: true,
     thesaurus: true,
@@ -115,6 +118,7 @@ export const MINIMAL_FEATURE_CONFIG: EditorFeatureConfig = {
   footnotes: false,
   poetry: { enabled: false },
   findReplace: false,
+  joinLines: false,
   language: {},
   formats: { plainText: true, lexicalJson: true },
 };
@@ -145,6 +149,7 @@ export const STANDARD_FEATURE_CONFIG: EditorFeatureConfig = {
   footnotes: false,
   poetry: { enabled: false },
   findReplace: true,
+  joinLines: true,
   language: {},
   formats: { markdown: true, plainText: true, lexicalJson: true },
 };
@@ -221,6 +226,7 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   footnotes: false,
   poetry: { enabled: false, defaultLayout: 'single' },
   findReplace: false,
+  joinLines: false,
   language: {
     spellCheck: false,
     thesaurus: false,

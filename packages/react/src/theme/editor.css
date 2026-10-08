@@ -19,15 +19,25 @@
    its own height so only the canvas below scrolls. */
 .likhari-toolbar {
   display: flex;
+  /* Containing block for the hidden width-measuring clone (Toolbar.tsx):
+     without this, its position: absolute would resolve against the
+     viewport instead, and its intentionally-unwrapped (possibly very wide)
+     content could inflate the host page's scroll area instead of being
+     clipped by .likhari-root's overflow: hidden. */
+  position: relative;
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
   min-height: 46px;
   padding: 4px 8px;
   background: var(--editor-paper-dim);
-  /* Wrap instead of scroll: an overflow container would clip menus and grow
-     a scrollbar. Dropdowns (Select/Menu) portal out, so nothing needs to
-     escape this box. */
+  /* Wrap instead of scroll, once the responsive overflow (UI spec §3.3) has
+     already moved the lowest-priority groups into the "..." menu: an
+     overflow container would clip menus and grow a scrollbar, where wrapping
+     to a second row keeps every control reachable without one. This is a
+     deliberate departure from the spec's literal "horizontal scroll"
+     fallback — it only applies in the edge case where even the essential
+     groups (§3.3's mobile tier) don't fit a very narrow viewport. */
   flex-wrap: wrap;
   row-gap: 4px;
 }
