@@ -32,7 +32,8 @@ const DIRECTIVE_FORMATS: Record<string, number> = {
 /** Inverse of the serializer's `styleToAttrs`. */
 function attrsToStyle(attrs: Record<string, string | null | undefined>): string {
   const parts: string[] = [];
-  const map: Array<[string, string]> = [['font', 'font-family'], ['size', 'font-size'], ['color', 'color'], ['bg', 'background-color']];
+  // 'font'/'size' are not mapped: Markdown stays close to plain GFM, without a font choice (serialize.ts).
+  const map: Array<[string, string]> = [['color', 'color'], ['bg', 'background-color']];
   for (const [attr, prop] of map) {
     const value = attrs[attr];
     // A value that could break out of the declaration is dropped.

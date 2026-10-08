@@ -179,10 +179,12 @@ are dropped, and `javascript:` links and non-image `data:` sources are removed. 
 needs a DOM (`DOMParser`), so it runs in the browser or jsdom, not plain Node.
 
 **Markdown.** The extended dialect (GFM plus `remark-directive` constructs for underline,
-sup/sub, colour/font, alignment, indent, direction, captions and page breaks) is written
-up in [`docs/markdown-dialect.md`](docs/markdown-dialect.md), including what each
-format round-trips and what degrades. Columns, footnotes and poetry join it with their
-Phase 3 editor features.
+sup/sub, colour/background, alignment, indent, direction, captions and page breaks) is
+written up in [`docs/markdown-dialect.md`](docs/markdown-dialect.md), including what each
+format round-trips and what degrades. Font family and size are not part of the dialect —
+a styled run keeps its other formatting but loses the font on export, keeping Markdown
+close to plain GFM. Columns, footnotes and poetry join the dialect with their Phase 3
+editor features.
 
 ## Images
 
