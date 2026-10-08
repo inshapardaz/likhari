@@ -410,6 +410,12 @@
 .likhari-poetry--stagger-relaxed { --poetry-stagger-width: 75%; }
 .likhari-poetry--stagger-loose { --poetry-stagger-width: 85%; }
 
+/* Centered-couplet width (issue #27) — 'normal' keeps the original fixed 60%. */
+.likhari-poetry--center-compact { --poetry-center-width: 45%; }
+.likhari-poetry--center-normal { --poetry-center-width: 60%; }
+.likhari-poetry--center-relaxed { --poetry-center-width: 72%; }
+.likhari-poetry--center-loose { --poetry-center-width: 85%; }
+
 /* Staggered: couplets are the same flat misra paragraphs as single column,
    but each couplet's two misras are placed in a 65%-wide box that alternates
    sides — the first couplet pushed to the start edge, the next to the end
@@ -428,6 +434,18 @@
   margin-inline-start: auto;
 }
 
+/* The dashed divider matches this couplet's own box width, not the full
+   block (issue #26) — intentional: in an alternating layout, a full-width
+   line would cross the empty space the OTHER side's box leaves, reading as
+   if it belonged to that empty space rather than marking "this couplet
+   ends here". A box-width divider stays visually attached to what it is
+   actually separating. Spanning the full block would also need a width
+   that reliably escapes this box's own percentage width while still
+   landing at each couplet's own vertical offset in the flow — not solvable
+   with calc() alone (no percentage-by-percentage division), so it would
+   need either per-couplet DOM measurement or a newer CSS container-query
+   unit, i.e. the same kind of added browser requirement issue #25 just
+   removed. */
 .likhari-poetry--staggered .likhari-paragraph:nth-child(odd):not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
   margin-top: var(--poetry-couplet-gap);
@@ -459,9 +477,9 @@
    $setCoupletCentered) — narrowed to the middle of the block, with no column
    divider or gutter since there's only one column. The row carries this
    itself (LayoutNode.tsx), rather than :has(), which needs Firefox 121+
-   (issue #25). */
+   (issue #25). Width is the --poetry-center-width scale (issue #27). */
 .likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column] {
-  width: 60%;
+  width: var(--poetry-center-width, 60%);
   margin-inline: auto;
 }
 

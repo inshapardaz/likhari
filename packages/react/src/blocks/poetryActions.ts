@@ -1,10 +1,12 @@
 import { $findMatchingParent } from '@lexical/utils';
 import {
   $createParagraphNode,
+  $createRangeSelection,
   $getSelection,
   $isElementNode,
   $isParagraphNode,
   $isRangeSelection,
+  $setSelection,
   type LexicalNode,
   type ParagraphNode,
 } from 'lexical';
@@ -12,6 +14,7 @@ import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNo
 import {
   $createPoetryBlockNode,
   $isPoetryBlockNode,
+  POETRY_CENTER_WIDTHS,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
   POETRY_STAGGERS,
@@ -159,6 +162,15 @@ export function $insertCoupletRelativeToSelection(position: 'before' | 'after'):
 export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): void {
   if (node.getLayout() === layout) return;
   const couplets = $getCouplets(node);
+
+  // Removing a misra paragraph below (to re-append it in its new row) moves
+  // the selection away the moment it's detached, even though it lands back
+  // in the same paragraph a few lines later — so the caret ends up outside
+  // the block entirely unless it's explicitly restored afterward.
+  const selection = $getSelection();
+  const anchor = $isRangeSelection(selection) ? { key: selection.anchor.key, offset: selection.anchor.offset, type: selection.anchor.type } : null;
+  const focus = $isRangeSelection(selection) ? { key: selection.focus.key, offset: selection.focus.offset, type: selection.focus.type } : null;
+
   for (const [a, b] of couplets) {
     a.remove();
     b.remove();
@@ -175,6 +187,13 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
     }
   }
   node.setLayoutAttribute(layout);
+
+  if (anchor && focus) {
+    const restored = $createRangeSelection();
+    restored.anchor.set(anchor.key, anchor.offset, anchor.type);
+    restored.focus.set(focus.key, focus.offset, focus.type);
+    $setSelection(restored);
+  }
 }
 
 /** A block at the very end of the document would otherwise leave no
@@ -426,6 +445,17 @@ export function $adjustPoetryStagger(step: 1 | -1): boolean {
   const index = POETRY_STAGGERS.indexOf(block.getStagger());
   const next = POETRY_STAGGERS[Math.min(POETRY_STAGGERS.length - 1, Math.max(0, index + step))];
   block.setStagger(next);
+  return true;
+}
+
+/** Steps the caret's centered-couplet width (issue #27) one notch narrower
+ * (-1) or wider (+1); clamps at either end. */
+export function $adjustPoetryCenterWidth(step: 1 | -1): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  const index = POETRY_CENTER_WIDTHS.indexOf(block.getCenterWidth());
+  const next = POETRY_CENTER_WIDTHS[Math.min(POETRY_CENTER_WIDTHS.length - 1, Math.max(0, index + step))];
+  block.setCenterWidth(next);
   return true;
 }
 

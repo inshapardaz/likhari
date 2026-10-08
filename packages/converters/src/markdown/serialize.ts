@@ -259,7 +259,7 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
   const attrs: Attrs = { layout: layoutOrDefault(node.layout) };
-  for (const key of ['spacing', 'gutter', 'stagger'] as const) {
+  for (const key of ['spacing', 'gutter', 'stagger', 'centerWidth'] as const) {
     const value = scaleOrDefault(node[key]);
     if (value !== 'normal') attrs[key] = value;
   }

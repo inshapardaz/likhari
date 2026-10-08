@@ -252,6 +252,7 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
             spacing: scaleOrDefault(attrs.spacing),
             gutter: scaleOrDefault(attrs.gutter),
             stagger: scaleOrDefault(attrs.stagger),
+            centerWidth: scaleOrDefault(attrs.centerWidth),
             ...(Number(attrs.width) > 0 ? { width: Number(attrs.width) } : {}),
           };
           const children = blocks(node.children ?? []);
