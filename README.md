@@ -295,8 +295,8 @@ documents that should have a single typeface, set `fontMode="uniform"`:
 In this mode:
 
 - The toolbar has **one font-family dropdown**, which applies to all text, and a
-  **zoom control** instead of the size dropdown. Zoom is laid out as `[−] 100% [+]` at
-  the right end of the toolbar, next to the drafts and search buttons: − and + step
+  **zoom control** instead of the size dropdown. Zoom is laid out as `[−] 100% [+]` as its
+  own button group at the right end of the toolbar, just before the drafts and search buttons: − and + step
   through 50–300%, and clicking the percentage resets it to 100%. Zoom scales every size
   together, so headings, superscript and subscript keep their proportions. Right-to-left
   text keeps its larger base size.

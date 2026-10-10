@@ -1623,33 +1623,44 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const zoomOutTo = [...ZOOM_LEVELS_PERCENT].reverse().find((level) => level < zoom);
   const zoomInTo = ZOOM_LEVELS_PERCENT.find((level) => level > zoom);
 
-  const endSection = (showZoom || drafts || config.findReplace || helpUrl !== false) && (
-    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={{ marginInlineStart: 'auto' }}>
-      {showZoom && (
-        <span role="group" aria-label={strings.toolbar.zoom} dir="ltr" style={{ display: 'inline-flex', alignItems: 'center' }}>
-          <ToolbarButton
-            icon={IconMinus}
-            title={strings.toolbar.zoomOut}
-            disabled={zoomOutTo === undefined}
-            onClick={() => zoomOutTo !== undefined && onZoomChange?.(zoomOutTo)}
-          />
-          <MantineToolbar.Toggle
-            title={strings.toolbar.zoomReset}
-            aria-label={`${strings.toolbar.zoomReset} (${zoom}%)`}
-            onMouseDown={(e: ReactMouseEvent) => e.preventDefault()}
-            onClick={() => onZoomChange?.(100)}
-            style={{ width: 'auto', minWidth: 52, padding: '0 6px', fontSize: 12 }}
-          >
-            {zoom}%
-          </MantineToolbar.Toggle>
-          <ToolbarButton
-            icon={IconPlus}
-            title={strings.toolbar.zoomIn}
-            disabled={zoomInTo === undefined}
-            onClick={() => zoomInTo !== undefined && onZoomChange?.(zoomInTo)}
-          />
-        </span>
-      )}
+  const hasEndUtilities = Boolean(drafts || config.findReplace || helpUrl !== false);
+  const zoomGroup = showZoom && (
+    <MantineToolbar.Group
+      key="zoom"
+      className="likhari-toolbar-cluster"
+      role="group"
+      aria-label={strings.toolbar.zoom}
+      dir="ltr"
+      style={{ marginInlineStart: 'auto' }}
+    >
+      <ToolbarButton
+        icon={IconMinus}
+        title={strings.toolbar.zoomOut}
+        disabled={zoomOutTo === undefined}
+        onClick={() => zoomOutTo !== undefined && onZoomChange?.(zoomOutTo)}
+      />
+      <MantineToolbar.Toggle
+        title={strings.toolbar.zoomReset}
+        aria-label={`${strings.toolbar.zoomReset} (${zoom}%)`}
+        onMouseDown={(e: ReactMouseEvent) => e.preventDefault()}
+        onClick={() => onZoomChange?.(100)}
+        style={{ width: 'auto', minWidth: 52, padding: '0 6px', fontSize: 12 }}
+      >
+        {zoom}%
+      </MantineToolbar.Toggle>
+      <ToolbarButton
+        icon={IconPlus}
+        title={strings.toolbar.zoomIn}
+        disabled={zoomInTo === undefined}
+        onClick={() => zoomInTo !== undefined && onZoomChange?.(zoomInTo)}
+      />
+    </MantineToolbar.Group>
+  );
+
+  // Drafts, search and help sit at the far end; the zoom stepper is its own
+  // group just before them, and takes over the "push to the end" margin.
+  const utilitiesGroup = hasEndUtilities && (
+    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={showZoom ? undefined : { marginInlineStart: 'auto' }}>
       {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
       {config.findReplace && (
         <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
@@ -1667,6 +1678,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         </MantineToolbar.Toggle>
       )}
     </MantineToolbar.Group>
+  );
+
+  const endSection = (zoomGroup || utilitiesGroup) && (
+    <Fragment key="end-sections">
+      {zoomGroup}
+      {utilitiesGroup}
+    </Fragment>
   );
 
   const startSections: (ReactNode | false)[] = [
