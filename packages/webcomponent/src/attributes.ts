@@ -14,6 +14,7 @@ export const OBSERVED_ATTRIBUTES = [
   'feature-preset',
   'toolbar-bordered',
   'toolbar-variant',
+  'help-url',
 ] as const;
 
 const LOCALES: Locale[] = ['en', 'ur', 'pa-shahmukhi'];
@@ -69,6 +70,10 @@ export function attributesToProps(read: (name: string) => string | null): Partia
       ...(variant !== undefined && { variant }),
     };
   }
+
+  const helpUrl = read('help-url');
+  if (helpUrl === 'false') props.helpUrl = false;
+  else if (helpUrl !== null) props.helpUrl = helpUrl;
 
   return props;
 }

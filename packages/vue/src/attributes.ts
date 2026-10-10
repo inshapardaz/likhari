@@ -11,6 +11,8 @@ export interface LikhariEditorProps {
   featurePreset?: 'minimal' | 'standard' | 'full' | 'poetry';
   toolbarBordered?: boolean;
   toolbarVariant?: 'light' | 'filled';
+  /** The toolbar's Help button opens this URL. `false` hides the button. */
+  helpUrl?: string | false;
 }
 
 /**
@@ -31,5 +33,6 @@ export function toElementAttributes(props: LikhariEditorProps): Record<string, s
     'feature-preset': props.featurePreset ?? null,
     'toolbar-bordered': props.toolbarBordered === undefined ? null : props.toolbarBordered ? '' : 'false',
     'toolbar-variant': props.toolbarVariant ?? null,
+    'help-url': props.helpUrl === undefined ? null : props.helpUrl === false ? 'false' : props.helpUrl,
   };
 }

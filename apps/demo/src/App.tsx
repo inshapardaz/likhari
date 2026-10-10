@@ -225,6 +225,7 @@ export function App() {
   const [toolbarBordered, setToolbarBordered] = useState(true);
   const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
   const [toolbarOverflow, setToolbarOverflow] = useState(true);
+  const [showHelpButton, setShowHelpButton] = useState(true);
   const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
@@ -359,6 +360,10 @@ export function App() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={toolbarOverflow} onChange={(e) => setToolbarOverflow(e.target.checked)} />
             Toolbar overflow menu
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={showHelpButton} onChange={(e) => setShowHelpButton(e.target.checked)} />
+            Help button
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
@@ -516,6 +521,7 @@ export function App() {
               colorScheme={colorScheme}
               accentColor={accentColor}
               toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow }}
+              helpUrl={showHelpButton ? undefined : false}
               locale={locale}
               placeholder="Start writing…"
               height="100%"

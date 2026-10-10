@@ -1,6 +1,7 @@
 export { EditorRoot } from './EditorRoot';
 export type { EditorRootProps, EditorRef, EditorInitialContent, NavigationGuardMode } from './EditorRoot';
 export type { ToolbarStyle } from './components/Toolbar';
+export { DEFAULT_HELP_URL } from './components/Toolbar';
 export type { DraftRestoreMode } from './components/DraftRestore';
 export { defaultMantineTheme } from './theme/mantineTheme';
 export { ImageNode, $createImageNode, $isImageNode } from './image/ImageNode';
