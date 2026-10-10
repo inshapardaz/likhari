@@ -24,8 +24,8 @@ mockup: `editor-ui-mockup.html`.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` | `#F6F5F2` | `#1B1B19` | Canvas / app background |
-| `--paper-dim` | `#EDEBE6` | `#242422` | Toolbar / status bar background |
+| `--paper` | `#FFFFFF` | `#1B1B19` | Canvas / app background |
+| `--paper-dim` | `#F5F5F5` | `#242422` | Toolbar / status bar background |
 | `--ink` | `#1E1E1C` | `#EDEBE4` | Primary text |
 | `--ink-soft` | `#5C5A54` | `#A6A398` | Secondary text, filenames, status |
 | `--line` | `#DAD7CE` | `#3A3934` | Hairline dividers |
