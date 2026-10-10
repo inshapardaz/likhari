@@ -124,8 +124,8 @@ Every prop is optional. Defaults are shown where they apply.
 | `featureConfig` | `EditorFeatureConfig` | from the preset | Turns individual features on or off. Overrides the preset. |
 | `fontOptions` | `FontOption[]` | `DEFAULT_FONT_OPTIONS` | Entries in the font-family dropdown. Spread the defaults to add your own. |
 | `fontMode` | `'selective' \| 'uniform'` | `'selective'` | `'selective'` styles the selected text with a font family and size. `'uniform'` uses one font for all text and a zoom control in place of the size dropdown. See [Fonts](#fonts). |
-| `fontFamily` | `string` | canvas default | `fontMode="uniform"` only. The font family for all text, such as a `fontOptions[].family` value. |
-| `zoom` | `number` | `100` | `fontMode="uniform"` only. Text size as a percentage, 50–300. |
+| `fontFamily` | `string` | the user's last choice, else the canvas default | `fontMode="uniform"` only. The font family for all text, such as a `fontOptions[].family` value. When set, it overrides the remembered choice. |
+| `zoom` | `number` | the user's last choice, else `100` | `fontMode="uniform"` only. Text size as a percentage, 50–300. When set, it overrides the remembered choice. |
 | `onFontChange` | `(change: { fontFamily: string \| undefined; zoom: number }) => void` | none | `fontMode="uniform"` only. Called when the user picks a font or zoom in the toolbar. |
 | `punctuation` | `PunctuationOptions` | both on | Common punctuation fixes, and whether a straight `"` becomes `”`. |
 | `urduNormalization` | `UrduNormalizationOptions` | built-in | Urdu normalisation applied during auto-correct. Set `removeDiacritics` to strip diacritics. |
@@ -308,10 +308,13 @@ In this mode:
 - Without `fontFamily`, each block keeps its direction's default font (Latin
   or Nastaliq), so mixed English and Urdu documents still look right. Once a font is
   chosen it applies to every block.
-- `fontFamily` and `zoom` set the starting values and update the editor whenever they
-  change. The toolbar changes them in between and reports each change through
-  `onFontChange`, so keep the values in your own state or storage to restore them next
-  time.
+- **The user's choice is remembered.** A font or zoom picked in the toolbar is saved to
+  `localStorage` (under `documentId` when you set one, otherwise shared by the editors
+  on the page) and restored on the next load, with no code on your side.
+- `fontFamily` and `zoom` are optional starting values. When you pass one it wins over
+  the remembered value, and it updates the editor whenever it changes, so leave them out
+  to let the user's choice stick. Each toolbar change is also reported through
+  `onFontChange`, for example to keep the setting in your own storage instead.
 
 ### Drafts and leaving with unsaved changes
 

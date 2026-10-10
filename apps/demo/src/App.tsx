@@ -226,10 +226,7 @@ export function App() {
   const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
   const [toolbarOverflow, setToolbarOverflow] = useState(true);
   const [showHelpButton, setShowHelpButton] = useState(true);
-  const [uniformFont, setUniformFont] = useState(false);
-  const [uniformFamily, setUniformFamily] = useState<string | undefined>(undefined);
-  const [zoom, setZoom] = useState(100);
-  const [showSave, setShowSave] = useState(true);
+  const [uniformFont, setUniformFont] = useState(false);  const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
   // The three draft / navigation behaviours (see EditorRootProps).
@@ -370,7 +367,7 @@ export function App() {
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={uniformFont} onChange={(e) => setUniformFont(e.target.checked)} />
-            Uniform font + zoom{uniformFont ? ` (${zoom}%)` : ''}
+            Uniform font + zoom
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
@@ -530,12 +527,6 @@ export function App() {
               toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow }}
               helpUrl={showHelpButton ? undefined : false}
               fontMode={uniformFont ? 'uniform' : 'selective'}
-              fontFamily={uniformFamily}
-              zoom={zoom}
-              onFontChange={(change) => {
-                setUniformFamily(change.fontFamily);
-                setZoom(change.zoom);
-              }}
               locale={locale}
               placeholder="Start writing…"
               height="100%"

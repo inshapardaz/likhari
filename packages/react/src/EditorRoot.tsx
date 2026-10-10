@@ -19,6 +19,7 @@ import { EDITOR_NODES } from './nodes';
 import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar, type ToolbarStyle } from './components/Toolbar';
+import { readFontSettings, writeFontSettings } from './persistence/fontStorage';
 import { clampZoom, injectUrduWebFontsCss, type FontMode, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { PageBreakPlugin } from './plugins/PageBreakPlugin';
@@ -309,27 +310,36 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const draftId = documentId ?? adoptedDraftId ?? generatedDraftId;
   // The urdu-web-fonts stylesheets are needed for the font dropdown and for
   // RTL content, whose canvas font (editor.css) is one of those families.
-  useEffect(() => {
-    if (config.font.family || fontFamily || locale !== 'en') injectUrduWebFontsCss();
-  }, [config.font.family, fontFamily, locale]);
-
-  // Uniform font mode: the toolbar and the host's props both drive these. The
-  // props seed them and win whenever they change; the toolbar changes them in
-  // between and reports through onFontChange.
+  // Uniform font mode: the toolbar and the host's props both drive these. They
+  // start from the props, else from what the user chose last time (kept in
+  // localStorage), and a prop that is given wins whenever it changes. A toolbar
+  // change is saved, and reported through onFontChange.
   const uniform = fontMode === 'uniform';
-  const [uniformFamily, setUniformFamily] = useState<string | undefined>(fontFamily);
-  const [uniformZoom, setUniformZoom] = useState(() => clampZoom(zoom));
-  useEffect(() => setUniformFamily(fontFamily), [fontFamily]);
-  useEffect(() => setUniformZoom(clampZoom(zoom)), [zoom]);
+  const [uniformFamily, setUniformFamily] = useState<string | undefined>(
+    () => fontFamily ?? readFontSettings(documentId).fontFamily,
+  );
+  const [uniformZoom, setUniformZoom] = useState(() => clampZoom(zoom ?? readFontSettings(documentId).zoom));
+  useEffect(() => {
+    if (fontFamily !== undefined) setUniformFamily(fontFamily);
+  }, [fontFamily]);
+  useEffect(() => {
+    if (zoom !== undefined) setUniformZoom(clampZoom(zoom));
+  }, [zoom]);
   const handleUniformFamily = (family: string) => {
     setUniformFamily(family);
+    writeFontSettings({ fontFamily: family, zoom: uniformZoom }, documentId);
     onFontChange?.({ fontFamily: family, zoom: uniformZoom });
   };
   const handleUniformZoom = (level: number) => {
     const next = clampZoom(level);
     setUniformZoom(next);
+    writeFontSettings({ fontFamily: uniformFamily, zoom: next }, documentId);
     onFontChange?.({ fontFamily: uniformFamily, zoom: next });
   };
+
+  useEffect(() => {
+    if (config.font.family || uniformFamily || locale !== 'en') injectUrduWebFontsCss();
+  }, [config.font.family, uniformFamily, locale]);
 
   const imageOptions = useMemo<ImageOptions>(
     () => ({

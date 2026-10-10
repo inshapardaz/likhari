@@ -190,9 +190,10 @@ documents that should have one typographic voice:
 | Inline styles already in content | Honored | Overridden on screen by the uniform font and zoom (the content itself is not rewritten) |
 
 `font.family` and `font.size` in the feature config still gate the font dropdown and the
-zoom control respectively; `font.scope` is ignored in uniform mode. The host seeds the
-state with the `fontFamily` and `zoom` props and is told about toolbar changes through
-`onFontChange`. With no `fontFamily`, each block keeps its direction's default font so
+zoom control respectively; `font.scope` is ignored in uniform mode. The user's choice is
+remembered in `localStorage` (per `documentId`, else shared) and restored on load; the host
+may override it with the `fontFamily` and `zoom` props and is told about toolbar changes
+through `onFontChange`. With no `fontFamily`, each block keeps its direction's default font so
 mixed English/Urdu documents stay script-correct.
 
 ### 4.6 Editing
