@@ -295,11 +295,13 @@ documents that should have a single typeface, set `fontMode="uniform"`:
 In this mode:
 
 - The toolbar has **one font-family dropdown**, which applies to all text, and a
-  **zoom dropdown** (50–300%) instead of the size dropdown. Zoom scales every size
+  **zoom control** instead of the size dropdown. Zoom is laid out as `[−] 100% [+]` at
+  the right end of the toolbar, next to the drafts and search buttons: − and + step
+  through 50–300%, and clicking the percentage resets it to 100%. Zoom scales every size
   together, so headings, superscript and subscript keep their proportions. Right-to-left
   text keeps its larger base size.
-- `font.family` and `font.size` in the feature config show or hide the font dropdown and
-  the zoom dropdown. `font.scope` has no effect.
+- `font.family` shows or hides the font dropdown, and `font.size` the zoom control.
+  `font.scope` has no effect.
 - The font and zoom are a **view setting, not document content**. Nothing is written
   into the document, so Markdown, HTML, plain text and Lexical JSON exports are
   unchanged, and loading a document does not change them. Text that already carries an

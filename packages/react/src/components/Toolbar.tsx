@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type ReactNode } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
@@ -170,10 +170,11 @@ import {
   IconTableMinus,
   IconTrash,
   IconTableOptions,
+  IconMinus,
+  IconPlus,
   IconTextSize,
   IconTypography,
   IconUnderline,
-  IconZoomIn,
   IconWand,
   type IconProps,
 } from '@tabler/icons-react';
@@ -1371,8 +1372,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     ? uniformFontFamily ?? canvasDefaults.family
     : state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
   const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
-  // A zoom that isn't one of the presets (set through the prop) is still listed, so the select can show it.
-  const zoomLevels = ZOOM_LEVELS_PERCENT.includes(zoom) ? ZOOM_LEVELS_PERCENT : [...ZOOM_LEVELS_PERCENT, zoom].sort((a, b) => a - b);
 
   const formattingOptions = [
     { value: 'paragraph', label: strings.toolbar.formattingOptions.paragraph },
@@ -1469,7 +1468,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </Fragment>
   );
 
-  const fontSection = (config.font.family || config.font.size) && (
+  const fontSection = (config.font.family || (config.font.size && !uniform)) && (
     <MantineToolbar.Group key="font">
       {config.font.family && (
         <ToolbarSelect
@@ -1484,18 +1483,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
           onMouseDown={snapshotSelection}
           onChange={withRefocus((v: string) => (uniform ? onUniformFontFamilyChange?.(v) : applyFont('font-family', v)))}
-        />
-      )}
-      {config.font.size && uniform && (
-        <ToolbarSelect
-          icon={IconZoomIn}
-          label={strings.toolbar.zoom}
-          width={92}
-          value={String(zoom)}
-          placeholder={strings.toolbar.zoomPlaceholder}
-          data={zoomLevels.map((level) => ({ value: String(level), label: `${level}%` }))}
-          onMouseDown={snapshotSelection}
-          onChange={withRefocus((v: string) => onZoomChange?.(Number(v)))}
         />
       )}
       {config.font.size && !uniform && (
@@ -1630,8 +1617,39 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const endSection = (drafts || config.findReplace || helpUrl !== false) && (
+  // Uniform mode's zoom: [-] 100% [+], stepping through the preset levels; the
+  // percentage resets to 100%. Always laid out left-to-right, like a number.
+  const showZoom = uniform && config.font.size;
+  const zoomOutTo = [...ZOOM_LEVELS_PERCENT].reverse().find((level) => level < zoom);
+  const zoomInTo = ZOOM_LEVELS_PERCENT.find((level) => level > zoom);
+
+  const endSection = (showZoom || drafts || config.findReplace || helpUrl !== false) && (
     <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={{ marginInlineStart: 'auto' }}>
+      {showZoom && (
+        <span role="group" aria-label={strings.toolbar.zoom} dir="ltr" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <ToolbarButton
+            icon={IconMinus}
+            title={strings.toolbar.zoomOut}
+            disabled={zoomOutTo === undefined}
+            onClick={() => zoomOutTo !== undefined && onZoomChange?.(zoomOutTo)}
+          />
+          <MantineToolbar.Toggle
+            title={strings.toolbar.zoomReset}
+            aria-label={`${strings.toolbar.zoomReset} (${zoom}%)`}
+            onMouseDown={(e: ReactMouseEvent) => e.preventDefault()}
+            onClick={() => onZoomChange?.(100)}
+            style={{ width: 'auto', minWidth: 52, padding: '0 6px', fontSize: 12 }}
+          >
+            {zoom}%
+          </MantineToolbar.Toggle>
+          <ToolbarButton
+            icon={IconPlus}
+            title={strings.toolbar.zoomIn}
+            disabled={zoomInTo === undefined}
+            onClick={() => zoomInTo !== undefined && onZoomChange?.(zoomInTo)}
+          />
+        </span>
+      )}
       {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
       {config.findReplace && (
         <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />

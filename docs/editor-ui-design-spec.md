@@ -84,10 +84,13 @@ break are **overflow-menu items** (a "more" `...` button at the end of the bar) 
 than permanent icons — they're configured per-document more often than toggled
 per-selection, so they don't need primary-row real estate.
 
-In `fontMode="uniform"` the font-size selector is replaced by a **zoom** selector
-(magnifier icon, percentage options 50–300 %) beside the single font-family selector. Zoom
-is a view control: it scales the whole canvas uniformly, so it never changes per
-selection and is not mirrored for RTL (the magnifier is a symmetric glyph).
+In `fontMode="uniform"` the font-size selector is replaced by a **zoom** control laid out
+`[−] 100% [+]`, in the right-aligned end cluster beside the drafts and search buttons
+(the single font-family selector stays in the font group). − and + step through the
+preset levels (50–300 %) and are disabled at the ends; the percentage button resets to
+100 %. Zoom is a view control: it scales the whole canvas uniformly, so it never changes
+per selection. The control is always laid out left-to-right (− on the left), like a
+number, even in RTL.
 
 ### 3.2 Sizing & spacing
 
