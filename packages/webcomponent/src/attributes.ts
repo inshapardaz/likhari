@@ -15,6 +15,9 @@ export const OBSERVED_ATTRIBUTES = [
   'toolbar-bordered',
   'toolbar-variant',
   'help-url',
+  'font-mode',
+  'font-family',
+  'zoom',
 ] as const;
 
 const LOCALES: Locale[] = ['en', 'ur', 'pa-shahmukhi'];
@@ -74,6 +77,15 @@ export function attributesToProps(read: (name: string) => string | null): Partia
   const helpUrl = read('help-url');
   if (helpUrl === 'false') props.helpUrl = false;
   else if (helpUrl !== null) props.helpUrl = helpUrl;
+
+  const fontMode = read('font-mode');
+  if (fontMode === 'selective' || fontMode === 'uniform') props.fontMode = fontMode;
+
+  const fontFamily = read('font-family');
+  if (fontFamily) props.fontFamily = fontFamily;
+
+  const zoom = read('zoom');
+  if (zoom !== null && zoom.trim() !== '' && Number.isFinite(Number(zoom))) props.zoom = Number(zoom);
 
   return props;
 }

@@ -37,17 +37,22 @@ export const LikhariEditor = defineComponent({
     toolbarBordered: { type: Boolean, default: undefined },
     toolbarVariant: String as PropType<'light' | 'filled'>,
     helpUrl: { type: [String, Boolean] as PropType<string | false>, default: undefined },
+    fontMode: String as PropType<'selective' | 'uniform'>,
+    fontFamily: String,
+    zoom: { type: Number, default: undefined },
     featureConfig: Object as PropType<EditorFeatureConfig>,
   },
   emits: {
     change: (state: unknown) => state !== undefined,
     save: (payload: { content: string; format: FormatId }) => payload !== undefined,
+    fontChange: (payload: { fontFamily: string | undefined; zoom: number }) => payload !== undefined,
   },
   setup(props, { emit, expose }) {
     const element = ref<EditorElement | null>(null);
 
     const onChange = (event: Event) => emit('change', (event as CustomEvent).detail);
     const onSave = (event: Event) => emit('save', (event as CustomEvent).detail);
+    const onFontChange = (event: Event) => emit('fontChange', (event as CustomEvent).detail);
 
     const applyConfig = () => {
       if (element.value) element.value.featureConfig = props.featureConfig;
@@ -56,12 +61,14 @@ export const LikhariEditor = defineComponent({
     onMounted(() => {
       element.value?.addEventListener('editor-change', onChange);
       element.value?.addEventListener('editor-save', onSave);
+      element.value?.addEventListener('editor-font-change', onFontChange);
       applyConfig();
     });
 
     onBeforeUnmount(() => {
       element.value?.removeEventListener('editor-change', onChange);
       element.value?.removeEventListener('editor-save', onSave);
+      element.value?.removeEventListener('editor-font-change', onFontChange);
     });
 
     watch(() => props.featureConfig, applyConfig, { deep: true });

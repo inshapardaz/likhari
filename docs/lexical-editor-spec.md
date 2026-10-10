@@ -176,6 +176,25 @@ an explicit **extended Markdown dialect** up front rather than discovering gaps 
 Font/color pickers should offer both a curated palette (for Mantine-consistent theming)
 and a free color picker/custom font input.
 
+#### Uniform font mode
+
+The table above is the default, **selective** mode. A host can instead set the component
+prop `fontMode="uniform"` (a component prop, not part of `EditorFeatureConfig`) for
+documents that should have one typographic voice:
+
+| Aspect | Selective (default) | Uniform |
+|---|---|---|
+| Font family | Dropdown styles the selection or document with inline `font-family` | One dropdown; the chosen font applies to all text |
+| Font size | Dropdown of px sizes, inline `font-size` | Replaced by a **zoom** control (50–300 %) that scales every size together; headings, sub/superscript and per-direction base sizes keep their proportions |
+| Stored in the document | Yes (inline style on text nodes) | **No** — a view setting held by the editor (CSS custom properties on the canvas), so every export format is unaffected |
+| Inline styles already in content | Honored | Overridden on screen by the uniform font and zoom (the content itself is not rewritten) |
+
+`font.family` and `font.size` in the feature config still gate the font dropdown and the
+zoom control respectively; `font.scope` is ignored in uniform mode. The host seeds the
+state with the `fontFamily` and `zoom` props and is told about toolbar changes through
+`onFontChange`. With no `fontFamily`, each block keeps its direction's default font so
+mixed English/Urdu documents stay script-correct.
+
 ### 4.6 Editing
 
 - Undo / Redo — Lexical's built-in `HistoryPlugin` (`@lexical/history`), which already

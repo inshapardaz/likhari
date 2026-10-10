@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { MantineThemeOverride } from '@mantine/core';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
@@ -19,7 +19,7 @@ import { EDITOR_NODES } from './nodes';
 import { editorTheme } from './theme/editorTheme';
 import { EditorThemeProvider } from './theme/EditorThemeProvider';
 import { Toolbar, type ToolbarStyle } from './components/Toolbar';
-import { injectUrduWebFontsCss, type FontOption } from './fonts';
+import { clampZoom, injectUrduWebFontsCss, type FontMode, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
 import { PageBreakPlugin } from './plugins/PageBreakPlugin';
 import { LayoutPlugin } from './plugins/LayoutPlugin';
@@ -161,6 +161,33 @@ export interface EditorRootProps {
    */
   fontOptions?: FontOption[];
   /**
+   * How fonts are applied:
+   * - `'selective'` (default): the toolbar's font-family and font-size
+   *   dropdowns style the selection (or the document, per `font.scope`) with
+   *   inline styles stored in the document;
+   * - `'uniform'`: one font for all text, and a zoom control in place of the
+   *   font-size dropdown that scales every size together. Both are a view
+   *   setting, not part of the document, so exports are unaffected and text
+   *   styled inline elsewhere (e.g. imported HTML) is shown in the uniform
+   *   font and zoom too. `font.family` / `font.size` in the feature config
+   *   show or hide the font and zoom controls.
+   */
+  fontMode?: FontMode;
+  /**
+   * `fontMode="uniform"` only: the font family for all text, e.g. a
+   * `fontOptions[].family` value. Omit for the canvas default (which follows
+   * each block's direction). Changing it from the toolbar updates the editor
+   * and calls `onFontChange`; changing the prop updates the editor too.
+   */
+  fontFamily?: string;
+  /**
+   * `fontMode="uniform"` only: the zoom as a percentage of the normal text
+   * size, 50–300. Default `100`. Behaves like `fontFamily`.
+   */
+  zoom?: number;
+  /** `fontMode="uniform"` only: called when the user picks a font or zoom in the toolbar. */
+  onFontChange?: (change: { fontFamily: string | undefined; zoom: number }) => void;
+  /**
    * Saves drafts: a debounced autosave of the current content to
    * `localStorage` (lexical-editor-spec.md §6.2), a resilience net against an
    * accidental tab close that is independent of `onSave`/the Save button. The
@@ -257,6 +284,10 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     onImageUpload,
     fetchImage,
     fontOptions,
+    fontMode = 'selective',
+    fontFamily,
+    zoom,
+    onFontChange,
     autosave = true,
     restoreDraft = 'prompt',
     navigationGuard = 'confirm',
@@ -279,8 +310,26 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   // The urdu-web-fonts stylesheets are needed for the font dropdown and for
   // RTL content, whose canvas font (editor.css) is one of those families.
   useEffect(() => {
-    if (config.font.family || locale !== 'en') injectUrduWebFontsCss();
-  }, [config.font.family, locale]);
+    if (config.font.family || fontFamily || locale !== 'en') injectUrduWebFontsCss();
+  }, [config.font.family, fontFamily, locale]);
+
+  // Uniform font mode: the toolbar and the host's props both drive these. The
+  // props seed them and win whenever they change; the toolbar changes them in
+  // between and reports through onFontChange.
+  const uniform = fontMode === 'uniform';
+  const [uniformFamily, setUniformFamily] = useState<string | undefined>(fontFamily);
+  const [uniformZoom, setUniformZoom] = useState(() => clampZoom(zoom));
+  useEffect(() => setUniformFamily(fontFamily), [fontFamily]);
+  useEffect(() => setUniformZoom(clampZoom(zoom)), [zoom]);
+  const handleUniformFamily = (family: string) => {
+    setUniformFamily(family);
+    onFontChange?.({ fontFamily: family, zoom: uniformZoom });
+  };
+  const handleUniformZoom = (level: number) => {
+    const next = clampZoom(level);
+    setUniformZoom(next);
+    onFontChange?.({ fontFamily: uniformFamily, zoom: next });
+  };
 
   const imageOptions = useMemo<ImageOptions>(
     () => ({
@@ -567,6 +616,11 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             isDirty={isDirty}
             showSave={showSave}
             fontOptions={fontOptions}
+            fontMode={fontMode}
+            uniformFontFamily={uniformFamily}
+            zoom={uniformZoom}
+            onUniformFontFamilyChange={handleUniformFamily}
+            onZoomChange={handleUniformZoom}
             direction={dir}
             locale={locale}
             drafts={
@@ -610,7 +664,19 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             <div className="likhari-canvas">
               <RichTextPlugin
                 contentEditable={
-                <ContentEditable className="likhari-content-editable" dir={dir} spellCheck={false} aria-label={strings.editor.contentLabel} />
+                <ContentEditable
+                  className="likhari-content-editable"
+                  dir={dir}
+                  spellCheck={false}
+                  aria-label={strings.editor.contentLabel}
+                  data-font-mode={uniform ? 'uniform' : undefined}
+                  data-uniform-font={uniform && uniformFamily ? '' : undefined}
+                  style={
+                    uniform
+                      ? ({ '--likhari-zoom': uniformZoom / 100, ...(uniformFamily && { '--likhari-uniform-font': uniformFamily }) } as CSSProperties)
+                      : undefined
+                  }
+                />
               }
                 placeholder={<div className="likhari-placeholder">{resolvedPlaceholder}</div>}
                 ErrorBoundary={LexicalErrorBoundary}

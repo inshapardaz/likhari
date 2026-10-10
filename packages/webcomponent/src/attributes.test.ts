@@ -46,4 +46,17 @@ describe('attributesToProps', () => {
     expect(attributesToProps(from({ 'help-url': 'false' }))).toEqual({ helpUrl: false });
     expect(attributesToProps(from({}))).toEqual({});
   });
+
+  it('reads the uniform font mode, font family and zoom', () => {
+    expect(attributesToProps(from({ 'font-mode': 'uniform', 'font-family': '"Amiri", serif', zoom: '125' }))).toEqual({
+      fontMode: 'uniform',
+      fontFamily: '"Amiri", serif',
+      zoom: 125,
+    });
+  });
+
+  it('ignores an unknown font mode and a zoom that is not a number', () => {
+    expect(attributesToProps(from({ 'font-mode': 'huge', zoom: 'big' }))).toEqual({});
+    expect(attributesToProps(from({ zoom: '' }))).toEqual({});
+  });
 });

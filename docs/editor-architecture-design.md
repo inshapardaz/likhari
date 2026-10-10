@@ -150,6 +150,14 @@ covered by Lexical's built-in `TextNode`. Uppercase/lowercase/capitalize are **n
 persisted state at all — they're one-shot commands that call `.setTextContent()` on the
 selected `TextNode`s and produce no new node type or attribute.
 
+The component prop `fontMode="uniform"` swaps the font family/size controls for a single
+editor-wide font plus a zoom control. This is deliberately **not** document state: no
+nodes or styles are written. `EditorRoot` holds `{ fontFamily, zoom }` and exposes them
+to the canvas as `data-font-mode` / `data-uniform-font` attributes and the
+`--likhari-uniform-font` / `--likhari-zoom` CSS custom properties; `editor.css` does the
+rest. That keeps exports unchanged and the font nodes registered either way, in line with
+the rule that config toggles availability, not schema.
+
 ---
 
 ## 4. Plugin architecture
@@ -163,7 +171,7 @@ One plugin per feature area, each independently registerable, matching the shape
 | `ListPlugin` | `@lexical/list` | `config.lists.*` |
 | `BlocksPlugin` | headings/quote/hr/page break | `config.blocks.*` |
 | `AlignmentPlugin` | alignment/indent commands | `config.alignment`, `config.indent` |
-| `FontColorPlugin` | font family/size/color pickers | `config.font`, `config.color` |
+| `FontColorPlugin` | font family/size/color pickers (font family + zoom when `fontMode="uniform"`) | `config.font`, `config.color` |
 | `LinkPlugin` | `@lexical/link` + dialog | `config.links` |
 | `ImagePlugin` | `ImageNode` insert UI, upload handler wiring | `config.images.*` |
 | `TablePlugin` | `@lexical/table` | `config.tables` |

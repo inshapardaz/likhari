@@ -97,7 +97,7 @@ import { LinkDialog } from './LinkDialog';
 import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
-import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
+import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, ZOOM_LEVELS_PERCENT, type FontMode, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
 import { useStrings } from '../i18n/useStrings';
 import { usePortalTarget } from '../PortalTargetContext';
@@ -173,6 +173,7 @@ import {
   IconTextSize,
   IconTypography,
   IconUnderline,
+  IconZoomIn,
   IconWand,
   type IconProps,
 } from '@tabler/icons-react';
@@ -703,6 +704,18 @@ export interface ToolbarProps {
   showSave?: boolean;
   /** Font-family dropdown entries; defaults to DEFAULT_FONT_OPTIONS. */
   fontOptions?: FontOption[];
+  /**
+   * `'selective'` (default): the font dropdowns style the selection or document
+   * as inline styles. `'uniform'`: one font for all text plus a zoom control,
+   * both owned by EditorRoot (`uniformFontFamily` / `zoom`) and applied by CSS.
+   */
+  fontMode?: FontMode;
+  /** Uniform mode: the editor-wide font family, or undefined for the canvas default. */
+  uniformFontFamily?: string;
+  /** Uniform mode: the zoom percentage. */
+  zoom?: number;
+  onUniformFontFamilyChange?: (family: string) => void;
+  onZoomChange?: (zoom: number) => void;
   /** Text direction of the canvas; picks which default font and size are pre-selected. */
   direction?: 'ltr' | 'rtl';
   /** UI locale — picks the translated strings for labels, tooltips and menu items. */
@@ -721,7 +734,7 @@ export interface ToolbarProps {
  * format this editor reads and writes, including the poetry container syntax. */
 export const DEFAULT_HELP_URL = 'https://github.com/inshapardaz/likhari/blob/main/docs/markdown-dialect.md';
 
-export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
@@ -1353,8 +1366,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   // Unstyled text shows the canvas default (pre-selected).
   const canvasDefaults = CANVAS_FONT_DEFAULTS[direction];
-  const shownFontFamily = state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
+  const uniform = fontMode === 'uniform';
+  const shownFontFamily = uniform
+    ? uniformFontFamily ?? canvasDefaults.family
+    : state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
   const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
+  // A zoom that isn't one of the presets (set through the prop) is still listed, so the select can show it.
+  const zoomLevels = ZOOM_LEVELS_PERCENT.includes(zoom) ? ZOOM_LEVELS_PERCENT : [...ZOOM_LEVELS_PERCENT, zoom].sort((a, b) => a - b);
 
   const formattingOptions = [
     { value: 'paragraph', label: strings.toolbar.formattingOptions.paragraph },
@@ -1465,10 +1483,22 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           noMatchMessage={strings.toolbar.noMatch}
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
           onMouseDown={snapshotSelection}
-          onChange={withRefocus((v: string) => applyFont('font-family', v))}
+          onChange={withRefocus((v: string) => (uniform ? onUniformFontFamilyChange?.(v) : applyFont('font-family', v)))}
         />
       )}
-      {config.font.size && (
+      {config.font.size && uniform && (
+        <ToolbarSelect
+          icon={IconZoomIn}
+          label={strings.toolbar.zoom}
+          width={92}
+          value={String(zoom)}
+          placeholder={strings.toolbar.zoomPlaceholder}
+          data={zoomLevels.map((level) => ({ value: String(level), label: `${level}%` }))}
+          onMouseDown={snapshotSelection}
+          onChange={withRefocus((v: string) => onZoomChange?.(Number(v)))}
+        />
+      )}
+      {config.font.size && !uniform && (
         <ToolbarSelect
           icon={IconTextSize}
           label={strings.toolbar.fontSize}

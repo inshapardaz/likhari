@@ -123,6 +123,10 @@ Every prop is optional. Defaults are shown where they apply.
 | `featurePreset` | `FeatureConfigPresetName` | `'full'` | Starting set of features: `minimal`, `standard`, `full` or `poetry`. |
 | `featureConfig` | `EditorFeatureConfig` | from the preset | Turns individual features on or off. Overrides the preset. |
 | `fontOptions` | `FontOption[]` | `DEFAULT_FONT_OPTIONS` | Entries in the font-family dropdown. Spread the defaults to add your own. |
+| `fontMode` | `'selective' \| 'uniform'` | `'selective'` | `'selective'` styles the selected text with a font family and size. `'uniform'` uses one font for all text and a zoom control in place of the size dropdown. See [Fonts](#fonts). |
+| `fontFamily` | `string` | canvas default | `fontMode="uniform"` only. The font family for all text, such as a `fontOptions[].family` value. |
+| `zoom` | `number` | `100` | `fontMode="uniform"` only. Text size as a percentage, 50–300. |
+| `onFontChange` | `(change: { fontFamily: string \| undefined; zoom: number }) => void` | none | `fontMode="uniform"` only. Called when the user picks a font or zoom in the toolbar. |
 | `punctuation` | `PunctuationOptions` | both on | Common punctuation fixes, and whether a straight `"` becomes `”`. |
 | `urduNormalization` | `UrduNormalizationOptions` | built-in | Urdu normalisation applied during auto-correct. Set `removeDiacritics` to strip diacritics. |
 | `autoCorrectStores` | `AutoCorrectStore[]` | built-in | Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. |
@@ -272,6 +276,42 @@ import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
   fontOptions={[...DEFAULT_FONT_OPTIONS, { name: 'My font', family: '"My font", serif', group: 'Custom' }]}
 />
 ```
+
+#### Uniform mode: one font and a zoom
+
+By default fonts are **selective**: the user picks a font and size for a selection
+(or the document), and the choice is stored in the document as inline styles. For
+documents that should have a single typeface, set `fontMode="uniform"`:
+
+```tsx
+<EditorRoot
+  fontMode="uniform"
+  fontFamily={`"Noto Nastaliq Urdu", serif`}  // optional; omit for the default
+  zoom={125}                                   // optional; 50–300, default 100
+  onFontChange={({ fontFamily, zoom }) => saveViewSettings(fontFamily, zoom)}
+/>
+```
+
+In this mode:
+
+- The toolbar has **one font-family dropdown**, which applies to all text, and a
+  **zoom dropdown** (50–300%) instead of the size dropdown. Zoom scales every size
+  together, so headings, superscript and subscript keep their proportions. Right-to-left
+  text keeps its larger base size.
+- `font.family` and `font.size` in the feature config show or hide the font dropdown and
+  the zoom dropdown. `font.scope` has no effect.
+- The font and zoom are a **view setting, not document content**. Nothing is written
+  into the document, so Markdown, HTML, plain text and Lexical JSON exports are
+  unchanged, and loading a document does not change them. Text that already carries an
+  inline font or size (for example, imported HTML) is displayed in the uniform font and
+  zoom, but is not rewritten.
+- Without `fontFamily`, each block keeps its direction's default font (Latin
+  or Nastaliq), so mixed English and Urdu documents still look right. Once a font is
+  chosen it applies to every block.
+- `fontFamily` and `zoom` set the starting values and update the editor whenever they
+  change. The toolbar changes them in between and reports each change through
+  `onFontChange`, so keep the values in your own state or storage to restore them next
+  time.
 
 ### Drafts and leaving with unsaved changes
 
@@ -471,6 +511,9 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 | `toolbar-bordered` | present (or `"true"`) to outline the toolbar; `"false"` for a plain toolbar | bordered |
 | `toolbar-variant` | `light` (tints the active button), `filled` (fills it with the accent) | `light` |
 | `help-url` | any URL; `"false"` to hide the button | the Markdown dialect doc |
+| `font-mode` | `selective`, `uniform` (one font for all text and a zoom control; see [Fonts](#fonts)) | `selective` |
+| `font-family` | any CSS font-family; uniform mode only | the canvas default |
+| `zoom` | a number from 50 to 300; uniform mode only | `100` |
 
 **Property.** Use the `featureConfig` property for fine-grained feature control.
 It is nested, so it cannot be an attribute:
@@ -489,6 +532,10 @@ editor.addEventListener('editor-change', (event) => {
 
 editor.addEventListener('editor-save', (event) => {
   // event.detail: { content: string, format: 'markdown' | 'html' | 'plain-text' | 'lexical-json' }
+});
+
+editor.addEventListener('editor-font-change', (event) => {
+  // uniform mode only. event.detail: { fontFamily: string | undefined, zoom: number }
 });
 ```
 
@@ -561,8 +608,12 @@ next to its bundle served with your app (see the Web Component section above).
 Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
 `colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
 `featurePreset`, `toolbarBordered`, `toolbarVariant`, `helpUrl` (a string, or
-`false` to hide the button), and `featureConfig` (an object). Boolean props left
-unset use the editor's default; they are not sent as `false`.
+`false` to hide the button), `fontMode`, `fontFamily`, `zoom` (a number), and
+`featureConfig` (an object). Boolean props left unset use the editor's default; they
+are not sent as `false`.
+
+Events: `@change`, `@save`, and `@font-change` (payload `{ fontFamily, zoom }`, in
+uniform mode).
 
 Template ref methods: `getContent(format)`, `setContent(value, format)`,
 `hasUnsavedChanges()`, `confirmDiscard()`, `focus()`.

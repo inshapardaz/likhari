@@ -84,6 +84,11 @@ break are **overflow-menu items** (a "more" `...` button at the end of the bar) 
 than permanent icons — they're configured per-document more often than toggled
 per-selection, so they don't need primary-row real estate.
 
+In `fontMode="uniform"` the font-size selector is replaced by a **zoom** selector
+(magnifier icon, percentage options 50–300 %) beside the single font-family selector. Zoom
+is a view control: it scales the whole canvas uniformly, so it never changes per
+selection and is not mirrored for RTL (the magnifier is a symmetric glyph).
+
 ### 3.2 Sizing & spacing
 
 - Toolbar height: 46px. Button hit target: 30×30px (meets touch-target minimums with
