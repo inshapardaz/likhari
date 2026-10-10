@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-vue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue 3 component for the Likhari editor, a thin wrapper over the <likhari-editor> Web Component.",
   "license": "MIT",
   "repository": {
