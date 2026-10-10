@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "The Likhari editor as a <likhari-editor> custom element, built on the React implementation.",
   "license": "MIT",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/inshapardaz/likhari"
