@@ -5,19 +5,56 @@
 [![npm: @inshapardaz/likhari-converters](https://img.shields.io/npm/v/%40inshapardaz%2Flikhari-converters?label=%40inshapardaz%2Flikhari-converters)](https://www.npmjs.com/package/@inshapardaz/likhari-converters)
 
 An Urdu-first multilingual rich text editor, built on [Lexical](https://lexical.dev/).
-See `CLAUDE.md` and `docs/` for the full specification; this file covers the
-implementation as it stands.
 
-## Status: Phase 1
+This file has two parts: [Working on this project](#working-on-this-project), for
+building and testing this repository itself, and
+[Using the components](#using-the-components), for apps that depend on the
+published packages. `CLAUDE.md` and `docs/` hold the fuller design and
+architecture specification.
 
-Per `docs/lexical-editor-spec.md` §13, Phase 1 covers: core React editor with
-basic formatting, lists, headings, alignment/indent, undo/redo, plain-text +
-Lexical JSON I/O, feature-flag config scaffolding, and the default Mantine
-theme — English only. Later phases (Urdu/Punjabi + BiDi, Markdown/HTML,
-columns/footnotes/poetry, language tooling, Vue/Web Component wrappers) are
-not yet implemented; see the phasing table in the spec.
+## Working on this project
 
-## Installation
+### Packages
+
+| Package | npm | Description |
+|---|---|---|
+| `@inshapardaz/likhari-core` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-core) | `EditorFeatureConfig` schema and presets, design tokens, `theme.css`. Framework-free. |
+| `@inshapardaz/likhari-converters` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-converters) | Format converters: plain text, Lexical JSON, HTML, and the extended Markdown dialect. |
+| `@inshapardaz/likhari-react` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-react) | The editor component and toolbar. The primary way to use Likhari from a React app. |
+| `@inshapardaz/likhari-webcomponent` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-webcomponent) | `<likhari-editor>`, for pages without React. |
+| `@inshapardaz/likhari-vue` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-vue) | `<LikhariEditor>`, a thin Vue wrapper over the Web Component. |
+
+```
+packages/
+  core/            EditorFeatureConfig schema + presets, design tokens/theme.css
+  converters/      Format transformers: plain text, Lexical JSON, HTML, Markdown
+  react/           @inshapardaz/likhari-react — the editor component + toolbar
+  webcomponent/    <likhari-editor>
+  vue/             <LikhariEditor>
+apps/
+  demo/            Vite app for manually exercising the editor
+```
+
+### Development
+
+```bash
+npm install
+npm run dev      # demo app at the printed localhost URL
+npm test         # vitest
+npm run typecheck
+```
+
+### PR previews
+
+Every pull request from a branch in this repo gets its own copy of the demo at
+`https://inshapardaz.github.io/likhari/pr-preview/pr-<number>/`, linked in a PR
+comment and updated on each push. The preview is removed when the PR is merged
+or closed. `main` deploys to the site root. Requires Pages set to
+**Deploy from a branch: `gh-pages` / root** (one-time setting).
+
+## Using the components
+
+### Installation
 
 ```sh
 npm install @inshapardaz/likhari-react @mantine/core @mantine/hooks react react-dom
@@ -64,50 +101,11 @@ From here:
 - [Embedding the editor: Web Component and Vue](#embedding-the-editor-web-component-and-vue)
   — for pages that are not React.
 
-## Packages
-
-| Package | npm | Description |
-|---|---|---|
-| `@inshapardaz/likhari-core` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-core) | `EditorFeatureConfig` schema and presets, design tokens, `theme.css`. Framework-free. |
-| `@inshapardaz/likhari-converters` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-converters) | Format converters: plain text, Lexical JSON, HTML, and the extended Markdown dialect. |
-| `@inshapardaz/likhari-react` | [npm](https://www.npmjs.com/package/@inshapardaz/likhari-react) | The editor component and toolbar. The primary way to use Likhari from a React app. |
-| `@inshapardaz/likhari-webcomponent` | not yet published; see [Web Component](#web-component-likhari-editor) | `<likhari-editor>`, for pages without React. |
-| `@inshapardaz/likhari-vue` | not yet published; see [Vue 3](#vue-3-likharieditor) | `<LikhariEditor>`, a thin Vue wrapper over the Web Component. |
-
-```
-packages/
-  core/            EditorFeatureConfig schema + presets, design tokens/theme.css
-  converters/       Format transformers (plain-text, Lexical JSON, HTML done;
-                     Markdown draft dialect done)
-  react/            @inshapardaz/likhari-react — the editor component + toolbar
-  webcomponent/     <likhari-editor> — not yet published to npm
-  vue/              <LikhariEditor> — not yet published to npm
-apps/
-  demo/             Vite app for manually exercising the editor
-```
-
-## Development
-
-```bash
-npm install
-npm run dev      # demo app at the printed localhost URL
-npm test         # vitest
-npm run typecheck
-```
-
-### PR previews
-
-Every pull request from a branch in this repo gets its own copy of the demo at
-`https://inshapardaz.github.io/likhari/pr-preview/pr-<number>/`, linked in a PR
-comment and updated on each push. The preview is removed when the PR is merged
-or closed. `main` deploys to the site root. Requires Pages set to
-**Deploy from a branch: `gh-pages` / root** (one-time setting).
-
-## React props (`<EditorRoot>`)
+### React props (`<EditorRoot>`)
 
 Every prop is optional. Defaults are shown where they apply.
 
-### Document and content
+#### Document and content
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -118,7 +116,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `height` | `string \| number` | `'480px'` | Height of the toolbar and canvas together. The canvas scrolls inside it. Accepts any CSS length, such as `'100%'`, `'60vh'` or a number of pixels. |
 | `locale` | `Locale` | `'en'` | UI language for labels, tooltips and menus. Also picks the default font and direction. |
 
-### Features
+#### Features
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -133,7 +131,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `autoCompleteLanguage` | `SpellLanguage \| 'auto'` | `'auto'` | Language for autocomplete. `'auto'` follows each block's direction: English for left-to-right, Urdu for right-to-left. |
 | `thesaurusStores` | `ThesaurusStore[]` | English WordNet | Where synonyms come from, merged in order. Pass a stable array. |
 
-### Images and saving
+#### Images and saving
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -142,7 +140,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `onSave` | `(content: string, format: FormatId) => void` | none | Called by the Save button with the serialized content. |
 | `showSave` | `boolean` | `true` when `onSave` is set | Shows the Save button. Set it to show the button without a handler, or to hide it while keeping `onSave`. |
 
-### Drafts and leaving
+#### Drafts and leaving
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -154,7 +152,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `onDraftRestored` | `(draft: { documentId: string; savedAt: number }) => void` | none | Called when a draft is loaded into the editor. |
 | `navigationGuard` | `'confirm' \| 'save-draft' \| 'off'` | `'confirm'` | What happens when the user leaves with unsaved changes: ask, save a draft silently, or do nothing. |
 
-### Appearance
+#### Appearance
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -164,7 +162,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `toolbarStyle` | `ToolbarStyle` | `{ bordered: true, variant: 'light', overflow: true }` | `bordered` outlines the toolbar and its button groups. `variant` is `'light'`, which tints the active button, or `'filled'`, which fills it with the accent. `overflow: false` lets the toolbar wrap onto multiple rows instead of collapsing into a "..." menu. |
 | `helpUrl` | `string \| false` | `DEFAULT_HELP_URL` (the Markdown dialect doc) | URL the toolbar's Help button opens in a new tab. `false` hides the button. |
 
-## Content formats and `setContent`
+### Content formats and `setContent`
 
 `ref.getContent(format)` and `ref.setContent(value, format)` accept `'lexical-json'`,
 `'plain-text'`, `'html'` and `'markdown'`, and `initialContent`
@@ -180,14 +178,14 @@ are dropped, and `javascript:` links and non-image `data:` sources are removed. 
 needs a DOM (`DOMParser`), so it runs in the browser or jsdom, not plain Node.
 
 **Markdown.** The extended dialect (GFM plus `remark-directive` constructs for underline,
-sup/sub, colour/background, alignment, indent, direction, captions and page breaks) is
-written up in [`docs/markdown-dialect.md`](docs/markdown-dialect.md), including what each
-format round-trips and what degrades. Font family and size are not part of the dialect —
-a styled run keeps its other formatting but loses the font on export, keeping Markdown
-close to plain GFM. Columns, footnotes and poetry join the dialect with their Phase 3
-editor features.
+sup/sub, colour/background, alignment, indent, direction, captions, page breaks, columns
+and poetry layouts) is written up in full, with examples, in
+[`docs/markdown-dialect.md`](docs/markdown-dialect.md) — including what each format
+round-trips and what degrades. Font family and size are not part of the dialect — a
+styled run keeps its other formatting but loses the font on export, keeping Markdown
+close to plain GFM.
 
-## Images
+### Images
 
 With `images.linked` / `images.embedded` enabled, the toolbar's image button opens
 a dialog to insert an image **from a URL** (`http(s)`, relative, or a base64 image
@@ -232,7 +230,7 @@ return:
 Images serialize to Lexical JSON as an `image` node (`src`, `altText`, `caption`,
 `linkType`, `width`, `height`) and export to plain text as their alt text.
 
-## Tables
+### Tables
 
 With `tables` enabled in the feature config, the toolbar's table button inserts a
 table (rows, columns, optional header row). Cells can't be merged or split yet (see
@@ -250,7 +248,7 @@ selected, on the outside edge of the selection; *Delete rows / columns* removes 
 row or column the selection touches. In a right-to-left table "before" is the right-hand
 side. Deleting the last remaining row or column removes the table.
 
-## Fonts
+### Fonts
 
 When `font.family` / `font.size` are enabled in the feature config, the toolbar
 has a searchable font-family dropdown and a size dropdown (12–48 px). They set
@@ -275,7 +273,7 @@ import { EditorRoot, DEFAULT_FONT_OPTIONS } from '@inshapardaz/likhari-react';
 />
 ```
 
-## Drafts and leaving with unsaved changes
+### Drafts and leaving with unsaved changes
 
 Three props control how unsaved work is protected. The defaults are shown.
 
@@ -330,18 +328,14 @@ a `documentId`, a restored draft becomes this editor's draft, so later edits upd
 documents large) isn't written, a blank document isn't stored, and only the newest
 `autosaveMaxDrafts` (default 20) are kept. Drafts live in this browser only.
 
-## Theming and customization (Mantine, headless)
+### Theming and customization (Mantine, headless)
 
-> **Status: planned.** Phase 1 uses Mantine internally with a default theme,
-> but the headless/extension API below is the target design, not yet shipped.
-> Full design and extension guide: [`docs/mantine-headless-theming.md`](docs/mantine-headless-theming.md).
+The editor is built on [Mantine](https://mantine.dev): the editor supplies structure,
+behavior, and accessibility; a default theme supplies the looks, so it works out of
+the box and can be restyled without fighting Mantine's own visuals. Full design
+notes: [`docs/mantine-headless-theming.md`](docs/mantine-headless-theming.md).
 
-The editor is built on [Mantine](https://mantine.dev) in **headless mode**: the
-editor supplies structure, behavior, and accessibility; a **default theme**
-supplies the looks, so it works out of the box and can be restyled without
-fighting Mantine's own visuals.
-
-### Setup
+#### Setup
 
 `@mantine/core` and `@mantine/hooks` are peer dependencies. Import the two
 stylesheets once in your app's entry point. The editor renders its own
@@ -355,27 +349,18 @@ import { EditorRoot } from '@inshapardaz/likhari-react';
 <EditorRoot />   // default theme, no other configuration
 ```
 
-### Customize, from least to most effort
-
-| Goal | How |
-|---|---|
-| Change colors, radius, spacing | Set `--editor-*` CSS variables (works in React, Vue, and the Web Component) |
-| Change Mantine defaults (fonts, primary color, component props) | `theme` prop, deep-merged over the default theme |
-| Match an app that already uses Mantine | Omit `theme`; the editor inherits the host's nested `MantineProvider` |
-| Restyle individual parts | `classNames` / `styles` props (Mantine Styles API) |
-| Remove all default visuals, keep behavior | `unstyled` prop |
-| Swap one control | `components={{ ToolbarButton: MyButton }}` |
-| Build a completely custom toolbar | `toolbar` prop plus hooks (`useFormatState`, `useToolbarActions`, ...) |
+- Change colors, radius or spacing by setting `--editor-*` CSS variables — this
+  works in React, Vue and the Web Component alike.
+- Change Mantine defaults (fonts, primary color, component props) with the
+  `theme` prop, deep-merged over the default theme.
+- Omit `theme` entirely to match an app that already uses Mantine — the editor
+  inherits the host's nested `MantineProvider`.
 
 ```tsx
-// Override the theme
 <EditorRoot theme={{ primaryColor: 'violet' }} colorScheme="dark" />
-
-// Headless: bring your own styles
-<EditorRoot unstyled classNames={{ toolbar: 'my-toolbar', toolbarButton: 'my-btn' }} />
 ```
 
-### Toolbar appearance
+#### Toolbar appearance
 
 `toolbarStyle` sets how the toolbar looks. The toolbar takes its colour from the
 editor's `accentColor`.
@@ -396,7 +381,7 @@ editor's `accentColor`.
   menu. `false` keeps every group inline and lets the toolbar wrap onto as
   many rows as it needs instead.
 
-### Help button
+#### Help button
 
 The toolbar's Help button opens [`docs/markdown-dialect.md`](docs/markdown-dialect.md)
 in a new tab by default — the Markdown format the editor reads and writes,
@@ -413,7 +398,7 @@ import { EditorRoot, DEFAULT_HELP_URL } from '@inshapardaz/likhari-react';
 `DEFAULT_HELP_URL` is exported so you can link to it from your own help centre
 instead of replacing it.
 
-### Behavior worth knowing
+#### Behavior worth knowing
 
 Borrowed from the sibling EPUB reader [qari](https://github.com/inshapardaz/qari):
 
@@ -426,10 +411,9 @@ Borrowed from the sibling EPUB reader [qari](https://github.com/inshapardaz/qari
 - Use logical CSS properties (`padding-inline-start`, not `padding-left`) in
   overrides so they stay correct in RTL languages.
 - Feature toggles in `EditorFeatureConfig` control which controls are
-  available. They do not unregister document node types, even with a custom
-  toolbar.
+  available. They do not unregister document node types.
 
-## Browser compatibility
+### Browser compatibility
 
 Supported in current stable releases of Chrome, Edge, Firefox and Safari.
 Older browsers are not targeted.
@@ -447,26 +431,26 @@ The HTML export writes its styles inline, so exported poetry keeps its
 layout outside the editor. It only depends on the logical properties and
 `text-align-last` listed above.
 
-## Embedding the editor: Web Component and Vue
+### Embedding the editor: Web Component and Vue
 
 Two wrappers are provided for pages that do not use React. Both use the same
 editor as the React component, so features and file formats are identical.
 
-> **Status:** `@inshapardaz/likhari-webcomponent` and `@inshapardaz/likhari-vue`
-> are not yet published to npm. Until they are, build them from this repository
-> (`npm install && npm run build -w packages/webcomponent`, then `-w packages/vue`)
-> and use the built `dist/` folders. Once published, install them with npm as
-> shown below.
-
-### Web Component (`<likhari-editor>`)
+#### Web Component (`<likhari-editor>`)
 
 Works in any page, with no framework.
+
+```sh
+npm install @inshapardaz/likhari-webcomponent
+```
 
 ```html
 <script type="module" src="/node_modules/@inshapardaz/likhari-webcomponent/dist/likhari-webcomponent.js"></script>
 
 <likhari-editor feature-preset="full" locale="en" height="480px" show-save></likhari-editor>
 ```
+
+Then import it once in your entry file: `import '@inshapardaz/likhari-webcomponent';`
 
 The bundle is one module with React, the editor and Mantine included. It is
 about 2.5MB (about 700KB gzipped). Load it once per page.
@@ -488,19 +472,15 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 | `toolbar-variant` | `light` (tints the active button), `filled` (fills it with the accent) | `light` |
 | `help-url` | any URL; `"false"` to hide the button | the Markdown dialect doc |
 
-**Property**
-
-Use the `featureConfig` property for fine-grained feature control. It is nested,
-so it cannot be an attribute:
+**Property.** Use the `featureConfig` property for fine-grained feature control.
+It is nested, so it cannot be an attribute:
 
 ```js
 const editor = document.querySelector('likhari-editor');
 editor.featureConfig = { ...someConfig };
 ```
 
-**Events**
-
-Both events bubble and cross shadow boundaries.
+**Events.** Both bubble and cross shadow boundaries.
 
 ```js
 editor.addEventListener('editor-change', (event) => {
@@ -522,35 +502,29 @@ await editor.confirmDiscard();      // resolves false if the user chose to stay
 editor.focus();
 ```
 
-**Installation with npm (once published)**
-
-```sh
-npm install @inshapardaz/likhari-webcomponent
-```
-
-Then import it once in your entry file: `import '@inshapardaz/likhari-webcomponent';`
-
-**Spellcheck dictionaries**
-
-The English dictionary is copied into `dist/dictionaries/en/` beside the bundle
-and loaded from there. Serve that folder with the bundle. If you host the bundle
-somewhere else, point the editor at your copy from your own code:
+**Spellcheck dictionaries.** The English dictionary is copied into
+`dist/dictionaries/en/` beside the bundle and loaded from there. Serve that
+folder with the bundle. If you host the bundle somewhere else, point the
+editor at your copy from your own code:
 
 ```js
 import { setEnglishDictionaryBaseUrl } from '@inshapardaz/likhari-react';
 setEnglishDictionaryBaseUrl('https://example.com/likhari/dictionaries/en/');
 ```
 
-**Styles and Shadow DOM**
+**Styles and Shadow DOM.** The element renders into the page, not a shadow
+root, because the editor's menus and dialogs are attached to the document. Its
+styles are added to the page head once, so your page's own CSS can affect the
+editor. Keep the editor's class names (they start with `likhari-`) from being
+restyled by global rules.
 
-The element renders into the page, not a shadow root, because the editor's
-menus and dialogs are attached to the document. Its styles are added to the page
-head once, so your page's own CSS can affect the editor. Keep the editor's
-class names (they start with `likhari-`) from being restyled by global rules.
-
-### Vue 3 (`<LikhariEditor>`)
+#### Vue 3 (`<LikhariEditor>`)
 
 A component over the Web Component. Vue 3.5 or later is required.
+
+```sh
+npm install @inshapardaz/likhari-vue @inshapardaz/likhari-webcomponent vue
+```
 
 ```vue
 <script setup lang="ts">
@@ -580,6 +554,10 @@ function onSave({ content, format }: { content: string; format: string }) {
 </template>
 ```
 
+The Vue package loads the Web Component from its own dependency, so both must
+be installed. Keep the `dictionaries/` folder that the Web Component copies
+next to its bundle served with your app (see the Web Component section above).
+
 Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
 `colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
 `featurePreset`, `toolbarBordered`, `toolbarVariant`, `helpUrl` (a string, or
@@ -589,17 +567,7 @@ unset use the editor's default; they are not sent as `false`.
 Template ref methods: `getContent(format)`, `setContent(value, format)`,
 `hasUnsavedChanges()`, `confirmDiscard()`, `focus()`.
 
-**Installation with npm (once published)**
-
-```sh
-npm install @inshapardaz/likhari-vue @inshapardaz/likhari-webcomponent vue
-```
-
-The Vue package loads the Web Component from its own dependency, so both must be
-installed. Keep the `dictionaries/` folder that the Web Component copies next to
-its bundle served with your app (see the Web Component section).
-
-### Browser support
+#### Browser support
 
 Both wrappers follow the editor's [browser compatibility](#browser-compatibility)
 requirements.
