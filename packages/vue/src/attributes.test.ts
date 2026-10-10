@@ -15,6 +15,7 @@ describe('toElementAttributes', () => {
       'feature-preset': null,
       'toolbar-bordered': null,
       'toolbar-variant': null,
+      'help-url': null,
     });
   });
 
@@ -29,5 +30,11 @@ describe('toElementAttributes', () => {
 
   it('passes the feature preset through', () => {
     expect(toElementAttributes({ featurePreset: 'poetry' })['feature-preset']).toBe('poetry');
+  });
+
+  it('passes a custom help URL through, and writes "false" to hide the button', () => {
+    expect(toElementAttributes({ helpUrl: 'https://example.com/docs' })['help-url']).toBe('https://example.com/docs');
+    expect(toElementAttributes({ helpUrl: false })['help-url']).toBe('false');
+    expect(toElementAttributes({})['help-url']).toBeNull();
   });
 });

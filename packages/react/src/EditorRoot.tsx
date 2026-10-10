@@ -107,6 +107,12 @@ export interface EditorRootProps {
   accentColor?: string;
   /** Toolbar appearance: whether it is outlined, and the button variant. */
   toolbarStyle?: ToolbarStyle;
+  /**
+   * The toolbar's Help button opens this URL in a new tab. Defaults to the
+   * Markdown dialect documentation (`DEFAULT_HELP_URL`). `false` hides the
+   * button entirely.
+   */
+  helpUrl?: string | false;
   locale?: Locale;
   placeholder?: string;
   /**
@@ -241,6 +247,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     colorScheme,
     accentColor,
     toolbarStyle,
+    helpUrl,
     locale = 'en',
     placeholder,
     height = '480px',
@@ -546,6 +553,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           <Toolbar
             config={config}
             toolbarStyle={toolbarStyle}
+            helpUrl={helpUrl}
             dictionaryStores={wordStores}
             thesaurusStores={thesaurusStores ?? DEFAULT_THESAURUS_STORES}
             onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}

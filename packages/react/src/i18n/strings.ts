@@ -29,6 +29,8 @@ export interface Strings {
     save: string;
     /** Opens the list of autosaved drafts. */
     drafts: string;
+    /** Opens the Markdown dialect documentation in a new tab. */
+    help: string;
     undo: string;
     redo: string;
     formattingLabel: string;
@@ -320,6 +322,7 @@ const en: Strings = {
     ariaLabel: 'Formatting',
     save: 'Save',
     drafts: 'Drafts',
+    help: 'Help',
     undo: 'Undo',
     redo: 'Redo',
     formattingLabel: 'Formatting',
@@ -602,6 +605,7 @@ const ur: Strings = {
     ariaLabel: 'فارمیٹنگ',
     save: 'محفوظ کریں',
     drafts: 'مسودے',
+    help: 'مدد',
     undo: 'کالعدم کریں',
     redo: 'دوبارہ کریں',
     formattingLabel: 'فارمیٹنگ',
@@ -884,6 +888,7 @@ const paShahmukhi: Strings = {
     ariaLabel: 'فارمیٹنگ',
     save: 'سنبھالو',
     drafts: 'سودھے',
+    help: 'مدد',
     undo: 'پہلاں جیہا کرو',
     redo: 'مُڑ کرو',
     formattingLabel: 'فارمیٹنگ',

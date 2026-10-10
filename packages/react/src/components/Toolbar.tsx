@@ -115,6 +115,7 @@ import {
   IconClearFormatting,
   IconDeviceFloppy,
   IconDots,
+  IconHelpCircle,
   IconHistory,
   IconExternalLink,
   IconFeather,
@@ -708,9 +709,19 @@ export interface ToolbarProps {
   locale?: Locale;
   /** Autosave drafts: when set, the toolbar offers a Drafts button that lists and restores them. */
   drafts?: DraftsToolbarOptions;
+  /**
+   * The toolbar's Help button opens this URL in a new tab. Defaults to the
+   * Markdown dialect documentation (`DEFAULT_HELP_URL`). `false` hides the
+   * button entirely.
+   */
+  helpUrl?: string | false;
 }
 
-export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts }: ToolbarProps) {
+/** `docs/markdown-dialect.md` at the repository's default branch — the Markdown
+ * format this editor reads and writes, including the poetry container syntax. */
+export const DEFAULT_HELP_URL = 'https://github.com/inshapardaz/likhari/blob/main/docs/markdown-dialect.md';
+
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
@@ -1589,11 +1600,23 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const endSection = (drafts || config.findReplace) && (
+  const endSection = (drafts || config.findReplace || helpUrl !== false) && (
     <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={{ marginInlineStart: 'auto' }}>
       {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
       {config.findReplace && (
         <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
+      )}
+      {helpUrl !== false && (
+        <MantineToolbar.Toggle
+          component="a"
+          href={helpUrl ?? DEFAULT_HELP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={strings.toolbar.help}
+          title={strings.toolbar.help}
+        >
+          <IconHelpCircle size={ICON_SIZE} stroke={ICON_STROKE} />
+        </MantineToolbar.Toggle>
       )}
     </MantineToolbar.Group>
   );

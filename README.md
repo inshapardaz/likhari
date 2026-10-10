@@ -162,6 +162,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `colorScheme` | `'light' \| 'dark'` | none | Colour scheme for the editor. |
 | `accentColor` | `string` | editor default | A CSS colour for the accent. Sets Mantine's primary colour and the toolbar and canvas accent. |
 | `toolbarStyle` | `ToolbarStyle` | `{ bordered: true, variant: 'light', overflow: true }` | `bordered` outlines the toolbar and its button groups. `variant` is `'light'`, which tints the active button, or `'filled'`, which fills it with the accent. `overflow: false` lets the toolbar wrap onto multiple rows instead of collapsing into a "..." menu. |
+| `helpUrl` | `string \| false` | `DEFAULT_HELP_URL` (the Markdown dialect doc) | URL the toolbar's Help button opens in a new tab. `false` hides the button. |
 
 ## Content formats and `setContent`
 
@@ -395,6 +396,23 @@ editor's `accentColor`.
   menu. `false` keeps every group inline and lets the toolbar wrap onto as
   many rows as it needs instead.
 
+### Help button
+
+The toolbar's Help button opens [`docs/markdown-dialect.md`](docs/markdown-dialect.md)
+in a new tab by default — the Markdown format the editor reads and writes,
+including the poetry, columns and footnote syntax. Point it at your own docs, or
+hide it:
+
+```tsx
+import { EditorRoot, DEFAULT_HELP_URL } from '@inshapardaz/likhari-react';
+
+<EditorRoot helpUrl="https://your-app.example/docs/writing" />
+<EditorRoot helpUrl={false} /> {/* hide the button */}
+```
+
+`DEFAULT_HELP_URL` is exported so you can link to it from your own help centre
+instead of replacing it.
+
 ### Behavior worth knowing
 
 Borrowed from the sibling EPUB reader [qari](https://github.com/inshapardaz/qari):
@@ -468,6 +486,7 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 | `autosave` | `"false"` to turn off | on |
 | `toolbar-bordered` | present (or `"true"`) to outline the toolbar; `"false"` for a plain toolbar | bordered |
 | `toolbar-variant` | `light` (tints the active button), `filled` (fills it with the accent) | `light` |
+| `help-url` | any URL; `"false"` to hide the button | the Markdown dialect doc |
 
 **Property**
 
@@ -563,8 +582,9 @@ function onSave({ content, format }: { content: string; format: string }) {
 
 Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
 `colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
-`featurePreset`, `toolbarBordered`, `toolbarVariant`, and `featureConfig` (an object). Boolean props left unset use the
-editor's default; they are not sent as `false`.
+`featurePreset`, `toolbarBordered`, `toolbarVariant`, `helpUrl` (a string, or
+`false` to hide the button), and `featureConfig` (an object). Boolean props left
+unset use the editor's default; they are not sent as `false`.
 
 Template ref methods: `getContent(format)`, `setContent(value, format)`,
 `hasUnsavedChanges()`, `confirmDiscard()`, `focus()`.

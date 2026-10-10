@@ -40,4 +40,10 @@ describe('attributesToProps', () => {
   it('keeps an empty placeholder, which means no placeholder text', () => {
     expect(attributesToProps(from({ placeholder: '' }))).toEqual({ placeholder: '' });
   });
+
+  it('reads the help URL, including hiding the button with "false"', () => {
+    expect(attributesToProps(from({ 'help-url': 'https://example.com/docs' }))).toEqual({ helpUrl: 'https://example.com/docs' });
+    expect(attributesToProps(from({ 'help-url': 'false' }))).toEqual({ helpUrl: false });
+    expect(attributesToProps(from({}))).toEqual({});
+  });
 });
