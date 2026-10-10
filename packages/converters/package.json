@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-converters",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "Format transformers (Markdown/HTML/plain-text/Lexical JSON) against the canonical Lexical EditorState, isolated from UI.",
   "license": "MIT",
   "repository": {

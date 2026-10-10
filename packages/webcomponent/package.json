@@ -1,6 +1,6 @@
 {
   "name": "@inshapardaz/likhari-webcomponent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The Likhari editor as a <likhari-editor> custom element, built on the React implementation.",
   "license": "MIT",
   "repository": {
