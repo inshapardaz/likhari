@@ -111,7 +111,7 @@ Every prop is optional. Defaults are shown where they apply.
 |---|---|---|---|
 | `documentId` | `string` | none | Names the document. Its drafts are stored under this id, and it is required for `restoreDraft` to find a draft. |
 | `initialContent` | `EditorInitialContent` | empty | Content to load when the editor mounts. |
-| `onChange` | `(state: SerializedEditorState) => void` | none | Called on every change, with the Lexical state. |
+| `onChange` | `(state: SerializedEditorState) => void` | none | Called when the content changes, with the Lexical state. Moving the caret, or changing the view-only font and zoom in uniform mode, does not call it and does not mark the document unsaved. |
 | `placeholder` | `string` | the locale's text | Shown while the canvas is empty. |
 | `height` | `string \| number` | `'480px'` | Height of the toolbar and canvas together. The canvas scrolls inside it. Accepts any CSS length, such as `'100%'`, `'60vh'` or a number of pixels. |
 | `locale` | `Locale` | `'en'` | UI language for labels, tooltips and menus. Also picks the default font and direction. |
@@ -422,8 +422,9 @@ editor's `accentColor`.
 - `variant` (default `'light'`): `'light'` tints the active button; `'filled'`
   fills it with the accent colour.
 - `overflow` (default `true`): once the toolbar no longer fits its width, the
-  lowest-priority groups (tools, then font, then insert) move into a "..."
-  menu. `false` keeps every group inline and lets the toolbar wrap onto as
+  lowest-priority groups move into a "..." menu: first the far-end groups
+  (drafts, search and help, then the zoom control in uniform font mode), then
+  tools, font and insert. `false` keeps every group inline and lets the toolbar wrap onto as
   many rows as it needs instead.
 
 #### Help button

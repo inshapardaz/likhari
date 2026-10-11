@@ -718,7 +718,11 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.tables && <TablePlugin hasCellMerge hasTabHandler />}
           {config.blocks.horizontalRule && <HorizontalRulePlugin />}
           <EditorInstancePlugin instanceRef={editorInstanceRef} />
-          <OnChangePlugin onChange={handleChange} />
+          {/* Selection-only updates (clicking, refocusing after a toolbar
+              control such as the uniform font or zoom) are not content
+              changes: they must neither mark the document dirty nor reach
+              the host's onChange. */}
+          <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
         </LexicalComposer>
         </ImageOptionsContext.Provider>
         <LeaveDialog

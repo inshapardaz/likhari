@@ -926,6 +926,35 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const snapshotSelectionRef = useRef(snapshotSelection);
   snapshotSelectionRef.current = snapshotSelection;
 
+  // The "..." overflow menu holds the toolbar's selects, but each select's
+  // option list is portaled out of the menu's dropdown. Mantine's Menu closes
+  // on any mousedown outside its own dropdown, so picking an option there
+  // would unmount the select before its click lands and the change was lost.
+  // The menu is therefore controlled, and ignores a close that comes from a
+  // press inside a toolbar select's option list.
+  const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
+  const pressInSelectListRef = useRef(false);
+  useEffect(() => {
+    const mark = (event: Event) => {
+      const target = event.target;
+      pressInSelectListRef.current = target instanceof Element && target.closest('.likhari-toolbar-select-dropdown') !== null;
+      // Only meant for the close request this same press causes, so a later
+      // Escape or outside click is not swallowed.
+      if (pressInSelectListRef.current) setTimeout(() => (pressInSelectListRef.current = false), 0);
+    };
+    document.addEventListener('mousedown', mark, true);
+    document.addEventListener('touchstart', mark, true);
+    return () => {
+      document.removeEventListener('mousedown', mark, true);
+      document.removeEventListener('touchstart', mark, true);
+    };
+  }, []);
+  const handleOverflowMenuChange = (next: boolean) => {
+    if (!next && pressInSelectListRef.current) return;
+    if (next) snapshotSelectionRef.current();
+    setOverflowMenuOpen(next);
+  };
+
   // Clears the stand-in highlight once the canvas has a real selection to show again.
   useEffect(() => {
     if (typeof CSS === 'undefined' || !('highlights' in CSS)) return;
@@ -1482,7 +1511,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           noMatchMessage={strings.toolbar.noMatch}
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
           onMouseDown={snapshotSelection}
-          onChange={withRefocus((v: string) => (uniform ? onUniformFontFamilyChange?.(v) : applyFont('font-family', v)))}
+          onChange={
+            uniform
+              ? // A view setting: leave the editor state and selection alone, just hand the caret back.
+                (v: string) => {
+                  onUniformFontFamilyChange?.(v);
+                  editor.focus();
+                }
+              : withRefocus((v: string) => applyFont('font-family', v))
+          }
         />
       )}
       {config.font.size && !uniform && (
@@ -1631,10 +1668,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       role="group"
       aria-label={strings.toolbar.zoom}
       dir="ltr"
-      // The group is forced left-to-right, which would flip a logical margin
-      // too, so the "push to the end" margin is set on the physical side: the
-      // toolbar's end is the left edge in RTL and the right edge in LTR.
-      style={rtl ? { marginRight: 'auto' } : { marginLeft: 'auto' }}
     >
       <ToolbarButton
         icon={IconMinus}
@@ -1660,10 +1693,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  // Drafts, search and help sit at the far end; the zoom stepper is its own
-  // group just before them, and takes over the "push to the end" margin.
+  // Drafts, search and help: the far-end group (see `endMovable` below).
   const utilitiesGroup = hasEndUtilities && (
-    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={showZoom ? undefined : { marginInlineStart: 'auto' }}>
+    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster">
       {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
       {config.findReplace && (
         <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
@@ -1681,13 +1713,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         </MantineToolbar.Toggle>
       )}
     </MantineToolbar.Group>
-  );
-
-  const endSection = (zoomGroup || utilitiesGroup) && (
-    <Fragment key="end-sections">
-      {zoomGroup}
-      {utilitiesGroup}
-    </Fragment>
   );
 
   const startSections: (ReactNode | false)[] = [
@@ -1718,13 +1743,21 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   // Lowest priority first: the first to move into the "..." menu once the
   // toolbar stops fitting its available width.
-  const movableSections: { key: string; node: ReactNode }[] = (
-    [
-      { key: 'tools', node: toolsSection },
-      { key: 'font', node: fontSection },
-      { key: 'insert', node: insertSection },
-    ] as { key: string; node: ReactNode | false }[]
-  ).filter((section): section is { key: string; node: ReactNode } => Boolean(section.node));
+  type MovableSection = { key: string; node: ReactNode };
+  const present = (sections: { key: string; node: ReactNode | false }[]) =>
+    sections.filter((section): section is MovableSection => Boolean(section.node));
+  // The zoom stepper and the drafts/search/help group sit at the far end of the
+  // bar, and are the first things to fold into the "..." menu on a narrow one.
+  const endMovable = present([
+    { key: 'zoom', node: zoomGroup },
+    { key: 'utilities', node: utilitiesGroup },
+  ]);
+  const mainMovable = present([
+    { key: 'tools', node: toolsSection },
+    { key: 'font', node: fontSection },
+    { key: 'insert', node: insertSection },
+  ]);
+  const movableSections: MovableSection[] = [...endMovable.slice().reverse(), ...mainMovable];
   const movableGroupKeys = useMemo(() => movableSections.map((section) => section.key).join(','), [movableSections]);
 
   // Re-measure whenever the container is resized, or whenever the set of
@@ -1774,8 +1807,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     return () => ro.disconnect();
   });
 
-  const visibleMovable = movableSections.filter((section) => !overflowGroupKeys.has(section.key));
-  const hiddenMovable = movableSections.filter((section) => overflowGroupKeys.has(section.key));
+  const isVisible = (section: MovableSection) => !overflowGroupKeys.has(section.key);
+  const visibleMovable = mainMovable.filter(isVisible);
+  const visibleEnd = endMovable.filter(isVisible);
+  // Shown in the menu in toolbar order: the inline sections, then the far-end ones.
+  const hiddenMovable = [...mainMovable, ...endMovable].filter((section) => !isVisible(section));
 
   return (
     <MantineToolbar
@@ -1806,7 +1842,16 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {hiddenMovable.length > 0 && (
         <>
           <MantineToolbar.Divider />
-          <Menu position="bottom-end" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width="max-content" closeOnItemClick={false} onOpen={snapshotSelection}>
+          <Menu
+            opened={overflowMenuOpen}
+            onChange={handleOverflowMenuChange}
+            position="bottom-end"
+            withinPortal
+            portalProps={{ target: portalTarget }}
+            shadow="sm"
+            width="max-content"
+            closeOnItemClick={false}
+          >
             <Menu.Target>
               <ToolbarButton icon={IconDots} title={strings.toolbar.moreFormatting} />
             </Menu.Target>
@@ -1819,7 +1864,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         </>
       )}
 
-      {endSection}
+      {/* Pushes the far-end groups to the toolbar's end. */}
+      <span aria-hidden="true" style={{ flex: '1 1 auto' }} />
+      {visibleEnd.map((section) => section.node)}
 
       <Menu
         opened={contextMenu !== null}
