@@ -142,7 +142,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `onImageUpload` | `(file: File) => Promise<string>` | none | Stores an uploaded image and returns its URL. Without it, images are embedded as base64, which makes the document large. |
 | `fetchImage` | `(url: string) => Promise<Blob>` | browser fetch | Downloads a linked image when it is embedded or edited. Use this to route through your backend when the image server sends no CORS headers. |
 | `onSave` | `(content: string, format: FormatId) => void` | none | Called by the Save button with the serialized content. |
-| `showSave` | `boolean` | `true` when `onSave` is set | Shows the Save button. Set it to show the button without a handler, or to hide it while keeping `onSave`. |
+| `showSave` | `boolean` | `true` when `onSave` is set | Shows the Save button. Set it to show the button without a handler, or to hide it while keeping `onSave`. The button is enabled only while the document has unsaved changes; saving, `setContent` and loading a document leave it disabled. |
 
 #### Drafts and leaving
 
