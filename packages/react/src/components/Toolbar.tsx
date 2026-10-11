@@ -1718,7 +1718,14 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const startSections: (ReactNode | false)[] = [
     showSave && (
       <MantineToolbar.Group key="save" className="likhari-toolbar-cluster">
-        <ToolbarButton icon={IconDeviceFloppy} title={strings.toolbar.save} dirty={Boolean(isDirty)} onClick={onSave} />
+        <ToolbarButton
+          icon={IconDeviceFloppy}
+          title={strings.toolbar.save}
+          dirty={Boolean(isDirty)}
+          // Nothing to save until the content has changed since it was loaded or last saved.
+          disabled={!isDirty}
+          onClick={onSave}
+        />
       </MantineToolbar.Group>
     ),
     config.history && (

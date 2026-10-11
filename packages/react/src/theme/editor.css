@@ -120,6 +120,14 @@
   color: var(--editor-accent);
 }
 
+/* Nothing to save: dimmed like the other disabled buttons, not accent-coloured. */
+.likhari-toolbar [data-dirty='false']:disabled,
+.likhari-toolbar [data-dirty='false'][data-disabled] {
+  color: var(--editor-ink-soft);
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Canvas — editor-ui-design-spec.md §4. flex: 1 1 auto + min-height: 0 lets
    this pane absorb the root's height and scroll internally instead of the
    editor (and the page around it) growing to fit the content. */
