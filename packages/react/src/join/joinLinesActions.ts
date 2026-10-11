@@ -4,11 +4,13 @@ import {
   $isLineBreakNode,
   $isParagraphNode,
   $isRangeSelection,
+  $isTextNode,
   $createParagraphNode,
   type LexicalNode,
   type LineBreakNode,
   type ParagraphNode,
   type RangeSelection,
+  type TextNode,
 } from 'lexical';
 
 function $paragraphsInSelection(selection: RangeSelection): ParagraphNode[] {
@@ -23,11 +25,30 @@ function $paragraphsInSelection(selection: RangeSelection): ParagraphNode[] {
   return paragraphs;
 }
 
+/**
+ * Text nodes in the selection that hold a literal newline. Lexical shows these
+ * as line breaks, but they are not line-break nodes: content loaded from
+ * plain text or a foreign Lexical document can be shaped this way.
+ */
+function $textNodesWithNewlines(selection: RangeSelection): TextNode[] {
+  return selection.getNodes().filter((node): node is TextNode => $isTextNode(node) && node.getTextContent().includes('\n'));
+}
+
 export function $canJoinLines(): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || selection.isCollapsed()) return false;
   if ($paragraphsInSelection(selection).length > 1) return true;
-  return selection.getNodes().some($isLineBreakNode);
+  return selection.getNodes().some($isLineBreakNode) || $textNodesWithNewlines(selection).length > 0;
+}
+
+/** Replaces the newlines in the selected part of a text node, each by one space (none if one is already there). */
+function $replaceNewlinesInText(node: TextNode, selection: RangeSelection): void {
+  const [start, end] = selection.getStartEndPoints() ?? [];
+  const text = node.getTextContent();
+  const from = start && start.key === node.getKey() ? start.offset : 0;
+  const to = end && end.key === node.getKey() ? end.offset : text.length;
+  const joined = text.slice(from, to).replace(/[ \t]*\r?\n[ \t]*/g, ' ');
+  node.setTextContent(text.slice(0, from) + joined + text.slice(to));
 }
 
 /** A soft break becomes one space, unless the text either side already has a space there. */
@@ -80,13 +101,15 @@ export function $joinSelectedLines(): boolean {
   const paragraphs = $paragraphsInSelection(selection);
   const nodes = selection.getNodes();
   const lineBreaks = nodes.filter($isLineBreakNode);
-  if (paragraphs.length < 2 && lineBreaks.length === 0) return false;
+  const textsWithNewlines = $textNodesWithNewlines(selection);
+  if (paragraphs.length < 2 && lineBreaks.length === 0 && textsWithNewlines.length === 0) return false;
 
   const last = nodes[nodes.length - 1];
   const breakAfter = last?.getNextSibling();
   const trailingBreak = $isLineBreakNode(breakAfter) ? breakAfter : null;
 
   for (const lineBreak of lineBreaks) $replaceBreakWithSpace(lineBreak);
+  for (const textNode of textsWithNewlines) $replaceNewlinesInText(textNode, selection);
 
   const [target, ...rest] = paragraphs;
   if (!target) return false;
