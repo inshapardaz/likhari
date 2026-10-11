@@ -1631,7 +1631,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       role="group"
       aria-label={strings.toolbar.zoom}
       dir="ltr"
-      style={{ marginInlineStart: 'auto' }}
+      // The group is forced left-to-right, which would flip a logical margin
+      // too, so the "push to the end" margin is set on the physical side: the
+      // toolbar's end is the left edge in RTL and the right edge in LTR.
+      style={rtl ? { marginRight: 'auto' } : { marginLeft: 'auto' }}
     >
       <ToolbarButton
         icon={IconMinus}
