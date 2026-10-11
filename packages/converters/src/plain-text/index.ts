@@ -109,17 +109,14 @@ export const plainTextConverter: FormatConverter = {
     const children = paragraphs.map((paragraph) => ({
       type: 'paragraph',
       children: paragraph
-        ? [
-            {
-              type: 'text',
-              text: paragraph.replace(/\r?\n/g, '\n'),
-              detail: 0,
-              format: 0,
-              mode: 'normal',
-              style: '',
-              version: 1,
-            },
-          ]
+        ? // A single newline is a soft line break: a line-break node, not a
+          // '\n' inside the text, so the editor treats the lines as lines.
+          paragraph.split(/\r?\n/).flatMap((line, index) => [
+            ...(index > 0 ? [{ type: 'linebreak', version: 1 }] : []),
+            ...(line === ''
+              ? []
+              : [{ type: 'text', text: line, detail: 0, format: 0, mode: 'normal', style: '', version: 1 }]),
+          ])
         : [],
       direction: 'ltr',
       format: '',

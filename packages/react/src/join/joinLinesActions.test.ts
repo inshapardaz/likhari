@@ -85,7 +85,37 @@ function selectAllAndJoin(editor: LexicalEditor): boolean {
   return changed;
 }
 
+/** One paragraph holding a single text node with literal newlines, as older plain-text imports produced. */
+function setTextWithNewlines(editor: LexicalEditor, text: string): void {
+  editor.update(
+    () => {
+      const root = $getRoot();
+      root.clear();
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(text));
+      root.append(paragraph);
+    },
+    { discrete: true },
+  );
+}
+
 describe('joinSelectedLines', () => {
+  it('joins lines separated by a newline inside a text node', () => {
+    const editor = makeEditor();
+    setTextWithNewlines(editor, 'first\nsecond\nthird');
+    let joinable = false;
+    editor.update(
+      () => {
+        $selectAll();
+        joinable = $canJoinLines();
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    expect(joinable).toBe(true);
+    expect(paragraphPlain(editor)).toEqual(['first second third']);
+  });
+
   it('turns a soft break into one space', () => {
     const editor = makeEditor();
     setParagraphs(editor, ['first\nsecond']);

@@ -18,6 +18,14 @@ describe('plainTextConverter', () => {
     expect(plainTextConverter.serialize(restored)).toBe('One\n\nTwo\n\nThree');
   });
 
+  it('imports a single newline as a soft line break node, not a newline in the text', () => {
+    const state = plainTextConverter.parse('line one\nline two\n\nnext');
+    const root = state.root as unknown as { children: { children: { type: string; text?: string }[] }[] };
+    expect(root.children[0].children.map((n) => n.type)).toEqual(['text', 'linebreak', 'text']);
+    expect(root.children[0].children.map((n) => n.text)).toEqual(['line one', undefined, 'line two']);
+    expect(plainTextConverter.serialize(state)).toBe('line one\nline two\n\nnext');
+  });
+
   it('produces a single empty paragraph for empty input', () => {
     const state = plainTextConverter.parse('');
     expect((state.root as { children: unknown[] }).children).toHaveLength(1);
