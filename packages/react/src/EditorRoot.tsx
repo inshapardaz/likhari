@@ -521,6 +521,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           autosaveTimerRef.current = null;
         }
         pendingDraftRef.current = null;
+        // What follows the load (plugin transforms, node normalisation) is
+        // part of the loaded content, not an edit: see `loadSettlingRef`.
+        loadSettlingRef.current = true;
         editor.setEditorState(parsed);
         setIsDirty(false);
       },
@@ -540,8 +543,40 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
   const rootElementRef = useRef<HTMLDivElement | null>(null);
   const editorInstanceRef = useRef<LexicalEditor | null>(null);
 
+  // True from a content load (mount, or `setContent`) until the user first
+  // interacts with the editor. Loading doesn't always settle in one update:
+  // plugins and Lexical's own normalisation can rewrite the state right
+  // afterwards, and comparing that against the content as it arrived would
+  // call an untouched document "changed" (and autosave a draft of it). Until
+  // the user interacts, a change is therefore folded into the clean baseline
+  // instead: no dirty flag, no draft, no `onChange`.
+  const loadSettlingRef = useRef(true);
+
+  useEffect(() => {
+    const root = rootElementRef.current;
+    if (!root) return;
+    const onInteraction = () => {
+      if (!loadSettlingRef.current) return;
+      loadSettlingRef.current = false;
+      // The edit this event leads to has not been applied yet, so the editor's
+      // current state is the loaded content, as normalised.
+      const editor = editorInstanceRef.current;
+      if (editor && !isDirtyRef.current) lastSavedJsonRef.current = JSON.stringify(editor.getEditorState().toJSON());
+    };
+    const events = ['keydown', 'pointerdown', 'beforeinput', 'paste', 'cut', 'drop', 'compositionstart'];
+    for (const type of events) root.addEventListener(type, onInteraction, true);
+    return () => {
+      for (const type of events) root.removeEventListener(type, onInteraction, true);
+    };
+  }, []);
+
   const handleChange = (state: EditorState) => {
     editorStateRef.current = state;
+    if (loadSettlingRef.current) {
+      lastSavedJsonRef.current = JSON.stringify(state.toJSON());
+      setIsDirty(false);
+      return;
+    }
     const json = JSON.stringify(state.toJSON());
     setIsDirty(json !== lastSavedJsonRef.current);
     onChange?.(state.toJSON());
@@ -555,6 +590,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
 
   /** A draft was restored into the editor: that content is unsaved work. */
   const handleDraftRestored = (entry: DraftEntry) => {
+    // No clean baseline to compare with: it stays unsaved until it is saved.
+    loadSettlingRef.current = false;
+    lastSavedJsonRef.current = null;
     setIsDirty(true);
     if (documentId && entry.id === documentId) onDraftRestored?.({ documentId, savedAt: entry.draft.savedAt });
     // Without a documentId the restored draft becomes this editor's own, so

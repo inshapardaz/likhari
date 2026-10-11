@@ -172,6 +172,11 @@ Every prop is optional. Defaults are shown where they apply.
 `'plain-text'`, `'html'` and `'markdown'`, and `initialContent`
 takes the same formats. `setContent` replaces the document; the new value becomes the
 clean baseline (no unsaved changes, and any pending draft of the old content is dropped).
+Loading content, through `initialContent` or `setContent`, never counts as an edit: any
+adjustment the editor makes while settling the loaded content before the user touches it
+is folded into the baseline, so it does not set the unsaved-changes flag, enable the Save
+button, call `onChange` or write a draft. Load server content with `setContent` (or
+`initialContent` when you have it at mount).
 
 **HTML.** Export writes semantic HTML: paragraphs, headings, quotes, lists (including
 nested and checklists), links, tables, images (`<figure>`/`<figcaption>`), rules and page
