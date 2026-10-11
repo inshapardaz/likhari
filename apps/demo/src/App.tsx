@@ -83,6 +83,7 @@ interface DemoPrefs {
   colorScheme: 'light' | 'dark';
   accentColor: string;
   preset: FeatureConfigPresetName;
+  uniformFont: boolean;
 }
 
 function loadPrefs(): Partial<DemoPrefs> {
@@ -95,6 +96,7 @@ function loadPrefs(): Partial<DemoPrefs> {
       colorScheme: parsed.colorScheme === 'dark' || parsed.colorScheme === 'light' ? parsed.colorScheme : undefined,
       accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : undefined,
       preset: VALID_PRESETS.includes(parsed.preset as FeatureConfigPresetName) ? parsed.preset : undefined,
+      uniformFont: typeof parsed.uniformFont === 'boolean' ? parsed.uniformFont : undefined,
     };
   } catch {
     return {};
@@ -226,6 +228,7 @@ export function App() {
   const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
   const [toolbarOverflow, setToolbarOverflow] = useState(true);
   const [showHelpButton, setShowHelpButton] = useState(true);
+  const [uniformFont, setUniformFont] = useState(savedPrefs.uniformFont ?? false);
   const [showSave, setShowSave] = useState(true);
   // Without a documentId the editor generates a unique draft id (see `autosave`).
   const [useDocumentId, setUseDocumentId] = useState(true);
@@ -243,12 +246,12 @@ export function App() {
 
   useEffect(() => {
     try {
-      const prefs: DemoPrefs = { locale, colorScheme, accentColor, preset };
+      const prefs: DemoPrefs = { locale, colorScheme, accentColor, preset, uniformFont };
       localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
     } catch {
       // Private browsing / storage disabled: preferences just won't persist.
     }
-  }, [locale, colorScheme, accentColor, preset]);
+  }, [locale, colorScheme, accentColor, preset, uniformFont]);
 
   const applyPreset = (name: FeatureConfigPresetName) => {
     setPreset(name);
@@ -364,6 +367,10 @@ export function App() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={showHelpButton} onChange={(e) => setShowHelpButton(e.target.checked)} />
             Help button
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={uniformFont} onChange={(e) => setUniformFont(e.target.checked)} />
+            Uniform font + zoom
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             {t.accentColor}
@@ -522,6 +529,7 @@ export function App() {
               accentColor={accentColor}
               toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow }}
               helpUrl={showHelpButton ? undefined : false}
+              fontMode={uniformFont ? 'uniform' : 'selective'}
               locale={locale}
               placeholder="Start writing…"
               height="100%"

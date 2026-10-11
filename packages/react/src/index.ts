@@ -6,8 +6,8 @@ export type { DraftRestoreMode } from './components/DraftRestore';
 export { defaultMantineTheme } from './theme/mantineTheme';
 export { ImageNode, $createImageNode, $isImageNode } from './image/ImageNode';
 export type { ImagePayload, ImageLinkType, SerializedImageNode } from './image/ImageNode';
-export { DEFAULT_FONT_OPTIONS, URDU_WEB_FONT_OPTIONS, FONT_SIZES_PX } from './fonts';
-export type { FontOption } from './fonts';
+export { DEFAULT_FONT_OPTIONS, URDU_WEB_FONT_OPTIONS, FONT_SIZES_PX, ZOOM_LEVELS_PERCENT } from './fonts';
+export type { FontOption, FontMode } from './fonts';
 export { STRINGS, getStrings, useStrings, useUiStrings, UiStringsContext } from './i18n';
 export type { Locale, Strings } from './i18n';
 

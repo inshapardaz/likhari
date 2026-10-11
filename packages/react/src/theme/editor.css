@@ -180,6 +180,50 @@
   line-height: 1.75;
 }
 
+/* Uniform font mode (EditorRoot `fontMode="uniform"`): zoom scales the base
+   size of each direction, and headings, sub/superscript and the like follow
+   because they are em-based. --likhari-zoom is a unitless factor (1 = 100%). */
+.likhari-content-editable[data-font-mode='uniform'] {
+  font-size: calc(15px * var(--likhari-zoom, 1));
+}
+
+.likhari-content-editable[data-font-mode='uniform'][dir='rtl'],
+.likhari-content-editable[data-font-mode='uniform'] .likhari-rtl {
+  font-size: calc(20px * var(--likhari-zoom, 1));
+}
+
+.likhari-content-editable[data-font-mode='uniform'] .likhari-ltr {
+  font-size: calc(15px * var(--likhari-zoom, 1));
+}
+
+/* Headings carry a direction class too, which the rules above would otherwise
+   pin to the body size; their em sizes (relative to the zoomed canvas) win. */
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h1 { font-size: 1.8em; }
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h2 { font-size: 1.5em; }
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h3 { font-size: 1.3em; }
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h4 { font-size: 1.2em; }
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h5 { font-size: 1.1em; }
+.likhari-content-editable[data-font-mode='uniform'] .likhari-h6 { font-size: 1.05em; }
+
+/* A chosen font replaces the per-direction defaults too, so every block gets it. */
+.likhari-content-editable[data-uniform-font],
+.likhari-content-editable[data-uniform-font] .likhari-ltr,
+.likhari-content-editable[data-uniform-font] .likhari-rtl {
+  font-family: var(--likhari-uniform-font);
+}
+
+/* Text styled inline (imported HTML, content from selective mode) must not
+   escape the uniform font and zoom. Headings and sub/superscript size by
+   class, not inline style, so they keep their proportions. (An inline style
+   on a block's own element is not expected; Lexical styles text runs.) */
+.likhari-content-editable[data-font-mode='uniform'] [style*='font-size'] {
+  font-size: inherit !important;
+}
+
+.likhari-content-editable[data-uniform-font] [style*='font-family'] {
+  font-family: inherit !important;
+}
+
 .likhari-placeholder {
   position: absolute;
   top: 20px;

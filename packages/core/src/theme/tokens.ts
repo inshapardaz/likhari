@@ -17,8 +17,8 @@ export interface ColorTokens {
 }
 
 export const LIGHT_TOKENS: ColorTokens = {
-  paper: '#F6F5F2',
-  paperDim: '#EDEBE6',
+  paper: '#FFFFFF',
+  paperDim: '#F5F5F5',
   ink: '#1E1E1C',
   inkSoft: '#5C5A54',
   line: '#DAD7CE',

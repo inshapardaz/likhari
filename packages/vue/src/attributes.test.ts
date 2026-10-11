@@ -16,6 +16,9 @@ describe('toElementAttributes', () => {
       'toolbar-bordered': null,
       'toolbar-variant': null,
       'help-url': null,
+      'font-mode': null,
+      'font-family': null,
+      zoom: null,
     });
   });
 
@@ -36,5 +39,16 @@ describe('toElementAttributes', () => {
     expect(toElementAttributes({ helpUrl: 'https://example.com/docs' })['help-url']).toBe('https://example.com/docs');
     expect(toElementAttributes({ helpUrl: false })['help-url']).toBe('false');
     expect(toElementAttributes({})['help-url']).toBeNull();
+  });
+
+  it('writes the uniform font settings, and leaves them unset when absent', () => {
+    const attrs = toElementAttributes({ fontMode: 'uniform', fontFamily: 'Amiri', zoom: 150 });
+    expect(attrs['font-mode']).toBe('uniform');
+    expect(attrs['font-family']).toBe('Amiri');
+    expect(attrs.zoom).toBe('150');
+    const unset = toElementAttributes({});
+    expect(unset['font-mode']).toBeNull();
+    expect(unset['font-family']).toBeNull();
+    expect(unset.zoom).toBeNull();
   });
 });

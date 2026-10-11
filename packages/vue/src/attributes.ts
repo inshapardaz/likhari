@@ -13,6 +13,12 @@ export interface LikhariEditorProps {
   toolbarVariant?: 'light' | 'filled';
   /** The toolbar's Help button opens this URL. `false` hides the button. */
   helpUrl?: string | false;
+  /** `'uniform'`: one font for all text and a zoom control, instead of per-selection font and size. */
+  fontMode?: 'selective' | 'uniform';
+  /** Uniform mode: the font family for all text. */
+  fontFamily?: string;
+  /** Uniform mode: zoom as a percentage, 50–300. */
+  zoom?: number;
 }
 
 /**
@@ -34,5 +40,8 @@ export function toElementAttributes(props: LikhariEditorProps): Record<string, s
     'toolbar-bordered': props.toolbarBordered === undefined ? null : props.toolbarBordered ? '' : 'false',
     'toolbar-variant': props.toolbarVariant ?? null,
     'help-url': props.helpUrl === undefined ? null : props.helpUrl === false ? 'false' : props.helpUrl,
+    'font-mode': props.fontMode ?? null,
+    'font-family': props.fontFamily ?? null,
+    zoom: props.zoom === undefined ? null : String(props.zoom),
   };
 }

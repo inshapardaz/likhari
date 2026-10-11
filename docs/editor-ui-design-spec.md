@@ -24,8 +24,8 @@ mockup: `editor-ui-mockup.html`.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` | `#F6F5F2` | `#1B1B19` | Canvas / app background |
-| `--paper-dim` | `#EDEBE6` | `#242422` | Toolbar / status bar background |
+| `--paper` | `#FFFFFF` | `#1B1B19` | Canvas / app background |
+| `--paper-dim` | `#F5F5F5` | `#242422` | Toolbar / status bar background |
 | `--ink` | `#1E1E1C` | `#EDEBE4` | Primary text |
 | `--ink-soft` | `#5C5A54` | `#A6A398` | Secondary text, filenames, status |
 | `--line` | `#DAD7CE` | `#3A3934` | Hairline dividers |
@@ -83,6 +83,14 @@ Font family/size selectors, background/foreground beyond the quick swatches, and
 break are **overflow-menu items** (a "more" `...` button at the end of the bar) rather
 than permanent icons — they're configured per-document more often than toggled
 per-selection, so they don't need primary-row real estate.
+
+In `fontMode="uniform"` the font-size selector is replaced by a **zoom** control laid out
+`[−] 100% [+]`, in the right-aligned end cluster beside the drafts and search buttons
+(the single font-family selector stays in the font group). − and + step through the
+preset levels (50–300 %) and are disabled at the ends; the percentage button resets to
+100 %. Zoom is a view control: it scales the whole canvas uniformly, so it never changes
+per selection. The control is always laid out left-to-right (− on the left), like a
+number, even in RTL.
 
 ### 3.2 Sizing & spacing
 

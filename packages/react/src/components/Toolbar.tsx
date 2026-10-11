@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type ReactNode } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
@@ -97,7 +97,7 @@ import { LinkDialog } from './LinkDialog';
 import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
-import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, type FontOption } from '../fonts';
+import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, ZOOM_LEVELS_PERCENT, type FontMode, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
 import { useStrings } from '../i18n/useStrings';
 import { usePortalTarget } from '../PortalTargetContext';
@@ -170,6 +170,8 @@ import {
   IconTableMinus,
   IconTrash,
   IconTableOptions,
+  IconMinus,
+  IconPlus,
   IconTextSize,
   IconTypography,
   IconUnderline,
@@ -703,6 +705,18 @@ export interface ToolbarProps {
   showSave?: boolean;
   /** Font-family dropdown entries; defaults to DEFAULT_FONT_OPTIONS. */
   fontOptions?: FontOption[];
+  /**
+   * `'selective'` (default): the font dropdowns style the selection or document
+   * as inline styles. `'uniform'`: one font for all text plus a zoom control,
+   * both owned by EditorRoot (`uniformFontFamily` / `zoom`) and applied by CSS.
+   */
+  fontMode?: FontMode;
+  /** Uniform mode: the editor-wide font family, or undefined for the canvas default. */
+  uniformFontFamily?: string;
+  /** Uniform mode: the zoom percentage. */
+  zoom?: number;
+  onUniformFontFamilyChange?: (family: string) => void;
+  onZoomChange?: (zoom: number) => void;
   /** Text direction of the canvas; picks which default font and size are pre-selected. */
   direction?: 'ltr' | 'rtl';
   /** UI locale — picks the translated strings for labels, tooltips and menu items. */
@@ -721,7 +735,7 @@ export interface ToolbarProps {
  * format this editor reads and writes, including the poetry container syntax. */
 export const DEFAULT_HELP_URL = 'https://github.com/inshapardaz/likhari/blob/main/docs/markdown-dialect.md';
 
-export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
@@ -1353,7 +1367,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   // Unstyled text shows the canvas default (pre-selected).
   const canvasDefaults = CANVAS_FONT_DEFAULTS[direction];
-  const shownFontFamily = state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
+  const uniform = fontMode === 'uniform';
+  const shownFontFamily = uniform
+    ? uniformFontFamily ?? canvasDefaults.family
+    : state.fontFamily === UNSET_STYLE ? canvasDefaults.family : state.fontFamily;
   const shownFontSize = state.fontSize === UNSET_STYLE ? canvasDefaults.size : state.fontSize;
 
   const formattingOptions = [
@@ -1451,7 +1468,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </Fragment>
   );
 
-  const fontSection = (config.font.family || config.font.size) && (
+  const fontSection = (config.font.family || (config.font.size && !uniform)) && (
     <MantineToolbar.Group key="font">
       {config.font.family && (
         <ToolbarSelect
@@ -1465,10 +1482,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           noMatchMessage={strings.toolbar.noMatch}
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
           onMouseDown={snapshotSelection}
-          onChange={withRefocus((v: string) => applyFont('font-family', v))}
+          onChange={withRefocus((v: string) => (uniform ? onUniformFontFamilyChange?.(v) : applyFont('font-family', v)))}
         />
       )}
-      {config.font.size && (
+      {config.font.size && !uniform && (
         <ToolbarSelect
           icon={IconTextSize}
           label={strings.toolbar.fontSize}
@@ -1600,8 +1617,53 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const endSection = (drafts || config.findReplace || helpUrl !== false) && (
-    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={{ marginInlineStart: 'auto' }}>
+  // Uniform mode's zoom: [-] 100% [+], stepping through the preset levels; the
+  // percentage resets to 100%. Always laid out left-to-right, like a number.
+  const showZoom = uniform && config.font.size;
+  const zoomOutTo = [...ZOOM_LEVELS_PERCENT].reverse().find((level) => level < zoom);
+  const zoomInTo = ZOOM_LEVELS_PERCENT.find((level) => level > zoom);
+
+  const hasEndUtilities = Boolean(drafts || config.findReplace || helpUrl !== false);
+  const zoomGroup = showZoom && (
+    <MantineToolbar.Group
+      key="zoom"
+      className="likhari-toolbar-cluster"
+      role="group"
+      aria-label={strings.toolbar.zoom}
+      dir="ltr"
+      // The group is forced left-to-right, which would flip a logical margin
+      // too, so the "push to the end" margin is set on the physical side: the
+      // toolbar's end is the left edge in RTL and the right edge in LTR.
+      style={rtl ? { marginRight: 'auto' } : { marginLeft: 'auto' }}
+    >
+      <ToolbarButton
+        icon={IconMinus}
+        title={strings.toolbar.zoomOut}
+        disabled={zoomOutTo === undefined}
+        onClick={() => zoomOutTo !== undefined && onZoomChange?.(zoomOutTo)}
+      />
+      <MantineToolbar.Toggle
+        title={strings.toolbar.zoomReset}
+        aria-label={`${strings.toolbar.zoomReset} (${zoom}%)`}
+        onMouseDown={(e: ReactMouseEvent) => e.preventDefault()}
+        onClick={() => onZoomChange?.(100)}
+        style={{ width: 'auto', minWidth: 52, padding: '0 6px', fontSize: 12 }}
+      >
+        {zoom}%
+      </MantineToolbar.Toggle>
+      <ToolbarButton
+        icon={IconPlus}
+        title={strings.toolbar.zoomIn}
+        disabled={zoomInTo === undefined}
+        onClick={() => zoomInTo !== undefined && onZoomChange?.(zoomInTo)}
+      />
+    </MantineToolbar.Group>
+  );
+
+  // Drafts, search and help sit at the far end; the zoom stepper is its own
+  // group just before them, and takes over the "push to the end" margin.
+  const utilitiesGroup = hasEndUtilities && (
+    <MantineToolbar.Group key="end" className="likhari-toolbar-cluster" style={showZoom ? undefined : { marginInlineStart: 'auto' }}>
       {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
       {config.findReplace && (
         <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
@@ -1619,6 +1681,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         </MantineToolbar.Toggle>
       )}
     </MantineToolbar.Group>
+  );
+
+  const endSection = (zoomGroup || utilitiesGroup) && (
+    <Fragment key="end-sections">
+      {zoomGroup}
+      {utilitiesGroup}
+    </Fragment>
   );
 
   const startSections: (ReactNode | false)[] = [

@@ -10,8 +10,9 @@ import { attributesToProps, OBSERVED_ATTRIBUTES } from './attributes';
  *
  * Simple settings are attributes (`locale="ur"`, `show-save`, ...). The feature
  * config is a property (`element.featureConfig = {...}`) because it is nested.
- * Changes and saves are CustomEvents: `editor-change` (detail: the editor state)
- * and `editor-save` (detail: `{ content, format }`). Methods mirror the React
+ * Changes and saves are CustomEvents: `editor-change` (detail: the editor state),
+ * `editor-save` (detail: `{ content, format }`) and, in `font-mode="uniform"`,
+ * `editor-font-change` (detail: `{ fontFamily, zoom }`). Methods mirror the React
  * EditorRef: `getContent`, `setContent`, `hasUnsavedChanges`, `confirmDiscard`,
  * `focus`.
  *
@@ -79,6 +80,7 @@ export class LikhariEditorElement extends HTMLElement {
       ...(this.config ? { featureConfig: this.config } : {}),
       onChange: (state) => this.emit('editor-change', state),
       onSave: (content, format) => this.emit('editor-save', { content, format }),
+      onFontChange: (change) => this.emit('editor-font-change', change),
     };
     const ref = (handle: EditorRef | null) => {
       this.handle = handle;

@@ -41,6 +41,10 @@ export interface Strings {
     fontFamilyPlaceholder: string;
     fontSize: string;
     fontSizePlaceholder: string;
+    zoom: string;
+    zoomIn: string;
+    zoomOut: string;
+    zoomReset: string;
     noMatch: string;
     alignment: string;
     linkOptions: string;
@@ -333,6 +337,10 @@ const en: Strings = {
     fontFamilyPlaceholder: 'Font',
     fontSize: 'Font size',
     fontSizePlaceholder: 'Size',
+    zoom: 'Zoom',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomReset: 'Reset zoom to 100%',
     noMatch: 'No match',
     alignment: 'Alignment',
     linkOptions: 'Link options',
@@ -616,6 +624,10 @@ const ur: Strings = {
     fontFamilyPlaceholder: 'فونٹ',
     fontSize: 'فونٹ کا سائز',
     fontSizePlaceholder: 'سائز',
+    zoom: 'زوم',
+    zoomIn: 'بڑا کریں',
+    zoomOut: 'چھوٹا کریں',
+    zoomReset: 'زوم ۱۰۰٪ پر واپس لائیں',
     noMatch: 'کوئی مماثلت نہیں',
     alignment: 'سیدھ',
     linkOptions: 'لنک کے اختیارات',
@@ -899,6 +911,10 @@ const paShahmukhi: Strings = {
     fontFamilyPlaceholder: 'فونٹ',
     fontSize: 'فونٹ دا سائز',
     fontSizePlaceholder: 'سائز',
+    zoom: 'زوم',
+    zoomIn: 'وڈا کرو',
+    zoomOut: 'چھوٹا کرو',
+    zoomReset: 'زوم ۱۰۰٪ تے واپس لیاؤ',
     noMatch: 'کوئی نئیں ملیا',
     alignment: 'سیدھ',
     linkOptions: 'لنک دے اختیار',
