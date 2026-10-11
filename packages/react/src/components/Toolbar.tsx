@@ -926,6 +926,35 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const snapshotSelectionRef = useRef(snapshotSelection);
   snapshotSelectionRef.current = snapshotSelection;
 
+  // The "..." overflow menu holds the toolbar's selects, but each select's
+  // option list is portaled out of the menu's dropdown. Mantine's Menu closes
+  // on any mousedown outside its own dropdown, so picking an option there
+  // would unmount the select before its click lands and the change was lost.
+  // The menu is therefore controlled, and ignores a close that comes from a
+  // press inside a toolbar select's option list.
+  const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
+  const pressInSelectListRef = useRef(false);
+  useEffect(() => {
+    const mark = (event: Event) => {
+      const target = event.target;
+      pressInSelectListRef.current = target instanceof Element && target.closest('.likhari-toolbar-select-dropdown') !== null;
+      // Only meant for the close request this same press causes, so a later
+      // Escape or outside click is not swallowed.
+      if (pressInSelectListRef.current) setTimeout(() => (pressInSelectListRef.current = false), 0);
+    };
+    document.addEventListener('mousedown', mark, true);
+    document.addEventListener('touchstart', mark, true);
+    return () => {
+      document.removeEventListener('mousedown', mark, true);
+      document.removeEventListener('touchstart', mark, true);
+    };
+  }, []);
+  const handleOverflowMenuChange = (next: boolean) => {
+    if (!next && pressInSelectListRef.current) return;
+    if (next) snapshotSelectionRef.current();
+    setOverflowMenuOpen(next);
+  };
+
   // Clears the stand-in highlight once the canvas has a real selection to show again.
   useEffect(() => {
     if (typeof CSS === 'undefined' || !('highlights' in CSS)) return;
@@ -1814,7 +1843,16 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {hiddenMovable.length > 0 && (
         <>
           <MantineToolbar.Divider />
-          <Menu position="bottom-end" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width="max-content" closeOnItemClick={false} onOpen={snapshotSelection}>
+          <Menu
+            opened={overflowMenuOpen}
+            onChange={handleOverflowMenuChange}
+            position="bottom-end"
+            withinPortal
+            portalProps={{ target: portalTarget }}
+            shadow="sm"
+            width="max-content"
+            closeOnItemClick={false}
+          >
             <Menu.Target>
               <ToolbarButton icon={IconDots} title={strings.toolbar.moreFormatting} />
             </Menu.Target>
