@@ -111,7 +111,7 @@ Every prop is optional. Defaults are shown where they apply.
 |---|---|---|---|
 | `documentId` | `string` | none | Names the document. Its drafts are stored under this id, and it is required for `restoreDraft` to find a draft. |
 | `initialContent` | `EditorInitialContent` | empty | Content to load when the editor mounts. |
-| `onChange` | `(state: SerializedEditorState) => void` | none | Called on every change, with the Lexical state. |
+| `onChange` | `(state: SerializedEditorState) => void` | none | Called when the content changes, with the Lexical state. Moving the caret, or changing the view-only font and zoom in uniform mode, does not call it and does not mark the document unsaved. |
 | `placeholder` | `string` | the locale's text | Shown while the canvas is empty. |
 | `height` | `string \| number` | `'480px'` | Height of the toolbar and canvas together. The canvas scrolls inside it. Accepts any CSS length, such as `'100%'`, `'60vh'` or a number of pixels. |
 | `locale` | `Locale` | `'en'` | UI language for labels, tooltips and menus. Also picks the default font and direction. |

@@ -1482,7 +1482,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           noMatchMessage={strings.toolbar.noMatch}
           renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
           onMouseDown={snapshotSelection}
-          onChange={withRefocus((v: string) => (uniform ? onUniformFontFamilyChange?.(v) : applyFont('font-family', v)))}
+          onChange={
+            uniform
+              ? // A view setting: leave the editor state and selection alone, just hand the caret back.
+                (v: string) => {
+                  onUniformFontFamilyChange?.(v);
+                  editor.focus();
+                }
+              : withRefocus((v: string) => applyFont('font-family', v))
+          }
         />
       )}
       {config.font.size && !uniform && (
