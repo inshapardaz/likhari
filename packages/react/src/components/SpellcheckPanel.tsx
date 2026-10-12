@@ -32,17 +32,20 @@ export function SpellcheckPanel({
   dir,
   dictionaryStores,
   onAddAutoCorrect,
+  initialLanguage,
   onClose,
 }: {
   strings: Strings;
   dir: 'ltr' | 'rtl';
   dictionaryStores: UserWordStore[];
   onAddAutoCorrect?: (word: string, language: SpellLanguage) => void;
+  /** Pre-selects the language dropdown; the user can still switch it. Defaults to English. */
+  initialLanguage?: SpellLanguage;
   onClose: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const t = strings.spellcheck;
-  const [language, setLanguage] = useState<SpellLanguage>('en');
+  const [language, setLanguage] = useState<SpellLanguage>(initialLanguage ?? 'en');
   const [items, setItems] = useState<Item[] | null>(null);
   const [index, setIndex] = useState(0);
   const [checking, setChecking] = useState(false);
