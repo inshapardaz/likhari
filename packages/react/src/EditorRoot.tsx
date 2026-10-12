@@ -89,6 +89,8 @@ export interface EditorRootProps {
   thesaurusStores?: ThesaurusStore[];
   /** The language autocomplete works in: 'auto' follows each block's direction (English for LTR, Urdu for RTL). */
   autoCompleteLanguage?: SpellLanguage | 'auto';
+  /** Which dictionary spellcheck (underlining, right-click suggestions and "add to dictionary") uses: 'auto' (default) follows each block's/word's own direction (English for LTR, Urdu for RTL). */
+  spellCheckLanguage?: SpellLanguage | 'auto';
   /** Urdu normalisation applied as part of auto-correct. Diacritics are kept unless `removeDiacritics` is set. */
   urduNormalization?: UrduNormalizationOptions;
   /** Common punctuation fixes, and whether a straight " becomes ”. Both on by default. */
@@ -266,6 +268,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     completionStores,
     thesaurusStores,
     autoCompleteLanguage = 'auto',
+    spellCheckLanguage = 'auto',
     urduNormalization,
     punctuation,
     initialContent,
@@ -671,6 +674,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             onZoomChange={handleUniformZoom}
             direction={dir}
             locale={locale}
+            spellCheckLanguage={spellCheckLanguage}
             drafts={
               autosave
                 ? { currentId: draftId, maxBytes: autosaveMaxBytes, adoptOnRestore: !documentId, onRestored: handleDraftRestored }
@@ -694,6 +698,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
                 dir={dir}
                 dictionaryStores={wordStores}
                 onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}
+                initialLanguage={spellCheckLanguage !== 'auto' ? spellCheckLanguage : undefined}
                 onClose={() => setOpenPanel(null)}
               />
             )}
@@ -737,7 +742,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.links && <LinkPlugin />}
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
-          {config.language.spellCheck && <SpellHighlightPlugin />}
+          {config.language.spellCheck && <SpellHighlightPlugin language={spellCheckLanguage} />}
           {config.language.autocomplete && (
             <AutocompletePlugin label={strings.autoComplete.label} stores={resolvedCompletionStores} language={autoCompleteLanguage} />
           )}

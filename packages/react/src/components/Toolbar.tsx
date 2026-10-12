@@ -721,6 +721,8 @@ export interface ToolbarProps {
   direction?: 'ltr' | 'rtl';
   /** UI locale — picks the translated strings for labels, tooltips and menu items. */
   locale?: Locale;
+  /** Which dictionary the right-click spelling/thesaurus lookup uses: 'auto' follows the word's own direction (English for LTR, Urdu for RTL). */
+  spellCheckLanguage?: SpellLanguage | 'auto';
   /** Autosave drafts: when set, the toolbar offers a Drafts button that lists and restores them. */
   drafts?: DraftsToolbarOptions;
   /**
@@ -735,7 +737,7 @@ export interface ToolbarProps {
  * format this editor reads and writes, including the poetry container syntax. */
 export const DEFAULT_HELP_URL = 'https://github.com/inshapardaz/likhari/blob/main/docs/markdown-dialect.md';
 
-export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', drafts, helpUrl }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', spellCheckLanguage = 'auto', drafts, helpUrl }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
@@ -1170,7 +1172,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         { discrete: true },
       );
 
-      const language: SpellLanguage = word?.direction === 'rtl' ? 'ur' : 'en';
+      const language: SpellLanguage = spellCheckLanguage !== 'auto' ? spellCheckLanguage : word?.direction === 'rtl' ? 'ur' : 'en';
       if (word && config.language.thesaurus) {
         menu.thesaurus = { language, word: word.word, match: word.match };
       }
@@ -1199,7 +1201,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       previous?.removeEventListener('contextmenu', onContextMenu);
       root?.addEventListener('contextmenu', onContextMenu);
     });
-  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, config.joinLines, thesaurusStores]);
+  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, config.joinLines, thesaurusStores, spellCheckLanguage]);
 
   // Cut and copy put the selected text on the clipboard as plain text.
   const copyOrCut = (cut: boolean) => async () => {

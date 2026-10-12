@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getNodeByKey, $getRoot, $isElementNode, type LexicalNode } from 'lexical';
 import { $misspellingsInBlock, type BlockMisspelling, type Checkers } from './spellcheckActions';
-import { getSpeller } from './spellDictionaries';
+import { getSpeller, type SpellLanguage } from './spellDictionaries';
 import { onSpellWordsChange } from './userWords';
 
 /** The CSS Custom Highlight name; editor.css styles it as a red wavy underline. */
@@ -28,7 +28,12 @@ function $topLevelKey(node: LexicalNode): string | null {
  * ranges set through the CSS Custom Highlight API. In browsers without it, nothing
  * is underlined.
  */
-export function SpellHighlightPlugin() {
+export interface SpellHighlightPluginProps {
+  /** Which dictionary checks every block: 'auto' (default) follows each block's own direction (English for LTR, Urdu for RTL). */
+  language?: SpellLanguage | 'auto';
+}
+
+export function SpellHighlightPlugin({ language = 'auto' }: SpellHighlightPluginProps = {}) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -160,9 +165,17 @@ export function SpellHighlightPlugin() {
 
     Promise.all([getSpeller('en'), getSpeller('ur')]).then(async ([en, ur]) => {
       if (!active) return;
-      checkers = { ltr: en ? await en : undefined, rtl: ur ? await ur : undefined };
+      const enSpeller = en ? await en : undefined;
+      const urSpeller = ur ? await ur : undefined;
+      checkers =
+        language === 'auto'
+          ? { ltr: enSpeller, rtl: urSpeller }
+          : language === 'ur'
+            ? { ltr: urSpeller, rtl: urSpeller }
+            : { ltr: enSpeller, rtl: enSpeller };
+      cache.clear();
       syncBlocks();
-      for (const key of visible) if (!cache.has(key)) schedule(key, 0);
+      for (const key of visible) schedule(key, 0);
     });
 
     return () => {
@@ -173,7 +186,7 @@ export function SpellHighlightPlugin() {
       for (const timer of timers.values()) clearTimeout(timer);
       CSS.highlights.delete(HIGHLIGHT);
     };
-  }, [editor]);
+  }, [editor, language]);
 
   return null;
 }
