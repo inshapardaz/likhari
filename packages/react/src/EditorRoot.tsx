@@ -709,7 +709,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
                 dir={dir}
                 stores={stores}
                 initialFrom={autoCorrectPrefill?.from}
-                initialLanguage={autoCorrectPrefill?.language}
+                initialLanguage={autoCorrectPrefill?.language ?? (spellCheckLanguage !== 'auto' ? spellCheckLanguage : undefined)}
                 onSaved={() => setAutoCorrectVersion((v) => v + 1)}
                 onClose={() => setOpenPanel(null)}
               />
