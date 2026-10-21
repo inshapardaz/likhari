@@ -11,13 +11,17 @@
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspace apps/demo",
     "test": "vitest run",
-    "typecheck": "tsc -b --pretty"
+    "typecheck": "tsc -b --pretty",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:e2e:build": "E2E_BUILD=1 playwright test -c e2e/playwright.config.ts",
+    "typecheck:e2e": "tsc -p e2e/tsconfig.json --pretty"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/inshapardaz/likhari"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "jsdom": "^25.0.1",
