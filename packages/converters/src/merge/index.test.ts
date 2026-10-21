@@ -207,6 +207,20 @@ describe("joinParagraphs: 'blank-line'", () => {
       expect(merged(['finished sentence.\n', 'carried on'])).toBe('finished sentence. carried on\n');
     });
 
+    it('a page written by the editor ends with ::blank, which is the marker too', () => {
+      expect(merged(['first page\n\n::blank\n', 'second page'])).toBe('first page\n\n::pagebreak\n\nsecond page\n');
+      expect(merged(['first page\n\n::blank\n\n::blank\n', 'second page'])).toContain('::pagebreak');
+    });
+
+    it('::blank in the middle of a page is not a marker', () => {
+      expect(merged(['one\n\n::blank\n\ntwo', 'three'])).toBe('one\n\ntwo three\n');
+    });
+
+    it('a page the editor saved as Markdown round-trips the marker through mergePages', () => {
+      const saved = markdownConverter.serialize(makeState([paragraph([textNode('ends here')]), paragraph()]));
+      expect(merged([saved, 'next page'])).toBe('ends here\n\n::pagebreak\n\nnext page\n');
+    });
+
     it('a single final newline is not a blank line', () => {
       expect(types(mergePagesToState(['a\n', 'b'], join))).toEqual(['paragraph']);
     });

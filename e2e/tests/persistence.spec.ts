@@ -243,8 +243,7 @@ test.describe('leaving with unsaved changes', () => {
 });
 
 // mergePages(..., { joinParagraphs: 'blank-line' }) treats an empty paragraph at the end of a
-// page as "the paragraph ends here", so saving must never trim it. (Markdown cannot hold an
-// empty paragraph at all, by design, so it is not covered here.)
+// page as "the paragraph ends here", so saving must never trim it, in any format.
 test.describe('a trailing empty paragraph', () => {
   const trailingEmpty = (html: string) => /<p[^>]*>Page text<\/p>\s*<p[^>]*><\/p>$/.test(html.trim());
 
@@ -260,6 +259,12 @@ test.describe('a trailing empty paragraph', () => {
     const json = JSON.parse(await editor.output('Get Lexical JSON'));
     const blocks = json.root.children as { type: string; children: unknown[] }[];
     expect(blocks.map((b) => `${b.type}:${b.children.length}`)).toEqual(['paragraph:1', 'paragraph:0']);
+  });
+
+  test('is written to Markdown as ::blank, and is not there when the document has no empty ending', async ({ editor }) => {
+    expect(await editor.output('Get Markdown')).toBe('Page text\n\n::blank\n');
+    await editor.page.keyboard.press('Backspace');
+    expect(await editor.output('Get Markdown')).toBe('Page text\n');
   });
 
   test('is kept by "Correct whole document" and its text cleanup', async ({ editor }) => {

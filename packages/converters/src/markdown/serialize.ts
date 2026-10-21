@@ -6,7 +6,7 @@ import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
-  FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, rootChildren, type SNode,
+  FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, isEmptyParagraph, rootChildren, type SNode,
 } from '../shared/serialized';
 import { directive, type Attrs, type MdNode } from './mdast';
 import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
@@ -343,7 +343,15 @@ function blockToMd(node: SNode, ctx?: ConverterContext): MdNode[] {
 export function serializeMarkdown(state: SerializedEditorState, ctx?: ConverterContext): string {
   const blocks = rootChildren(state);
   setFootnoteOrder(blocks);
-  const tree: MdNode = { type: 'root', children: blocks.flatMap((n) => blockToMd(n, ctx)) };
+  // Markdown has no empty paragraph, so a run of them at the end of the document (which marks where a
+  // page's last paragraph ends, see mergePages) is written as `::blank` lines to survive a save.
+  let end = blocks.length;
+  while (end > 0 && (isEmptyParagraph(blocks[end - 1]) || blocks[end - 1].type === 'footnote-list')) end -= 1;
+  // A document that is nothing but empty paragraphs is still just empty (end === 0).
+  const children = blocks.flatMap((n, i) =>
+    end > 0 && i >= end && isEmptyParagraph(n) ? [directive('leafDirective', 'blank', {})] : blockToMd(n, ctx),
+  );
+  const tree: MdNode = { type: 'root', children };
   // remark-stringify consumes mdast; our MdNode is a structural subset of it.
   return String(processor.stringify(tree as never)).replace(/\n+$/, '\n').replace(/^\n+$/, '');
 }

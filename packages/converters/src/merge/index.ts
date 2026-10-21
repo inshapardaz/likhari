@@ -1,8 +1,8 @@
 import type { SerializedEditorState } from 'lexical';
 import { defaultFormatRegistry, type FormatRegistry } from '../registry';
 import type { ConverterContext, FormatId } from '../types';
-import { elementBase, makeState, rootChildren, type SNode } from '../shared/serialized';
-import { canJoinParagraphs, endsMidSentence, endsWithBlankLine, isEmptyParagraph, joinParagraphs } from './continuation';
+import { elementBase, isEmptyParagraph, makeState, rootChildren, type SNode } from '../shared/serialized';
+import { canJoinParagraphs, endsMidSentence, endsWithBlankLine, joinParagraphs } from './continuation';
 
 /** One page: its text, plus its format when that differs from `MergePagesOptions.inputFormat`. */
 export type PageInput = string | { content: string; format?: FormatId };

@@ -1,4 +1,4 @@
-import { textNode, type SNode } from '../shared/serialized';
+import { isEmptyParagraph, textNode, type SNode } from '../shared/serialized';
 
 /** Marks that end a sentence, in Urdu and Latin script: ۔ ؟ ! ? . … and the CJK full stop. */
 const SENTENCE_END = /[۔؟!?.…。]/;
@@ -38,20 +38,15 @@ export function canJoinParagraphs(previous: SNode | undefined, next: SNode | und
   return alignment(previous) === alignment(next);
 }
 
-/** A paragraph with nothing in it: only whitespace and line breaks. */
-export function isEmptyParagraph(block: SNode | undefined): boolean {
-  return !!block && block.type === 'paragraph' && plainText(block).trim() === '';
-}
-
 /**
- * Whether a page's text ends with an empty line, which marks the end of a paragraph. Markdown
- * cannot hold an empty paragraph (the parser drops it), so it is read from the raw text: the
- * text must end with a blank line (`\n\n`), not just a final newline. For every other format it
- * is a trailing empty paragraph in the parsed page.
+ * Whether a page's text ends with an empty line, which marks the end of a paragraph: a trailing
+ * empty paragraph in the parsed page (Markdown writes one as `::blank`). Markdown written by hand
+ * may instead just end with a blank line (`\n\n`, not only a final newline), which the parser
+ * would drop, so for Markdown the raw text is checked too.
  */
 export function endsWithBlankLine(rawFormat: string, rawText: string, blocks: SNode[]): boolean {
-  if (rawFormat === 'markdown') return /(\r?\n[ \t]*){2,}$/.test(rawText);
-  return isEmptyParagraph(blocks[blocks.length - 1]);
+  if (isEmptyParagraph(blocks[blocks.length - 1])) return true;
+  return rawFormat === 'markdown' && /(\r?\n[ \t]*){2,}$/.test(rawText);
 }
 
 const startsWithSpace = (children: SNode[]) => /^\s/.test(plainText({ type: 'x', children: children.slice(0, 1) }));

@@ -49,6 +49,7 @@ written outside the markers, so `**x**` always hugs its text.
 | Image | `![alt](url)` |
 | Image with caption or size | `::figure[Caption]{src="url" alt="…" width="320" height="200"}` |
 | Page break | `::pagebreak` |
+| Empty paragraphs at the end of the document | `::blank`, one per paragraph (see below) |
 | Alignment, indent, direction | `:::para{align="center" indent="2" dir="rtl"}` around one block, closed with `:::` |
 
 `para` attributes: `align` is `left|right|center|justify|start|end` (`start`/`end`
@@ -58,6 +59,15 @@ the first strong character**, so an Urdu paragraph in an Urdu document carries n
 markup. The wrapper is omitted entirely when nothing needs saying.
 
 An image whose source is a `data:` URI is imported as *embedded*, any other as *linked*.
+
+**Empty paragraphs at the end.** Markdown cannot say an empty paragraph (a blank line only
+separates paragraphs), so empty paragraphs are normally dropped on export. The exception is a
+run of them at the **end of the document**, which marks where the last paragraph of a page ends
+(`mergePages` with `joinParagraphs: 'blank-line'` reads it that way). Each is written as a
+`::blank` line, after the body and before any footnote definitions, and read back as one empty
+paragraph. A document that is nothing but empty paragraphs exports as empty text. `::blank` is a
+dialect construct like `::pagebreak`: a renderer that does not know the directives shows it as
+plain text.
 
 ## 4. Columns
 
@@ -223,7 +233,8 @@ Round trip = editor → Markdown → editor.
 | Footnotes | lossless; references and definitions re-pair by id |
 | Poetry: layout, spacing, gutter, stagger, centerWidth, width | lossless (§5) |
 | Poetry: couplet pairing in two-column layout | lossless, via one `:::columns` per couplet (§5.2) |
-| Empty paragraphs | dropped (Markdown has no way to say them) |
+| Empty paragraphs at the end of the document | lossless, as `::blank` |
+| Empty paragraphs elsewhere | dropped (Markdown has no way to say them; a blank line is just a paragraph separator) |
 | Code combined with bold/italic/etc. | kept (marks wrap the code span) |
 | Unknown node types | text content kept as paragraphs |
 

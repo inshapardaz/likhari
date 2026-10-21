@@ -265,6 +265,7 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
         break;
       case 'leafDirective': {
         if (node.name === 'pagebreak') out.push({ type: 'page-break', version: 1 });
+        else if (node.name === 'blank') out.push(paragraph());
         else if (node.name === 'figure') {
           const attrs = node.attributes ?? {};
           const src = safeImageSrc(attrs.src ?? '');
@@ -302,7 +303,7 @@ function restoreUnknownDirectives(node: MdNode & { position?: { start: { offset?
   node.children = node.children.map((child) => {
     const c = child as MdNode & { position?: { start: { offset?: number }; end: { offset?: number } } };
     const unknownText = c.type === 'textDirective' && !KNOWN_TEXT_DIRECTIVES.has(c.name ?? '');
-    const unknownLeaf = c.type === 'leafDirective' && c.name !== 'pagebreak' && c.name !== 'figure';
+    const unknownLeaf = c.type === 'leafDirective' && c.name !== 'pagebreak' && c.name !== 'blank' && c.name !== 'figure';
     if ((unknownText || unknownLeaf) && c.position?.start.offset !== undefined && c.position.end.offset !== undefined) {
       const raw = source.slice(c.position.start.offset, c.position.end.offset);
       return unknownLeaf ? { type: 'paragraph', children: [{ type: 'text', value: raw }] } : { type: 'text', value: raw };

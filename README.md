@@ -265,12 +265,12 @@ never join. Joined paragraphs are merged into one, separated by a single space, 
 its formatting. A page break cannot sit inside a paragraph, so **no break is inserted where pages
 are joined**.
 
-**Saving the marker.** The editor never trims a trailing empty paragraph, and Lexical JSON, HTML
-and plain text keep it through save and load. **Markdown cannot**: it has no way to write an empty
-paragraph, so the serializer drops it (`docs/markdown-dialect.md`). For Markdown pages the merge
-therefore reads the raw text: the page must **end with a blank line** (`\n\n`, not just the final
-newline). That works for text you author or store yourself; Markdown *exported from the editor*
-loses the marker, so keep pages as Lexical JSON (or HTML / plain text) if they rely on it.
+**Saving the marker.** The editor never trims a trailing empty paragraph, and every format keeps it
+through save and load: Lexical JSON, HTML and plain text natively, and Markdown as a `::blank` line
+(see [`docs/markdown-dialect.md`](docs/markdown-dialect.md)). For Markdown you write by hand, ending
+the page with a blank line (`\n\n`, not just the final newline) works too. Only a run of empty
+paragraphs at the very end of a page is written as `::blank`; empty paragraphs in the middle are
+still dropped from Markdown.
 
 **From React, Vue or the web component:** it is a plain function, so call it anywhere in app
 code, not only inside a component. `npm install @inshapardaz/likhari-converters` and import it
