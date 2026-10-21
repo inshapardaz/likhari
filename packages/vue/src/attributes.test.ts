@@ -15,6 +15,7 @@ describe('toElementAttributes', () => {
       'feature-preset': null,
       'toolbar-bordered': null,
       'toolbar-variant': null,
+      'toolbar-layout': null,
       'help-url': null,
       'font-mode': null,
       'font-family': null,
@@ -39,6 +40,12 @@ describe('toElementAttributes', () => {
     expect(toElementAttributes({ helpUrl: 'https://example.com/docs' })['help-url']).toBe('https://example.com/docs');
     expect(toElementAttributes({ helpUrl: false })['help-url']).toBe('false');
     expect(toElementAttributes({})['help-url']).toBeNull();
+  });
+
+  it('writes the toolbar layout, and leaves it unset when absent', () => {
+    expect(toElementAttributes({ toolbarLayout: 'ribbon' })['toolbar-layout']).toBe('ribbon');
+    expect(toElementAttributes({ toolbarLayout: 'classic' })['toolbar-layout']).toBe('classic');
+    expect(toElementAttributes({})['toolbar-layout']).toBeNull();
   });
 
   it('writes the uniform font settings, and leaves them unset when absent', () => {

@@ -14,6 +14,7 @@ export const OBSERVED_ATTRIBUTES = [
   'feature-preset',
   'toolbar-bordered',
   'toolbar-variant',
+  'toolbar-layout',
   'help-url',
   'font-mode',
   'font-family',
@@ -67,10 +68,13 @@ export function attributesToProps(read: (name: string) => string | null): Partia
   const toolbarBordered = booleanAttribute(read('toolbar-bordered'));
   const toolbarVariant = read('toolbar-variant');
   const variant = toolbarVariant && (TOOLBAR_VARIANTS as string[]).includes(toolbarVariant) ? (toolbarVariant as ToolbarStyle['variant']) : undefined;
-  if (toolbarBordered !== undefined || variant !== undefined) {
+  const toolbarLayout = read('toolbar-layout');
+  const layout = toolbarLayout === 'classic' || toolbarLayout === 'ribbon' ? toolbarLayout : undefined;
+  if (toolbarBordered !== undefined || variant !== undefined || layout !== undefined) {
     props.toolbarStyle = {
       ...(toolbarBordered !== undefined && { bordered: toolbarBordered }),
       ...(variant !== undefined && { variant }),
+      ...(layout !== undefined && { layout }),
     };
   }
 

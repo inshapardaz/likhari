@@ -536,11 +536,33 @@ editor's `accentColor`.
   `false` removes the outlines and keeps the dividers between sections.
 - `variant` (default `'light'`): `'light'` tints the active button; `'filled'`
   fills it with the accent colour.
-- `overflow` (default `true`): once the toolbar no longer fits its width, the
+- `layout` (default `'classic'`): `'ribbon'` puts the commands on tabs instead of one row, like an
+  office ribbon (below).
+- `overflow` (default `true`, classic layout only): once the toolbar no longer fits its width, the
   lowest-priority groups move into a "..." menu: first the far-end groups
   (drafts, search and help, then the zoom control in uniform font mode), then
   tools, font and insert. `false` keeps every group inline and lets the toolbar wrap onto as
   many rows as it needs instead.
+
+**Ribbon layout.** With `toolbarStyle={{ layout: 'ribbon' }}` the same commands are grouped into
+tabs under a strip of small tab labels; the classic row stays the default, so nothing changes
+unless you ask for it.
+
+| Tab | Commands |
+|---|---|
+| **Home** | block type, bold, italic, underline, strikethrough and the more-formatting menu, alignment, indent, font family and size |
+| **Insert** | link, image, rule, table, columns, footnote, page break, poetry couplet |
+| **Tools** | auto-correct, correct whole document, spell check, join lines, find and replace |
+| **View** | zoom (uniform font mode), drafts, help |
+| **Table**, **Poetry**, **Link** | the table, poetry and link commands, as buttons; each tab appears (tinted) only while the caret is in a table, a poetry couplet or a link |
+
+Save, undo and redo sit at the end of the tab strip and stay in reach on every tab. A tab with
+nothing in it (its features are off) is not shown, so the `minimal` preset has only View.
+A context tab never takes the selection by itself: it appears and you open it when you want it. If
+you are on it when the caret leaves, you go back to the first tab. On a narrow screen the active
+tab's commands scroll sideways. The tabs are a proper tab list: arrow keys, Home and End move
+between them (reversed in a right-to-left editor), and clicking one keeps the caret in the editor.
+The web component takes `toolbar-layout="ribbon"` and the Vue wrapper `toolbarLayout="ribbon"`.
 
 #### Help button
 
@@ -631,6 +653,7 @@ about 2.5MB (about 700KB gzipped). Load it once per page.
 | `autosave` | `"false"` to turn off | on |
 | `toolbar-bordered` | present (or `"true"`) to outline the toolbar; `"false"` for a plain toolbar | bordered |
 | `toolbar-variant` | `light` (tints the active button), `filled` (fills it with the accent) | `light` |
+| `toolbar-layout` | `classic` (one row of command groups), `ribbon` (the commands on tabs) | `classic` |
 | `help-url` | any URL; `"false"` to hide the button | the Markdown dialect doc |
 | `font-mode` | `selective`, `uniform` (one font for all text and a zoom control; see [Fonts](#fonts)) | `selective` |
 | `font-family` | any CSS font-family; uniform mode only | the canvas default |
@@ -728,7 +751,7 @@ next to its bundle served with your app (see the Web Component section above).
 
 Props match the Web Component's attributes, in camelCase: `documentId`, `locale`,
 `colorScheme`, `accentColor`, `placeholder`, `height`, `showSave`, `autosave`,
-`featurePreset`, `toolbarBordered`, `toolbarVariant`, `helpUrl` (a string, or
+`featurePreset`, `toolbarBordered`, `toolbarVariant`, `toolbarLayout`, `helpUrl` (a string, or
 `false` to hide the button), `fontMode`, `fontFamily`, `zoom` (a number), and
 `featureConfig` (an object). Boolean props left unset use the editor's default; they
 are not sent as `false`.

@@ -76,6 +76,21 @@ export interface Strings {
     clearFormatting: string;
     outdent: string;
     indent: string;
+    /** The ribbon layout (`toolbarStyle.layout: 'ribbon'`): its tab strip and tabs. */
+    ribbon: {
+      /** aria-label on the tab strip. */
+      tabsLabel: string;
+      /** aria-label on the group beside the tabs that holds save, undo and redo. */
+      quickAccess: string;
+      home: string;
+      insert: string;
+      tools: string;
+      view: string;
+      /** Contextual tabs, shown only while the caret is in that kind of content. */
+      table: string;
+      poetry: string;
+      link: string;
+    };
     formattingOptions: {
       paragraph: string;
       heading: (level: number) => string;
@@ -369,6 +384,17 @@ const en: Strings = {
     clearFormatting: 'Clear formatting',
     outdent: 'Outdent',
     indent: 'Indent',
+    ribbon: {
+      tabsLabel: 'Ribbon tabs',
+      quickAccess: 'Quick access',
+      home: 'Home',
+      insert: 'Insert',
+      tools: 'Tools',
+      view: 'View',
+      table: 'Table',
+      poetry: 'Poetry',
+      link: 'Link',
+    },
     formattingOptions: {
       paragraph: 'Paragraph',
       heading: (level) => `Heading ${level}`,
@@ -656,6 +682,17 @@ const ur: Strings = {
     clearFormatting: 'فارمیٹنگ ختم کریں',
     outdent: 'حاشیہ کم کریں',
     indent: 'حاشیہ بڑھائیں',
+    ribbon: {
+      tabsLabel: 'ربن کے ٹیب',
+      quickAccess: 'فوری رسائی',
+      home: 'ہوم',
+      insert: 'شامل کریں',
+      tools: 'اوزار',
+      view: 'منظر',
+      table: 'جدول',
+      poetry: 'شاعری',
+      link: 'لنک',
+    },
     formattingOptions: {
       paragraph: 'پیراگراف',
       heading: (level) => `عنوان ${level}`,
@@ -943,6 +980,17 @@ const paShahmukhi: Strings = {
     clearFormatting: 'فارمیٹنگ ہٹاؤ',
     outdent: 'حاشیہ گھٹاؤ',
     indent: 'حاشیہ ودھاؤ',
+    ribbon: {
+      tabsLabel: 'ربن دے ٹیب',
+      quickAccess: 'جھٹ رسائی',
+      home: 'ہوم',
+      insert: 'شامل کرو',
+      tools: 'اوزار',
+      view: 'ویکھو',
+      table: 'جدول',
+      poetry: 'شاعری',
+      link: 'لنک',
+    },
     formattingOptions: {
       paragraph: 'پیراگراف',
       heading: (level) => `سرلیکھ ${level}`,

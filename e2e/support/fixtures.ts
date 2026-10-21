@@ -13,7 +13,7 @@ export class EditorPage {
   }
 
   /** Opens the demo with a clean, English, light-mode editor. `prefs` seeds the demo's own settings. */
-  async open(prefs: { locale?: 'en' | 'ur' | 'pa-shahmukhi'; preset?: 'minimal' | 'standard' | 'full' | 'poetry'; colorScheme?: 'light' | 'dark'; overflow?: boolean } = {}) {
+  async open(prefs: { locale?: 'en' | 'ur' | 'pa-shahmukhi'; preset?: 'minimal' | 'standard' | 'full' | 'poetry'; colorScheme?: 'light' | 'dark'; overflow?: boolean; ribbon?: boolean } = {}) {
     const { overflow = false, ...seed } = prefs;
     await this.page.addInitScript((seed) => {
       if (!localStorage.getItem('likhari-demo-prefs')) localStorage.setItem('likhari-demo-prefs', JSON.stringify(seed));
