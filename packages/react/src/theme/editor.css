@@ -1119,3 +1119,216 @@
   background: var(--editor-accent-soft);
 }
 
+
+/* Ribbon layout (toolbarStyle.layout: 'ribbon', UI spec §3.4): a strip of tabs over one row of the active
+   tab's command groups, with save, undo and redo before the tabs and drafts, search and help after them. */
+.likhari-ribbon {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  /* The containing block, and a stacking level above the canvas, for the panel that peeks out when collapsed. */
+  position: relative;
+  z-index: 5;
+  background: var(--editor-paper-dim);
+  /* Lets the row below react to the editor's own width, not the window's. */
+  container-type: inline-size;
+}
+
+/* Collapsed: only the tab row stays, closed off with a line where the command row was. */
+.likhari-ribbon--collapsed .likhari-ribbon-top {
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--editor-line);
+}
+
+/* In a narrow editor the save/undo group and the document tools take all the width and squeeze the tabs to
+   nothing, so the tabs drop to a line of their own (scrolling sideways if need be). */
+@container (max-width: 560px) {
+  .likhari-ribbon-top {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .likhari-ribbon-tabs {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
+
+/* A collapsed tab's commands open over the canvas instead of pushing it down, so the page does not jump. */
+.likhari-ribbon-panel-wrap--peek {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 30;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
+}
+
+.likhari-ribbon-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px 0;
+}
+
+.likhari-ribbon-tabs {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  /* Narrow screens scroll the tabs sideways rather than wrapping them. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.likhari-ribbon-tab {
+  appearance: none;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: var(--editor-ink-soft);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.likhari-ribbon-tab:hover {
+  background: var(--editor-accent-soft);
+  color: var(--editor-ink);
+}
+
+.likhari-ribbon-tab[aria-selected='true'] {
+  border-bottom-color: var(--editor-accent);
+  color: var(--editor-accent);
+  font-weight: 600;
+}
+
+/* A context tab (Table, Poetry, Link) is tinted so it reads as appearing because of where the caret is. */
+.likhari-ribbon-tab[data-contextual] {
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-tab:focus-visible {
+  outline: 2px solid var(--editor-accent);
+  outline-offset: -2px;
+}
+
+.likhari-ribbon-quick,
+.likhari-ribbon-utilities {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* Drafts, search and help at the end of the row, also when there are no tabs to push them there. */
+.likhari-ribbon-utilities {
+  margin-inline-start: auto;
+}
+
+/* The panel scrolls sideways when its groups do not fit, instead of wrapping onto a second row. */
+.likhari-ribbon-panel {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.likhari-ribbon-panel > * {
+  flex: 0 0 auto;
+}
+
+/* A destructive command (delete table, delete couplet) on the ribbon, as red as it is in the menus. */
+.likhari-ribbon-panel [data-danger='true'] {
+  color: var(--mantine-color-red-6, #e03131);
+}
+
+/* The buttons on the tab row, outside every tab (save, undo, redo; drafts, search, help): flat icons with no
+   border or background at rest. Hover tints them; "on" and "unsaved" are shown by colour and a mark instead
+   of a fill, so the row stays light next to the tabs. */
+.likhari-ribbon-quick .likhari-toolbar-cluster,
+.likhari-ribbon-utilities .likhari-toolbar-cluster {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle],
+.likhari-ribbon-utilities [data-toolbar-toggle] {
+  position: relative;
+  border: none;
+  border-radius: 6px;
+  background: transparent !important;
+  color: var(--editor-ink-soft);
+}
+
+.likhari-ribbon-quick .likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle],
+.likhari-ribbon-utilities .likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle] {
+  border-inline-start: none;
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle]:hover:not(:disabled):not([data-disabled]),
+.likhari-ribbon-utilities [data-toolbar-toggle]:hover:not(:disabled):not([data-disabled]) {
+  background: var(--editor-accent-soft) !important;
+  color: var(--editor-ink);
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle]:disabled,
+.likhari-ribbon-quick [data-toolbar-toggle][data-disabled],
+.likhari-ribbon-utilities [data-toolbar-toggle]:disabled,
+.likhari-ribbon-utilities [data-toolbar-toggle][data-disabled] {
+  color: var(--editor-ink-soft);
+  opacity: 0.45;
+}
+
+/* A button that is on (find and replace open): accent icon with a short bar under it. */
+.likhari-ribbon-quick [data-toolbar-toggle][aria-pressed='true'],
+.likhari-ribbon-utilities [data-toolbar-toggle][aria-pressed='true'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle][aria-pressed='true']::after,
+.likhari-ribbon-utilities [data-toolbar-toggle][aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 7px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--editor-accent);
+}
+
+/* Save with unsaved changes: accent icon and a dot, not the filled button the classic toolbar uses. */
+.likhari-ribbon-quick [data-dirty='true'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='true']::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='true']:hover,
+.likhari-ribbon-quick [data-dirty='false'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='false']:disabled,
+.likhari-ribbon-quick [data-dirty='false'][data-disabled] {
+  color: var(--editor-ink-soft);
+}

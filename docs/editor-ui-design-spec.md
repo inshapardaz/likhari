@@ -111,6 +111,47 @@ number, even in RTL.
   "..." overflow sheet. Toolbar becomes horizontally scrollable as a fallback if a host
   disables enough features that the remaining set still overflows a narrow viewport.
 
+### 3.4 Ribbon layout (alternative to §3.1 and §3.3)
+
+An opt-in layout, `toolbarStyle.layout: 'ribbon'`, for hosts that want an office-style bar.
+**It does not replace the classic toolbar**: §3.1 and §3.3 stay the default and still describe
+it. The ribbon has the same commands and the same configuration toggles, regrouped:
+
+- **Tab strip** (a `tablist`): Home, Insert, Tools, then any context tabs. Two groups sit on the
+  same row but are on no tab, so they stay in reach on every tab and when there are no tabs at all:
+  **quick access** (save, undo, redo) before the tabs, and **document tools** (zoom in uniform font mode, then drafts,
+  search/find and replace, help) after them, each its own named toolbar. Their buttons are flat icons: no border or
+  background at rest (hover tints them); an open state (search) is an accent icon with a short bar
+  under it, and unsaved changes on Save an accent icon with a dot, rather than the classic toolbar's
+  filled Save. In RTL (§5) the row mirrors as a whole.
+- **Command row**: the selected tab's groups, in the §3.2 sizes (46px row, 30×30px buttons,
+  hairline dividers). It never wraps and never collapses into a "..." menu; on a narrow screen it
+  scrolls sideways, and so does the tab strip.
+- **Home**: block type, inline formatting (with its more-formatting menu), alignment and indent,
+  font family and size. **Insert**: link, image, rule, table, columns, footnote, page break, poetry
+  couplet. **Tools**: auto-correct, correct whole document, spell check, join lines.
+- **Context tabs** (Table, Poetry, Link) are added after Tools only while the caret is in that
+  kind of content, tinted with `--accent-soft` so they read as appearing because of the caret. They
+  show the commands the classic toolbar keeps in its table, poetry and link menus, as buttons. They
+  never select themselves; if one is selected when the caret leaves, the first tab is selected.
+- A tab with no commands (features off, or no context) is not shown.
+- **Collapse**: a chevron at the end of the row (the last button of the document tools), a double-click
+  on a tab, or Ctrl+F1 hides the command row, leaving the tab row closed off with a hairline. Collapsed,
+  no tab is selected; clicking a tab peeks its commands in a panel laid over the canvas (no reflow,
+  with a shadow), which closes on a second click of that tab, Escape, a click outside the ribbon, or a
+  chosen command, but not while a dropdown or menu opened from it is in use. Arrow keys move between
+  tabs without opening them; Enter/Space opens. Only offered when there are tabs.
+- **Narrow editors**: below 560px of editor width (a container query, not the window's) the tabs drop
+  to a line of their own beneath the quick-access and document-tool groups, instead of being squeezed
+  out of the row.
+- Selected tab: `--accent` text with a 2px `--accent` underline, the same restraint as §3.2's
+  one-accent rule. Clicking a tab does not move focus out of the editor.
+- RTL (§5): the strip and row mirror as a whole, arrow-key direction reverses, and the tab names
+  are translated.
+
+Keyboard: the tab list has one tab stop (the selected tab); ArrowLeft/ArrowRight, Home and End
+move between tabs and select them.
+
 ---
 
 ## 4. Canvas typography scale

@@ -37,6 +37,14 @@ describe('attributesToProps', () => {
     expect(attributesToProps(from({ 'toolbar-variant': 'outline' }))).toEqual({});
   });
 
+  it('reads the toolbar layout, ignoring anything but classic and ribbon', () => {
+    expect(attributesToProps(from({ 'toolbar-layout': 'ribbon' }))).toEqual({ toolbarStyle: { layout: 'ribbon' } });
+    expect(attributesToProps(from({ 'toolbar-layout': 'classic', 'toolbar-bordered': 'false' }))).toEqual({
+      toolbarStyle: { bordered: false, layout: 'classic' },
+    });
+    expect(attributesToProps(from({ 'toolbar-layout': 'tabs' }))).toEqual({});
+  });
+
   it('keeps an empty placeholder, which means no placeholder text', () => {
     expect(attributesToProps(from({ placeholder: '' }))).toEqual({ placeholder: '' });
   });

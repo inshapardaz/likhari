@@ -84,6 +84,7 @@ interface DemoPrefs {
   accentColor: string;
   preset: FeatureConfigPresetName;
   uniformFont: boolean;
+  ribbon: boolean;
 }
 
 function loadPrefs(): Partial<DemoPrefs> {
@@ -97,6 +98,7 @@ function loadPrefs(): Partial<DemoPrefs> {
       accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : undefined,
       preset: VALID_PRESETS.includes(parsed.preset as FeatureConfigPresetName) ? parsed.preset : undefined,
       uniformFont: typeof parsed.uniformFont === 'boolean' ? parsed.uniformFont : undefined,
+      ribbon: typeof parsed.ribbon === 'boolean' ? parsed.ribbon : undefined,
     };
   } catch {
     return {};
@@ -227,6 +229,7 @@ export function App() {
   const [toolbarBordered, setToolbarBordered] = useState(true);
   const [toolbarVariant, setToolbarVariant] = useState<'light' | 'filled'>('light');
   const [toolbarOverflow, setToolbarOverflow] = useState(true);
+  const [ribbon, setRibbon] = useState(savedPrefs.ribbon ?? false);
   const [showHelpButton, setShowHelpButton] = useState(true);
   const [uniformFont, setUniformFont] = useState(savedPrefs.uniformFont ?? false);
   const [showSave, setShowSave] = useState(true);
@@ -246,12 +249,12 @@ export function App() {
 
   useEffect(() => {
     try {
-      const prefs: DemoPrefs = { locale, colorScheme, accentColor, preset, uniformFont };
+      const prefs: DemoPrefs = { locale, colorScheme, accentColor, preset, uniformFont, ribbon };
       localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
     } catch {
       // Private browsing / storage disabled: preferences just won't persist.
     }
-  }, [locale, colorScheme, accentColor, preset, uniformFont]);
+  }, [locale, colorScheme, accentColor, preset, uniformFont, ribbon]);
 
   const applyPreset = (name: FeatureConfigPresetName) => {
     setPreset(name);
@@ -359,6 +362,10 @@ export function App() {
               <option value="light">Light</option>
               <option value="filled">Filled</option>
             </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={ribbon} onChange={(e) => setRibbon(e.target.checked)} />
+            Ribbon layout
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={toolbarOverflow} onChange={(e) => setToolbarOverflow(e.target.checked)} />
@@ -527,7 +534,7 @@ export function App() {
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}
-              toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow }}
+              toolbarStyle={{ bordered: toolbarBordered, variant: toolbarVariant, overflow: toolbarOverflow, layout: ribbon ? 'ribbon' : 'classic' }}
               helpUrl={showHelpButton ? undefined : false}
               fontMode={uniformFont ? 'uniform' : 'selective'}
               locale={locale}

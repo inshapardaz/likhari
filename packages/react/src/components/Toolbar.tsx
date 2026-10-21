@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { Fragment, forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
@@ -114,6 +114,8 @@ import {
   IconBold,
   IconClearFormatting,
   IconDeviceFloppy,
+  IconChevronDown,
+  IconChevronUp,
   IconDots,
   IconHelpCircle,
   IconHistory,
@@ -471,13 +473,65 @@ interface EditorContextMenu {
   thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
 }
 
-function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings }) {
+/** Where a command list is shown: as items in a dropdown menu, or as icon buttons on the ribbon. */
+type ItemMode = 'menu' | 'ribbon';
+
+/** One command, as a menu item or as a ribbon button (the label becomes its tooltip and name). */
+function CommandItem({
+  mode,
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  color,
+}: {
+  mode: ItemMode;
+  icon: TablerIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  color?: string;
+}) {
+  if (mode === 'ribbon') {
+    return <ToolbarButton icon={Icon} title={label} disabled={disabled} data-danger={color === 'red' ? 'true' : undefined} onClick={onClick} />;
+  }
+  return (
+    <Menu.Item
+      color={color}
+      disabled={disabled}
+      leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
+      onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+      onClick={onClick}
+    >
+      {label}
+    </Menu.Item>
+  );
+}
+
+/** A group heading in a menu; the ribbon's tab already names the group, so it shows nothing there. */
+const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'ribbon' ? null : <Menu.Label>{children}</Menu.Label>);
+const ItemDivider = ({ mode }: { mode: ItemMode }) => (mode === 'ribbon' ? <MantineToolbar.Divider /> : <Menu.Divider />);
+
+function LinkMenuItems({ url, onEdit, onRemove, strings, mode = 'menu' }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings; mode?: ItemMode }) {
   // Only offer the link as clickable if it's a URL the editor would have accepted.
   const safeUrl = normalizeLinkUrl(url);
   return (
     <>
-      <Menu.Label>{strings.link.menuLabel}</Menu.Label>
-      {safeUrl ? (
+      <ItemLabel mode={mode}>{strings.link.menuLabel}</ItemLabel>
+      {mode === 'ribbon' ? (
+        safeUrl && (
+          <MantineToolbar.Toggle
+            component="a"
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={url}
+            title={url}
+          >
+            <IconExternalLink size={ICON_SIZE} stroke={ICON_STROKE} />
+          </MantineToolbar.Toggle>
+        )
+      ) : safeUrl ? (
         <Menu.Item
           component="a"
           href={safeUrl}
@@ -495,21 +549,8 @@ function LinkMenuItems({ url, onEdit, onRemove, strings }: { url: string; onEdit
           {url || strings.link.noUrl}
         </Menu.Item>
       )}
-      <Menu.Item
-        leftSection={<IconPencil size={ICON_SIZE} stroke={ICON_STROKE} />}
-        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-        onClick={onEdit}
-      >
-        {strings.link.editLink}
-      </Menu.Item>
-      <Menu.Item
-        color="red"
-        leftSection={<IconLinkOff size={ICON_SIZE} stroke={ICON_STROKE} />}
-        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-        onClick={onRemove}
-      >
-        {strings.link.removeLink}
-      </Menu.Item>
+      <CommandItem mode={mode} icon={IconPencil} label={strings.link.editLink} onClick={onEdit} />
+      <CommandItem mode={mode} icon={IconLinkOff} label={strings.link.removeLink} onClick={onRemove} color="red" />
     </>
   );
 }
@@ -525,7 +566,9 @@ function TableMenuItems({
   canMergeCells,
   canUnmergeCell,
   onAction,
+  mode = 'menu',
 }: {
+  mode?: ItemMode;
   strings: Strings;
   direction: 'ltr' | 'rtl';
   /** Rows / columns the selection spans: more than one switches to the plural labels. */
@@ -542,22 +585,12 @@ function TableMenuItems({
   const rtl = direction === 'rtl';
   const manyRows = rows > 1;
   const manyColumns = columns > 1;
-  const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => {
-    const Icon = icon;
-    return (
-      <Menu.Item
-        color={color}
-        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
-        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-        onClick={onAction(action)}
-      >
-        {label}
-      </Menu.Item>
-    );
-  };
+  const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => (
+    <CommandItem mode={mode} icon={icon} label={label} onClick={onAction(action)} color={color} />
+  );
   return (
     <>
-      <Menu.Label>{t.menuLabel}</Menu.Label>
+      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconRowInsertTop, manyRows ? t.insertRowsBefore : t.insertRowBefore, () => $insertTableRows(false))}
       {item(IconRowInsertBottom, manyRows ? t.insertRowsAfter : t.insertRowAfter, () => $insertTableRows(true))}
       {item(rtl ? IconColumnInsertRight : IconColumnInsertLeft, manyColumns ? t.insertColumnsBefore : t.insertColumnBefore, () =>
@@ -566,10 +599,10 @@ function TableMenuItems({
       {item(rtl ? IconColumnInsertLeft : IconColumnInsertRight, manyColumns ? t.insertColumnsAfter : t.insertColumnAfter, () =>
         $insertTableColumns(true),
       )}
-      {(canMergeCells || canUnmergeCell) && <Menu.Divider />}
+      {(canMergeCells || canUnmergeCell) && <ItemDivider mode={mode} />}
       {canMergeCells && item(IconArrowMergeBoth, t.mergeCells, $mergeTableCells)}
       {canUnmergeCell && item(IconArrowsSplit2, t.unmergeCell, $unmergeTableCell)}
-      <Menu.Divider />
+      <ItemDivider mode={mode} />
       {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
       {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
       {item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
@@ -605,7 +638,9 @@ function PoetryMenuItems({
   scale,
   centered,
   onAction,
+  mode = 'menu',
 }: {
+  mode?: ItemMode;
   strings: Strings;
   layout: PoetryLayout;
   scale: PoetryScale;
@@ -613,32 +648,21 @@ function PoetryMenuItems({
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
-  const item = (icon: TablerIcon, label: string, action: () => void, active = false, color?: string) => {
-    const Icon = icon;
-    return (
-      <Menu.Item
-        color={color}
-        disabled={active}
-        leftSection={<Icon size={ICON_SIZE} stroke={ICON_STROKE} />}
-        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-        onClick={onAction(action)}
-      >
-        {label}
-      </Menu.Item>
-    );
-  };
+  const item = (icon: TablerIcon, label: string, action: () => void, active = false, color?: string) => (
+    <CommandItem mode={mode} icon={icon} label={label} onClick={onAction(action)} disabled={active} color={color} />
+  );
   const setLayout = (next: PoetryLayout) => () => {
     const node = $getPoetryBlockFromSelection();
     if (node) $setPoetryLayout(node, next);
   };
   return (
     <>
-      <Menu.Label>{t.menuLabel}</Menu.Label>
+      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
       {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
-      <Menu.Divider />
-      <Menu.Divider />
+      <ItemDivider mode={mode} />
+      <ItemDivider mode={mode} />
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
       {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
@@ -668,8 +692,17 @@ function PoetryMenuItems({
   );
 }
 
+/** The ribbon's tabs: three always-there ones, and three that show only while the caret is in that content. */
+type RibbonTabId = 'home' | 'insert' | 'tools' | 'table' | 'poetry' | 'link';
+
 /** Appearance of the toolbar. The accent colour comes from the editor's `accentColor`. */
 export interface ToolbarStyle {
+  /**
+   * `classic` is the single row of command groups (UI spec §3.1); `ribbon` puts the same
+   * commands on tabs (Home, Insert, Tools, View) with Table, Poetry and Link tabs that
+   * appear while the caret is in that kind of content (UI spec §3.4). Default `classic`.
+   */
+  layout?: 'classic' | 'ribbon';
   /** Outline the toolbar and each button cluster. Default true. */
   bordered?: boolean;
   /** `light` tints the active button, `filled` fills it with the accent. Default `light`. */
@@ -741,6 +774,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
+  const ribbon = toolbarStyle?.layout === 'ribbon';
   const [editor] = useLexicalComposerContext();
   const [state, setState] = useState<ToolbarState>(INITIAL_STATE);
   const strings = useStrings(locale);
@@ -1118,6 +1152,31 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   };
 
   const [contextMenu, setContextMenu] = useState<EditorContextMenu | null>(null);
+  const [ribbonTab, setRibbonTab] = useState<RibbonTabId>('home');
+  const ribbonId = useId();
+  // Collapsed: only the tabs show. Clicking a tab then "peeks" at its commands in a panel over the canvas.
+  const [ribbonCollapsed, setRibbonCollapsed] = useState(false);
+  const [ribbonPeek, setRibbonPeek] = useState(false);
+  const ribbonRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ribbonPeek) return;
+    // A click outside the ribbon closes the peek, but not one in a menu or dropdown it opened: those
+    // render in the editor's portal anchor, outside the ribbon's own DOM.
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (target && (ribbonRootRef.current?.contains(target) || target.closest?.('.likhari-portal-target'))) return;
+      setRibbonPeek(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRibbonPeek(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [ribbonPeek]);
 
   useEffect(() => {
     const onContextMenu = async (event: MouseEvent) => {
@@ -1539,10 +1598,12 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const insertSection = showInsertGroup && (
-    <MantineToolbar.Group key="insert" className="likhari-toolbar-cluster">
+  /** The insert commands. `contextual` also puts the link, table and poetry option menus among them (the classic
+   * toolbar); the ribbon shows those on their own tabs instead. */
+  const insertButtons = (contextual: boolean) => (
+    <>
       {config.links &&
-        (state.isLink ? (
+        (contextual && state.isLink ? (
           <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
             <Menu.Target>
               <ToolbarButton icon={IconLink} title={strings.toolbar.linkOptions} active aria-haspopup="menu" />
@@ -1573,7 +1634,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         />
       )}
       {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
-      {config.tables && state.inTable && (
+      {contextual && config.tables && state.inTable && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
           <Menu.Target>
             <ToolbarButton icon={IconTableOptions} title={strings.toolbar.tableOptions} active aria-haspopup="menu" />
@@ -1615,7 +1676,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })}
         />
       )}
-      {config.poetry.enabled && state.inPoetry && (
+      {contextual && config.poetry.enabled && state.inPoetry && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200} onOpen={snapshotSelection}>
           <Menu.Target>
             <ToolbarButton icon={IconFeather} title={strings.toolbar.poetryOptions} active aria-haspopup="menu" />
@@ -1625,6 +1686,12 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           </Menu.Dropdown>
         </Menu>
       )}
+    </>
+  );
+
+  const insertSection = showInsertGroup && (
+    <MantineToolbar.Group key="insert" className="likhari-toolbar-cluster">
+      {insertButtons(true)}
     </MantineToolbar.Group>
   );
 
@@ -1635,6 +1702,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
+  // The tools group is always built, even when every command in it is off, so the ribbon asks first.
+  const hasToolsGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck || config.joinLines;
   const toolsSection = (
     <MantineToolbar.Group key="tools" className="likhari-toolbar-cluster">
       {config.language.autocorrect && (
@@ -1695,57 +1764,66 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
+  const draftsButton = drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />;
+  const findButton = config.findReplace && (
+    <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
+  );
+  const helpButton = helpUrl !== false && (
+    <MantineToolbar.Toggle
+      component="a"
+      href={helpUrl ?? DEFAULT_HELP_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={strings.toolbar.help}
+      title={strings.toolbar.help}
+    >
+      <IconHelpCircle size={ICON_SIZE} stroke={ICON_STROKE} />
+    </MantineToolbar.Toggle>
+  );
+
   // Drafts, search and help: the far-end group (see `endMovable` below).
   const utilitiesGroup = hasEndUtilities && (
     <MantineToolbar.Group key="end" className="likhari-toolbar-cluster">
-      {drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />}
-      {config.findReplace && (
-        <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
-      )}
-      {helpUrl !== false && (
-        <MantineToolbar.Toggle
-          component="a"
-          href={helpUrl ?? DEFAULT_HELP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={strings.toolbar.help}
-          title={strings.toolbar.help}
-        >
-          <IconHelpCircle size={ICON_SIZE} stroke={ICON_STROKE} />
-        </MantineToolbar.Toggle>
-      )}
+      {draftsButton}
+      {findButton}
+      {helpButton}
+    </MantineToolbar.Group>
+  );
+
+  const saveGroup = showSave && (
+
+    <MantineToolbar.Group key="save" className="likhari-toolbar-cluster">
+      <ToolbarButton
+        icon={IconDeviceFloppy}
+        title={strings.toolbar.save}
+        dirty={Boolean(isDirty)}
+        // Nothing to save until the content has changed since it was loaded or last saved.
+        disabled={!isDirty}
+        onClick={onSave}
+      />
+    </MantineToolbar.Group>
+  );
+  const historyGroup = config.history && (
+
+    <MantineToolbar.Group key="history" className="likhari-toolbar-cluster">
+      <ToolbarButton
+        icon={IconArrowBackUp}
+        title={strings.toolbar.undo}
+        disabled={!state.canUndo}
+        onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+      />
+      <ToolbarButton
+        icon={IconArrowForwardUp}
+        title={strings.toolbar.redo}
+        disabled={!state.canRedo}
+        onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+      />
     </MantineToolbar.Group>
   );
 
   const startSections: (ReactNode | false)[] = [
-    showSave && (
-      <MantineToolbar.Group key="save" className="likhari-toolbar-cluster">
-        <ToolbarButton
-          icon={IconDeviceFloppy}
-          title={strings.toolbar.save}
-          dirty={Boolean(isDirty)}
-          // Nothing to save until the content has changed since it was loaded or last saved.
-          disabled={!isDirty}
-          onClick={onSave}
-        />
-      </MantineToolbar.Group>
-    ),
-    config.history && (
-      <MantineToolbar.Group key="history" className="likhari-toolbar-cluster">
-        <ToolbarButton
-          icon={IconArrowBackUp}
-          title={strings.toolbar.undo}
-          disabled={!state.canUndo}
-          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-        />
-        <ToolbarButton
-          icon={IconArrowForwardUp}
-          title={strings.toolbar.redo}
-          disabled={!state.canRedo}
-          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-        />
-      </MantineToolbar.Group>
-    ),
+    saveGroup,
+    historyGroup,
     formatSection,
     alignSection,
   ];
@@ -1822,6 +1900,392 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   // Shown in the menu in toolbar order: the inline sections, then the far-end ones.
   const hiddenMovable = [...mainMovable, ...endMovable].filter((section) => !isVisible(section));
 
+  // The right-click menu and the dialogs are the same in both layouts.
+  const contextMenuEl = (
+    <Menu
+      opened={contextMenu !== null}
+      onChange={(opened) => {
+        if (!opened) setContextMenu(null);
+      }}
+      position="bottom-start"
+      withinPortal
+      portalProps={{ target: portalTarget }}
+      shadow="sm"
+      width={260}
+    >
+      <Menu.Target>
+        {/* Invisible 1px anchor positioned at the right-click */}
+        <span
+          aria-hidden="true"
+          style={{ position: 'fixed', left: contextMenu?.x ?? -9999, top: contextMenu?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
+        />
+      </Menu.Target>
+      <Menu.Dropdown>
+        {contextMenu?.spelling && (
+          <>
+            <Menu.Label>{strings.contextMenu.spelling}</Menu.Label>
+            {contextMenu.spelling.suggestions.length === 0 && <Menu.Item disabled>{strings.contextMenu.noSuggestions}</Menu.Item>}
+            {contextMenu.spelling.suggestions.map((suggestion) => (
+              <Menu.Item
+                key={suggestion}
+                onClick={() => {
+                  const match = contextMenu.spelling!.match;
+                  editor.update(() => $replaceMatch(match, suggestion), { discrete: true });
+                  editor.focus();
+                }}
+              >
+                {suggestion}
+              </Menu.Item>
+            ))}
+            <Menu.Item
+              onClick={() => {
+                ignoreWord(contextMenu.spelling!.language, contextMenu.spelling!.word);
+                setContextMenu(null);
+              }}
+            >
+              {strings.contextMenu.ignore}
+            </Menu.Item>
+            <Menu.Item
+              onClick={() => {
+                const { language, word } = contextMenu.spelling!;
+                // Without a writable store, the word is ignored for this session instead.
+                void addUserWord(dictionaryStores, language, word).then((added) => {
+                  if (!added) ignoreWord(language, word);
+                });
+                setContextMenu(null);
+              }}
+            >
+              {strings.contextMenu.addToDictionary}
+            </Menu.Item>
+            {onAddAutoCorrect && config.language.autocorrect && (
+              <Menu.Item
+                onClick={() => {
+                  onAddAutoCorrect(contextMenu.spelling!.word, contextMenu.spelling!.language);
+                  setContextMenu(null);
+                }}
+              >
+                {strings.contextMenu.addToAutoCorrect}
+              </Menu.Item>
+            )}
+            <Menu.Divider />
+          </>
+        )}
+        {contextMenu?.thesaurus && (
+          <>
+            <Menu.Label>{strings.thesaurus.synonyms}</Menu.Label>
+            {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
+            {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
+            {contextMenu.thesaurus.items?.map((synonym) => (
+              <Menu.Item
+                key={synonym}
+                onClick={() => {
+                  const match = contextMenu.thesaurus!.match;
+                  editor.update(() => $replaceMatch(match, synonym), { discrete: true });
+                  editor.focus();
+                }}
+              >
+                {synonym}
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+          </>
+        )}
+        {contextMenu?.link !== undefined && (
+          <>
+            <LinkMenuItems
+              url={contextMenu.link}
+              onEdit={() => {
+                restoreSelection();
+                openLinkDialog();
+              }}
+              onRemove={removeLink}
+              strings={strings}
+            />
+            <Menu.Divider />
+          </>
+        )}
+        {contextMenu?.table && (
+          <>
+            <TableMenuItems
+              strings={strings}
+              direction={direction}
+              rows={contextMenu.table.rows}
+              columns={contextMenu.table.columns}
+              canMergeCells={state.canMergeCells}
+              canUnmergeCell={state.canUnmergeCell}
+              onAction={runMenuAction}
+            />
+            <Menu.Divider />
+          </>
+        )}
+        {contextMenu?.poetry && (
+          <>
+            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
+            <Menu.Divider />
+          </>
+        )}
+        {contextMenu?.text && (
+          <>
+            <Menu.Item
+              leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
+              disabled={!contextMenu.canJoin}
+              onClick={runMenuAction(() => {
+                $joinSelectedLines();
+              })}
+            >
+              {strings.contextMenu.joinLines}
+            </Menu.Item>
+            <Menu.Divider />
+          </>
+        )}
+        <Menu.Item leftSection={<IconCut size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(true)()}>
+          {strings.contextMenu.cut}
+        </Menu.Item>
+        <Menu.Item leftSection={<IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(false)()}>
+          {strings.contextMenu.copy}
+        </Menu.Item>
+        <Menu.Item leftSection={<IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void paste()}>
+          {strings.contextMenu.paste}
+        </Menu.Item>
+        <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
+          {strings.contextMenu.selectAll}
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  );
+
+  const dialogsEl = (
+    <>
+      {(config.images.linked || config.images.embedded) && (
+        <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
+      )}
+      {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
+      {config.columns && <LayoutDialog opened={layoutDialogOpen} onSubmit={insertLayout} onClose={closeLayoutDialog} />}
+      {config.links && (
+        <LinkDialog
+          opened={linkDialogOpen}
+          initialUrl={state.linkUrl}
+          showTextField={linkNeedsText}
+          onSubmit={applyLink}
+          onRemove={state.isLink ? removeLink : undefined}
+          onClose={closeLinkDialog}
+        />
+      )}
+      {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
+    </>
+  );
+
+  // The ribbon layout (UI spec §3.4): the same command groups as above, on tabs.
+  if (ribbon) {
+    const rt = strings.toolbar.ribbon;
+    const cluster = (key: string, children: ReactNode) => (
+      <MantineToolbar.Group key={key} className="likhari-toolbar-cluster">
+        {children}
+      </MantineToolbar.Group>
+    );
+    const groupsByTab: Record<RibbonTabId, (ReactNode | false)[]> = {
+      home: [formatSection, alignSection, fontSection],
+      insert: [showInsertGroup && cluster('insert', insertButtons(false))],
+      tools: [hasToolsGroup && toolsSection],
+      table: [
+        config.tables &&
+          state.inTable &&
+          cluster(
+            'table',
+            <TableMenuItems
+              mode="ribbon"
+              strings={strings}
+              direction={direction}
+              rows={state.tableRows}
+              columns={state.tableColumns}
+              canMergeCells={state.canMergeCells}
+              canUnmergeCell={state.canUnmergeCell}
+              onAction={runMenuAction}
+            />,
+          ),
+      ],
+      poetry: [
+        config.poetry.enabled &&
+          state.inPoetry &&
+          cluster(
+            'poetry',
+            <PoetryMenuItems
+              mode="ribbon"
+              strings={strings}
+              layout={state.poetryLayout}
+              scale={state.poetryScale}
+              centered={state.poetryCentered}
+              onAction={runMenuAction}
+            />,
+          ),
+      ],
+      link: [
+        config.links &&
+          state.isLink &&
+          cluster(
+            'link',
+            <LinkMenuItems
+              mode="ribbon"
+              url={state.linkUrl}
+              onEdit={() => {
+                restoreSelection();
+                openLinkDialog();
+              }}
+              onRemove={removeLink}
+              strings={strings}
+            />,
+          ),
+      ],
+    };
+    const CONTEXTUAL: RibbonTabId[] = ['table', 'poetry', 'link'];
+    // A tab with nothing to show (its features are off, or the caret is not in that content) is left out.
+    const tabs = (['home', 'insert', 'tools', ...CONTEXTUAL] as RibbonTabId[])
+      .map((id) => ({ id, label: rt[id], groups: groupsByTab[id].filter(Boolean) }))
+      .filter((tab) => tab.groups.length > 0);
+    const activeTab = tabs.find((tab) => tab.id === ribbonTab) ?? tabs[0];
+    // A context tab that went away (the caret left the table) must not come back selected on its own later.
+    if (activeTab && activeTab.id !== ribbonTab) setRibbonTab(activeTab.id);
+
+    const panelVisible = !ribbonCollapsed || ribbonPeek;
+    const toggleCollapsed = () => {
+      setRibbonCollapsed((collapsed) => !collapsed);
+      setRibbonPeek(false);
+    };
+    const tabDomId = (id: RibbonTabId) => `${ribbonId}-tab-${id}`;
+    const onTabKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || tabs.length === 0) return;
+      const index = Math.max(0, tabs.findIndex((tab) => tab.id === activeTab?.id));
+      const forward = event.key === (direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight');
+      const next =
+        event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (forward ? 1 : -1) + tabs.length) % tabs.length;
+      event.preventDefault();
+      setRibbonTab(tabs[next].id);
+      event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+    };
+
+    // Save, undo and redo come before the tabs; drafts, search and help come after them. Neither is on a tab,
+    // so both stay in reach whichever tab is open (and when there are no tabs).
+    const quickAccess = [saveGroup, historyGroup].filter(Boolean);
+    const utilities = (draftsButton || findButton || helpButton) &&
+      cluster(
+        'utilities',
+        <>
+          {draftsButton}
+          {findButton}
+          {helpButton}
+        </>,
+      );
+    // The collapse button belongs to the row, not to a tab, and is only offered when there are tabs to hide the commands of.
+    const collapseGroup =
+      tabs.length > 0 &&
+      cluster(
+        'collapse',
+        <ToolbarButton
+          icon={ribbonCollapsed ? IconChevronDown : IconChevronUp}
+          title={ribbonCollapsed ? rt.expand : rt.collapse}
+          aria-expanded={!ribbonCollapsed}
+          onClick={toggleCollapsed}
+        />,
+      );
+    // Zoom (uniform font mode) is a view setting, not a tab: it leads the document tools.
+    const utilityBar = [zoomGroup, utilities, collapseGroup].filter(Boolean);
+    return (
+      <div
+        ref={ribbonRootRef}
+        className={['likhari-ribbon', bordered ? '' : 'likhari-ribbon--plain', ribbonCollapsed ? 'likhari-ribbon--collapsed' : ''].filter(Boolean).join(' ')}
+        onKeyDown={(event) => {
+          // Ctrl+F1 collapses and expands the ribbon, as in office suites.
+          if (event.key === 'F1' && event.ctrlKey && tabs.length > 0) {
+            event.preventDefault();
+            toggleCollapsed();
+          }
+        }}
+      >
+        <div className="likhari-ribbon-top">
+          {quickAccess.length > 0 && (
+            <MantineToolbar
+              aria-label={rt.quickAccess}
+              className="likhari-ribbon-quick"
+              withBorder={false}
+              variant={variant}
+              color="var(--editor-accent)"
+            >
+              {withDividers(quickAccess)}
+            </MantineToolbar>
+          )}
+          {tabs.length > 0 && (
+          <div role="tablist" aria-label={rt.tabsLabel} className="likhari-ribbon-tabs" onKeyDown={onTabKeyDown}>
+            {tabs.map((tab) => {
+              // While the ribbon is collapsed a tab only counts as selected when its panel is peeking open.
+              const selected = panelVisible && tab.id === activeTab?.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={tabDomId(tab.id)}
+                  aria-selected={selected}
+                  aria-controls={selected ? `${ribbonId}-panel` : undefined}
+                  tabIndex={tab.id === activeTab?.id ? 0 : -1}
+                  className="likhari-ribbon-tab"
+                  data-contextual={CONTEXTUAL.includes(tab.id) ? 'true' : undefined}
+                  // Keep the editor's selection: a mousedown here would blur the canvas.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setRibbonTab(tab.id);
+                    // Collapsed: a tab opens its commands over the canvas, and clicking it again closes them.
+                    if (ribbonCollapsed) setRibbonPeek(!(ribbonPeek && tab.id === activeTab?.id));
+                  }}
+                  onDoubleClick={toggleCollapsed}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          )}
+          {utilityBar.length > 0 && (
+            <MantineToolbar
+              aria-label={rt.utilities}
+              className="likhari-ribbon-utilities"
+              withBorder={false}
+              variant={variant}
+              color="var(--editor-accent)"
+            >
+              {withDividers(utilityBar)}
+            </MantineToolbar>
+          )}
+        </div>
+        {panelVisible && activeTab && (
+          <div
+            role="tabpanel"
+            id={`${ribbonId}-panel`}
+            aria-labelledby={tabDomId(activeTab.id)}
+            className={ribbonCollapsed ? 'likhari-ribbon-panel-wrap likhari-ribbon-panel-wrap--peek' : 'likhari-ribbon-panel-wrap'}
+            onClick={(event) => {
+              // A command chosen from the peeking panel closes it, as in office suites. A button that opens a
+              // menu (More formatting) keeps it open, so the menu is not pulled away from under the pointer.
+              const button = (event.target as Element).closest('button, a');
+              if (ribbonCollapsed && button && !button.hasAttribute('aria-haspopup')) setRibbonPeek(false);
+            }}
+          >
+            <MantineToolbar
+              aria-label={strings.toolbar.ariaLabel}
+              className={bordered ? 'likhari-toolbar likhari-ribbon-panel' : 'likhari-toolbar likhari-toolbar--plain likhari-ribbon-panel'}
+              withBorder={bordered}
+              variant={variant}
+              color="var(--editor-accent)"
+            >
+              {withDividers(activeTab.groups)}
+            </MantineToolbar>
+          </div>
+        )}
+        {contextMenuEl}
+        {dialogsEl}
+      </div>
+    );
+  }
+
   return (
     <MantineToolbar
       ref={toolbarContainerRef}
@@ -1877,156 +2341,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       <span aria-hidden="true" style={{ flex: '1 1 auto' }} />
       {visibleEnd.map((section) => section.node)}
 
-      <Menu
-        opened={contextMenu !== null}
-        onChange={(opened) => {
-          if (!opened) setContextMenu(null);
-        }}
-        position="bottom-start"
-        withinPortal
-        portalProps={{ target: portalTarget }}
-        shadow="sm"
-        width={260}
-      >
-        <Menu.Target>
-          {/* Invisible 1px anchor positioned at the right-click */}
-          <span
-            aria-hidden="true"
-            style={{ position: 'fixed', left: contextMenu?.x ?? -9999, top: contextMenu?.y ?? -9999, width: 1, height: 1, pointerEvents: 'none' }}
-          />
-        </Menu.Target>
-        <Menu.Dropdown>
-          {contextMenu?.spelling && (
-            <>
-              <Menu.Label>{strings.contextMenu.spelling}</Menu.Label>
-              {contextMenu.spelling.suggestions.length === 0 && <Menu.Item disabled>{strings.contextMenu.noSuggestions}</Menu.Item>}
-              {contextMenu.spelling.suggestions.map((suggestion) => (
-                <Menu.Item
-                  key={suggestion}
-                  onClick={() => {
-                    const match = contextMenu.spelling!.match;
-                    editor.update(() => $replaceMatch(match, suggestion), { discrete: true });
-                    editor.focus();
-                  }}
-                >
-                  {suggestion}
-                </Menu.Item>
-              ))}
-              <Menu.Item
-                onClick={() => {
-                  ignoreWord(contextMenu.spelling!.language, contextMenu.spelling!.word);
-                  setContextMenu(null);
-                }}
-              >
-                {strings.contextMenu.ignore}
-              </Menu.Item>
-              <Menu.Item
-                onClick={() => {
-                  const { language, word } = contextMenu.spelling!;
-                  // Without a writable store, the word is ignored for this session instead.
-                  void addUserWord(dictionaryStores, language, word).then((added) => {
-                    if (!added) ignoreWord(language, word);
-                  });
-                  setContextMenu(null);
-                }}
-              >
-                {strings.contextMenu.addToDictionary}
-              </Menu.Item>
-              {onAddAutoCorrect && config.language.autocorrect && (
-                <Menu.Item
-                  onClick={() => {
-                    onAddAutoCorrect(contextMenu.spelling!.word, contextMenu.spelling!.language);
-                    setContextMenu(null);
-                  }}
-                >
-                  {strings.contextMenu.addToAutoCorrect}
-                </Menu.Item>
-              )}
-              <Menu.Divider />
-            </>
-          )}
-          {contextMenu?.thesaurus && (
-            <>
-              <Menu.Label>{strings.thesaurus.synonyms}</Menu.Label>
-              {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
-              {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
-              {contextMenu.thesaurus.items?.map((synonym) => (
-                <Menu.Item
-                  key={synonym}
-                  onClick={() => {
-                    const match = contextMenu.thesaurus!.match;
-                    editor.update(() => $replaceMatch(match, synonym), { discrete: true });
-                    editor.focus();
-                  }}
-                >
-                  {synonym}
-                </Menu.Item>
-              ))}
-              <Menu.Divider />
-            </>
-          )}
-          {contextMenu?.link !== undefined && (
-            <>
-              <LinkMenuItems
-                url={contextMenu.link}
-                onEdit={() => {
-                  restoreSelection();
-                  openLinkDialog();
-                }}
-                onRemove={removeLink}
-                strings={strings}
-              />
-              <Menu.Divider />
-            </>
-          )}
-          {contextMenu?.table && (
-            <>
-              <TableMenuItems
-                strings={strings}
-                direction={direction}
-                rows={contextMenu.table.rows}
-                columns={contextMenu.table.columns}
-                canMergeCells={state.canMergeCells}
-                canUnmergeCell={state.canUnmergeCell}
-                onAction={runMenuAction}
-              />
-              <Menu.Divider />
-            </>
-          )}
-          {contextMenu?.poetry && (
-            <>
-              <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
-              <Menu.Divider />
-            </>
-          )}
-          {contextMenu?.text && (
-            <>
-              <Menu.Item
-                leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
-                disabled={!contextMenu.canJoin}
-                onClick={runMenuAction(() => {
-                  $joinSelectedLines();
-                })}
-              >
-                {strings.contextMenu.joinLines}
-              </Menu.Item>
-              <Menu.Divider />
-            </>
-          )}
-          <Menu.Item leftSection={<IconCut size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(true)()}>
-            {strings.contextMenu.cut}
-          </Menu.Item>
-          <Menu.Item leftSection={<IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(false)()}>
-            {strings.contextMenu.copy}
-          </Menu.Item>
-          <Menu.Item leftSection={<IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void paste()}>
-            {strings.contextMenu.paste}
-          </Menu.Item>
-          <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
-            {strings.contextMenu.selectAll}
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
+      {contextMenuEl}
 
       {/* Hidden clone, rendering every movable section inline with no
           wrapping — its natural (unclipped) width is what the effect above
@@ -2055,22 +2370,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         </MantineToolbar>
       )}
 
-      {(config.images.linked || config.images.embedded) && (
-        <ImageDialog mode="insert" opened={imageDialogOpen} onSubmit={insertImage} onClose={closeImageDialog} />
-      )}
-      {config.tables && <TableDialog opened={tableDialogOpen} onSubmit={insertTable} onClose={closeTableDialog} />}
-      {config.columns && <LayoutDialog opened={layoutDialogOpen} onSubmit={insertLayout} onClose={closeLayoutDialog} />}
-      {config.links && (
-        <LinkDialog
-          opened={linkDialogOpen}
-          initialUrl={state.linkUrl}
-          showTextField={linkNeedsText}
-          onSubmit={applyLink}
-          onRemove={state.isLink ? removeLink : undefined}
-          onClose={closeLinkDialog}
-        />
-      )}
-      {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
+      {dialogsEl}
     </MantineToolbar>
   );
 }
