@@ -104,6 +104,119 @@ describe('mergePages', () => {
   });
 });
 
+describe('continuing paragraphs across pages', () => {
+  const join = { joinParagraphs: true } as const;
+  const merged = (pages: Parameters<typeof mergePagesToState>[0], options: Parameters<typeof mergePagesToState>[1] = join) =>
+    mergePages(pages, { outputFormat: 'markdown', ...options });
+
+  it('is off by default: an unfinished page still gets a break', () => {
+    expect(types(mergePagesToState(['the sentence goes', 'on here.']))).toEqual(['paragraph', 'page-break', 'paragraph']);
+  });
+
+  it('joins a page that stops mid-sentence onto the next, with no break between', () => {
+    expect(merged(['the sentence goes', 'on here.'])).toBe('the sentence goes on here.\n');
+  });
+
+  it('starts a new paragraph, with a break, after a finished sentence', () => {
+    expect(merged(['It ended.', 'A new one.'])).toBe('It ended.\n\n::pagebreak\n\nA new one.\n');
+  });
+
+  it('works for Urdu full stops and question marks', () => {
+    expect(merged(['یہ جملہ ختم ہوا۔', 'نیا جملہ'])).toContain('::pagebreak');
+    expect(merged(['کیا یہ ختم ہوا؟', 'نیا جملہ'])).toContain('::pagebreak');
+    expect(merged(['یہ جملہ ابھی', 'جاری ہے۔'])).toBe('یہ جملہ ابھی جاری ہے۔\n');
+  });
+
+  it('only joins the first paragraph of the next page; the rest follow as normal blocks', () => {
+    expect(merged(['one two', 'three\n\nfour.\n\nfive.'])).toBe('one two three\n\nfour.\n\nfive.\n');
+  });
+
+  it('chains through a page that is one unfinished paragraph', () => {
+    const state = mergePagesToState(['start of a', 'long sentence that', 'finally ends.'], join);
+    expect(types(state)).toEqual(['paragraph']);
+    expect(merged(['start of a', 'long sentence that', 'finally ends.'])).toBe('start of a long sentence that finally ends.\n');
+  });
+
+  it('decides each boundary on its own', () => {
+    const state = mergePagesToState(['half a', 'sentence.', 'next page', 'goes on'], join);
+    expect(types(state)).toEqual(['paragraph', 'page-break', 'paragraph']);
+    expect(merged(['half a', 'sentence.', 'next page', 'goes on'])).toBe('half a sentence.\n\n::pagebreak\n\nnext page goes on\n');
+  });
+
+  it('does not join into or out of headings, lists, quotes or an indented paragraph', () => {
+    expect(types(mergePagesToState(['# Heading', 'text'], join))).toEqual(['heading', 'page-break', 'paragraph']);
+    expect(types(mergePagesToState(['unfinished', '# Heading'], join))).toEqual(['paragraph', 'page-break', 'heading']);
+    expect(types(mergePagesToState(['unfinished', '- item'], join))).toEqual(['paragraph', 'page-break', 'list']);
+    expect(types(mergePagesToState(['> quoted', 'text'], join))).toEqual(['quote', 'page-break', 'paragraph']);
+    const indented = lexicalJsonConverter.serialize(makeState([paragraph([textNode('indented')], { indent: 1 })]));
+    expect(types(mergePagesToState(['unfinished', { content: indented, format: 'lexical-json' }], join))).toEqual(['paragraph', 'page-break', 'paragraph']);
+  });
+
+  it('does not join across a change of direction or alignment', () => {
+    const rtl = lexicalJsonConverter.serialize(makeState([paragraph([textNode('اردو')], { direction: 'rtl' })]));
+    const ltr = lexicalJsonConverter.serialize(makeState([paragraph([textNode('english')], { direction: 'ltr' })]));
+    expect(types(mergePagesToState([{ content: ltr, format: 'lexical-json' }, { content: rtl, format: 'lexical-json' }], join))).toContain('page-break');
+    expect(types(mergePagesToState(['unfinished', ':::para{align="center"}\ntext\n:::'], join))).toContain('page-break');
+  });
+
+  it('keeps formatting at the seam', () => {
+    const state = mergePagesToState(['plain **bold**', '*italic* end.'], join);
+    const children = blocksOf(state)[0].children!;
+    expect(children.map((c) => [c.text, c.format])).toEqual([['plain ', 0], ['bold', 1], [' ', 0], ['italic', 2], [' end.', 0]]);
+  });
+
+  it('joins across Lexical JSON pages', () => {
+    const page = (text: string) => lexicalJsonConverter.serialize(makeState([paragraph([textNode(text)])]));
+    expect(mergePages([page('half a'), page('sentence.')], { inputFormat: 'lexical-json', joinParagraphs: true, outputFormat: 'plain-text' })).toBe('half a sentence.');
+  });
+
+  it('does not join onto a blank page, and a skipped blank page does not hide a continuation', () => {
+    expect(types(mergePagesToState(['unfinished', '', 'later'], join))).toEqual(['paragraph', 'page-break', 'paragraph', 'page-break', 'paragraph']);
+    expect(types(mergePagesToState(['unfinished', '', 'later'], { ...join, skipBlankPages: true }))).toEqual(['paragraph']);
+  });
+
+  it('produces the same joined text in every output format', () => {
+    const pages = ['half a', 'sentence.'];
+    expect(mergePages(pages, { ...join, outputFormat: 'plain-text' })).toBe('half a sentence.');
+    expect(mergePages(pages, { ...join, outputFormat: 'html' })).toBe('<p>half a sentence.</p>');
+    expect(JSON.parse(mergePages(pages, { ...join, outputFormat: 'lexical-json' })).root.children).toHaveLength(1);
+  });
+
+  it('still gathers footnotes from joined pages into the one list', () => {
+    const state = mergePagesToState(['half a[^1]\n\n[^1]: one', 'sentence[^1].\n\n[^1]: two'], join);
+    expect(types(state)).toEqual(['paragraph', 'footnote-list']);
+    expect(blocksOf(state)[1].children).toHaveLength(2);
+    expect(mergePages(['half a[^1]\n\n[^1]: one', 'sentence[^1].\n\n[^1]: two'], { ...join, outputFormat: 'markdown' })).toContain('[^1-2]');
+  });
+
+  describe('the per-page "continues" flag', () => {
+    it('forces a join even when the sentence looks finished', () => {
+      expect(merged(['It ended.', { content: 'but did not.', continues: true }], {})).toBe('It ended. but did not.\n');
+    });
+
+    it('forces a new paragraph even when the sentence looks unfinished', () => {
+      expect(merged(['unfinished', { content: 'new paragraph', continues: false }])).toBe('unfinished\n\n::pagebreak\n\nnew paragraph\n');
+    });
+
+    it('works without joinParagraphs turned on', () => {
+      expect(merged(['one', { content: 'two', continues: true }, 'three'], {})).toBe('one two\n\n::pagebreak\n\nthree\n');
+    });
+
+    it('is ignored on the first page', () => {
+      expect(types(mergePagesToState([{ content: 'a', continues: true }]))).toEqual(['paragraph']);
+    });
+
+    it('cannot join what is not a paragraph, so the break stays', () => {
+      expect(types(mergePagesToState(['# Heading', { content: 'text', continues: true }]))).toEqual(['heading', 'page-break', 'paragraph']);
+    });
+
+    it('combines with a per-page format', () => {
+      const json = lexicalJsonConverter.serialize(makeState([paragraph([textNode('second')])]));
+      expect(merged(['first', { content: json, format: 'lexical-json', continues: true }], {})).toBe('first second\n');
+    });
+  });
+});
+
 describe('footnotes across pages', () => {
   const page = (note: string) => `claim[^1]\n\n[^1]: ${note}`;
 

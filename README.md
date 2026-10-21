@@ -248,6 +248,22 @@ note; every page's notes end up in one list at the end. A page that cannot be re
 error naming it (`page 2 is not valid lexical-json: …`). `mergePagesToState` returns the
 combined Lexical state instead of a string, to load or post-process it.
 
+**Paragraphs that run across a page.** Text alone cannot say whether a page carries on the
+previous page's last paragraph, so there are two ways to tell the merge:
+
+- `joinParagraphs: true` guesses. Page *n+1* continues page *n* when *n*'s last block is a
+  paragraph that stops mid-sentence (it does not end in `۔ ؟ ! ? . …`, ignoring closing quotes
+  and brackets; a comma, colon, semicolon or plain word counts as unfinished) and *n+1* opens
+  with an unindented paragraph of the same direction and alignment. Headings, lists, quotes,
+  tables and blank pages never join.
+- `{ content, continues: true | false }` on a page decides for that page, over the guess (and
+  works with `joinParagraphs` off). Use it where you know, for instance from a proofreader's flag.
+
+Joined paragraphs are merged into one, separated by a single space, with each run's formatting
+kept. A page break cannot sit inside a paragraph, so **no break is inserted where pages are
+joined**. The guess is tuned for Urdu and English punctuation; it is a heuristic, so check
+documents where a wrong call matters and use `continues` to correct it.
+
 **From React, Vue or the web component:** it is a plain function, so call it anywhere in app
 code, not only inside a component. `npm install @inshapardaz/likhari-converters` and import it
 (the React, Vue and web-component packages depend on it, but list it yourself if you import it
