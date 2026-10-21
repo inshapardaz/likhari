@@ -11,6 +11,8 @@ export interface MergePagesOptions {
   inputFormat?: FormatId;
   /** The format of the combined document. */
   outputFormat: FormatId;
+  /** Leave out pages with no content: nothing, whitespace, or only empty paragraphs. Off by default. */
+  skipBlankPages?: boolean;
   /** Passed to every parse and to the final serialize (image URL resolver and the like). */
   context?: ConverterContext;
   /** Defaults to the registry with all four built-in formats. */
@@ -19,11 +21,12 @@ export interface MergePagesOptions {
 
 /** Parses each page and returns the combined document as Lexical state, without serializing it. */
 export function mergePagesToState(pages: PageInput[], options: Omit<MergePagesOptions, 'outputFormat'> = {}): SerializedEditorState {
-  const { inputFormat = 'markdown', context, registry = defaultFormatRegistry } = options;
+  const { inputFormat = 'markdown', skipBlankPages = false, context, registry = defaultFormatRegistry } = options;
 
   const body: SNode[] = [];
   const footnotes: SNode[] = [];
   const takenFootnoteIds = new Set<string>();
+  let kept = 0;
 
   pages.forEach((page, index) => {
     const { content, format = inputFormat } = typeof page === 'string' ? { content: page } : page;
@@ -35,13 +38,16 @@ export function mergePagesToState(pages: PageInput[], options: Omit<MergePagesOp
       throw new Error(`mergePages: page ${index + 1} is not valid ${format}: ${reason}`);
     }
 
+    if (skipBlankPages && blocks.every(isBlank)) return;
+
     // Each page brings its own footnote list; they are combined into one at the end.
     const pageLists = blocks.filter((block) => block.type === 'footnote-list');
     const pageBody = blocks.filter((block) => block.type !== 'footnote-list');
     uniquifyFootnoteIds([...pageBody, ...pageLists], takenFootnoteIds);
     for (const list of pageLists) footnotes.push(...(list.children ?? []));
 
-    if (index > 0) body.push({ type: 'page-break', version: 1 });
+    if (kept > 0) body.push({ type: 'page-break', version: 1 });
+    kept += 1;
     body.push(...pageBody);
   });
 
@@ -53,6 +59,8 @@ export function mergePagesToState(pages: PageInput[], options: Omit<MergePagesOp
  * with a page break between each pair of pages, in the requested output format. Needs no
  * editor or DOM, so it can run in a server, a worker or a build script.
  *
+ * With `skipBlankPages`, blank pages are left out and no break is added for them.
+ *
  * Footnote ids are only unique within a page, so a page whose footnote ids clash with an
  * earlier page's gets them renamed (`1` becomes `1-2`), in references and notes alike; the
  * notes of all pages end up in one list at the end of the document.
@@ -60,6 +68,12 @@ export function mergePagesToState(pages: PageInput[], options: Omit<MergePagesOp
 export function mergePages(pages: PageInput[], options: MergePagesOptions): string {
   const registry = options.registry ?? defaultFormatRegistry;
   return registry.serialize(options.outputFormat, mergePagesToState(pages, options), options.context);
+}
+
+/** A block with nothing in it: a paragraph holding only whitespace and line breaks. Anything else (an image, a rule, a table, a break) is content. */
+function isBlank(block: SNode): boolean {
+  if (block.type !== 'paragraph') return false;
+  return (block.children ?? []).every((child) => (child.type === 'text' ? String(child.text ?? '').trim() === '' : child.type === 'linebreak'));
 }
 
 /** Renames this page's footnote ids that an earlier page already uses, then claims all its ids. */

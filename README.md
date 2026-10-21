@@ -240,11 +240,20 @@ mergePages(pageJson, { inputFormat: 'lexical-json', outputFormat: 'markdown' });
 mergePages([md, { content: json, format: 'lexical-json' }], { outputFormat: 'html' }); // mixed
 ```
 
-Blank pages are kept, so page numbers still line up. Footnote ids are only unique within a
+Blank pages are kept by default, so page numbers still line up; pass `skipBlankPages: true` to
+leave out pages that are empty, whitespace or only empty paragraphs (a page with a rule, image or
+break is not blank), with no stray page break left behind. Footnote ids are only unique within a
 page, so a clashing id on a later page is renamed (`1` becomes `1-2`) in its references and
 note; every page's notes end up in one list at the end. A page that cannot be read throws an
 error naming it (`page 2 is not valid lexical-json: …`). `mergePagesToState` returns the
 combined Lexical state instead of a string, to load or post-process it.
+
+**From React, Vue or the web component:** it is a plain function, so call it anywhere in app
+code, not only inside a component. `npm install @inshapardaz/likhari-converters` and import it
+(the React, Vue and web-component packages depend on it, but list it yourself if you import it
+directly, since a strict package manager will not expose a transitive dependency). Load the
+result with `setContent(merged, 'markdown')` (or whichever output format you chose) on
+`EditorRef`, the Vue wrapper or the web component.
 
 ### Images
 

@@ -50,6 +50,38 @@ describe('mergePages', () => {
     expect(types(mergePagesToState(['a', '', 'c']))).toEqual(['paragraph', 'page-break', 'paragraph', 'page-break', 'paragraph']);
   });
 
+  describe('skipBlankPages', () => {
+    const skip = (pages: Parameters<typeof mergePagesToState>[0]) => types(mergePagesToState(pages, { skipBlankPages: true }));
+
+    it('drops empty and whitespace-only pages without leaving a stray break', () => {
+      expect(skip(['a', '', '   \n\n  ', 'c'])).toEqual(['paragraph', 'page-break', 'paragraph']);
+    });
+
+    it('does not put a break before the first kept page or after the last', () => {
+      expect(skip(['', 'a', ''])).toEqual(['paragraph']);
+    });
+
+    it('gives an empty document when every page is blank', () => {
+      expect(skip(['', ' '])).toEqual(['paragraph']);
+      expect(mergePages(['', ' '], { skipBlankPages: true, outputFormat: 'plain-text' })).toBe('');
+    });
+
+    it('treats a Lexical JSON page of one empty paragraph as blank', () => {
+      const blank = lexicalJsonConverter.serialize(makeState([paragraph()]));
+      const full = lexicalJsonConverter.serialize(makeState([paragraph([textNode('text')])]));
+      expect(types(mergePagesToState([full, blank, full], { inputFormat: 'lexical-json', skipBlankPages: true }))).toEqual(['paragraph', 'page-break', 'paragraph']);
+    });
+
+    it('keeps a page that has only a rule, an image or a page break', () => {
+      expect(skip(['a', '---', 'b'])).toEqual(['paragraph', 'page-break', 'horizontalrule', 'page-break', 'paragraph']);
+      expect(skip(['::pagebreak'])).toContain('page-break');
+    });
+
+    it('keeps blank pages unless asked', () => {
+      expect(types(mergePagesToState(['a', '', 'c']))).toHaveLength(5);
+    });
+  });
+
   it('does not alter the Markdown of each page', () => {
     const page = '## Heading\n\n- [x] done\n\n| A | B |\n| - | - |\n| 1 | 2 |';
     const merged = mergePages([page, page], { outputFormat: 'markdown' });
