@@ -120,7 +120,10 @@ it. The ribbon has the same commands and the same configuration toggles, regroup
 - **Tab strip** (a `tablist`): Home, Insert, Tools, View, then any context tabs. Two groups sit on the
   same row but are on no tab, so they stay in reach on every tab and when there are no tabs at all:
   **quick access** (save, undo, redo) before the tabs, and **document tools** (drafts, search/find and
-  replace, help) after them, each its own named toolbar. In RTL (§5) the row mirrors as a whole.
+  replace, help) after them, each its own named toolbar. Their buttons are flat icons: no border or
+  background at rest (hover tints them); an open state (search) is an accent icon with a short bar
+  under it, and unsaved changes on Save an accent icon with a dot, rather than the classic toolbar's
+  filled Save. In RTL (§5) the row mirrors as a whole.
 - **Command row**: the selected tab's groups, in the §3.2 sizes (46px row, 30×30px buttons,
   hairline dividers). It never wraps and never collapses into a "..." menu; on a narrow screen it
   scrolls sideways, and so does the tab strip.

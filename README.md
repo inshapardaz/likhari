@@ -557,7 +557,9 @@ unless you ask for it.
 | **Table**, **Poetry**, **Link** | the table, poetry and link commands, as buttons; each tab appears (tinted) only while the caret is in a table, a poetry couplet or a link |
 
 Save, undo and redo (the "Quick access" group) sit **before the tabs**, and drafts, search (find and
-replace) and help (the "Document tools" group) sit **after them**. Neither group is on a tab, so
+replace) and help (the "Document tools" group) sit **after them**; their buttons are flat, with no
+border or background (hover tints them, "on" and "unsaved changes" are shown by an accent icon and a
+bar or dot). Neither group is on a tab, so
 they stay in reach whichever tab is open, and when there are no tabs. A tab with nothing in it (its
 features are off) is not shown, so the `minimal` preset has no tabs at all, only those two groups.
 A context tab never takes the selection by itself: it appears and you open it when you want it. If

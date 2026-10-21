@@ -1216,3 +1216,85 @@
 .likhari-ribbon-panel [data-danger='true'] {
   color: var(--mantine-color-red-6, #e03131);
 }
+
+/* The buttons on the tab row, outside every tab (save, undo, redo; drafts, search, help): flat icons with no
+   border or background at rest. Hover tints them; "on" and "unsaved" are shown by colour and a mark instead
+   of a fill, so the row stays light next to the tabs. */
+.likhari-ribbon-quick .likhari-toolbar-cluster,
+.likhari-ribbon-utilities .likhari-toolbar-cluster {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle],
+.likhari-ribbon-utilities [data-toolbar-toggle] {
+  position: relative;
+  border: none;
+  border-radius: 6px;
+  background: transparent !important;
+  color: var(--editor-ink-soft);
+}
+
+.likhari-ribbon-quick .likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle],
+.likhari-ribbon-utilities .likhari-toolbar-cluster [data-toolbar-toggle] + [data-toolbar-toggle] {
+  border-inline-start: none;
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle]:hover:not(:disabled):not([data-disabled]),
+.likhari-ribbon-utilities [data-toolbar-toggle]:hover:not(:disabled):not([data-disabled]) {
+  background: var(--editor-accent-soft) !important;
+  color: var(--editor-ink);
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle]:disabled,
+.likhari-ribbon-quick [data-toolbar-toggle][data-disabled],
+.likhari-ribbon-utilities [data-toolbar-toggle]:disabled,
+.likhari-ribbon-utilities [data-toolbar-toggle][data-disabled] {
+  color: var(--editor-ink-soft);
+  opacity: 0.45;
+}
+
+/* A button that is on (find and replace open): accent icon with a short bar under it. */
+.likhari-ribbon-quick [data-toolbar-toggle][aria-pressed='true'],
+.likhari-ribbon-utilities [data-toolbar-toggle][aria-pressed='true'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-toolbar-toggle][aria-pressed='true']::after,
+.likhari-ribbon-utilities [data-toolbar-toggle][aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 7px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--editor-accent);
+}
+
+/* Save with unsaved changes: accent icon and a dot, not the filled button the classic toolbar uses. */
+.likhari-ribbon-quick [data-dirty='true'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='true']::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='true']:hover,
+.likhari-ribbon-quick [data-dirty='false'] {
+  color: var(--editor-accent);
+}
+
+.likhari-ribbon-quick [data-dirty='false']:disabled,
+.likhari-ribbon-quick [data-dirty='false'][data-disabled] {
+  color: var(--editor-ink-soft);
+}

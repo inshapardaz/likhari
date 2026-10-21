@@ -366,6 +366,102 @@ test.describe('drafts, search and help sit on the tab row, outside every tab', (
   });
 });
 
+test.describe('the buttons on the tab row are flat', () => {
+  type Look = { background: string; border: string; clusterBorder: string; clusterBackground: string };
+  const look = (button: ReturnType<Page['locator']>): Promise<Look> =>
+    button.evaluate((el) => {
+      const c = getComputedStyle(el);
+      const cluster = getComputedStyle(el.closest('.likhari-toolbar-cluster')!);
+      return {
+        background: c.backgroundColor,
+        border: `${c.borderTopWidth} ${c.borderInlineStartWidth}`,
+        clusterBorder: cluster.borderTopWidth,
+        clusterBackground: cluster.backgroundColor,
+      };
+    });
+  const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+
+  test('save, undo, redo, drafts, search and help have no border and no background', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.mouse.move(0, 0);
+    const buttons = [
+      quick(page).getByRole('button', { name: 'Save' }),
+      quick(page).getByRole('button', { name: 'Undo' }),
+      quick(page).getByRole('button', { name: 'Redo' }),
+      utilities(page).getByRole('button', { name: 'Drafts' }),
+      utilities(page).getByRole('button', { name: 'Find and replace' }),
+      utilities(page).getByRole('link', { name: 'Help' }),
+    ];
+    for (const button of buttons) {
+      expect(await look(button), (await button.getAttribute('aria-label')) ?? undefined).toEqual({
+        background: TRANSPARENT,
+        border: '0px 0px',
+        clusterBorder: '0px',
+        clusterBackground: TRANSPARENT,
+      });
+    }
+  });
+
+  test('also in the plain (borderless) and filled toolbar variants', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Bordered toolbar' }).uncheck();
+    await page.getByRole('combobox', { name: 'Toolbar variant' }).selectOption('filled');
+    await page.mouse.move(0, 0);
+    expect((await look(quick(page).getByRole('button', { name: 'Undo' }))).background).toBe(TRANSPARENT);
+    expect((await look(utilities(page).getByRole('button', { name: 'Drafts' }))).background).toBe(TRANSPARENT);
+  });
+
+  test('the buttons inside a tab keep their outlined groups', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const bold = await look(panel(page).getByRole('button', { name: 'Bold' }));
+    expect(bold.clusterBorder).toBe('1px');
+    expect(bold.clusterBackground).not.toBe(TRANSPARENT);
+  });
+
+  test('hovering tints a button, so it still reads as a button', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await editor.type('x');
+    const undo = quick(page).getByRole('button', { name: 'Undo' });
+    await undo.hover();
+    expect((await look(undo)).background).not.toBe(TRANSPARENT);
+    await page.mouse.move(0, 0);
+    expect((await look(undo)).background).toBe(TRANSPARENT);
+  });
+
+  test('a disabled button is dimmed', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await expect(quick(page).getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(await quick(page).getByRole('button', { name: 'Undo' }).evaluate((el) => getComputedStyle(el).opacity)).toBe('0.45');
+  });
+
+  test('Save shows unsaved changes with an accent icon and a dot, not a fill', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const save = quick(page).getByRole('button', { name: 'Save' });
+    const mark = () =>
+      save.evaluate((el) => {
+        const after = getComputedStyle(el, '::after');
+        return { color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, dot: after.content !== 'none' && after.width === '7px' };
+      });
+    expect((await mark()).dot).toBe(false);
+
+    await editor.type('changed');
+    await page.mouse.move(0, 0);
+    expect(await mark()).toEqual({ color: 'rgb(43, 110, 110)', background: TRANSPARENT, dot: true });
+  });
+
+  test('search shows it is open with an accent icon and a bar, not a fill', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const find = utilities(page).getByRole('button', { name: 'Find and replace' });
+    await find.click();
+    await page.mouse.move(0, 0);
+
+    await expect(find).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      await find.evaluate((el) => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, bar: getComputedStyle(el, '::after').height })),
+    ).toEqual({ color: 'rgb(43, 110, 110)', background: TRANSPARENT, bar: '2px' });
+  });
+});
+
 test.describe('keyboard and accessibility', () => {
   test('tabs are a tablist with one tab in the tab order and a labelled panel', async ({ editor, page }) => {
     await openRibbon(editor);
