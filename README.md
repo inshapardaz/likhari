@@ -553,11 +553,10 @@ unless you ask for it.
 | **Home** | block type, bold, italic, underline, strikethrough and the more-formatting menu, alignment, indent, font family and size |
 | **Insert** | link, image, rule, table, columns, footnote, page break, poetry couplet |
 | **Tools** | auto-correct, correct whole document, spell check, join lines |
-| **View** | zoom (shown only in uniform font mode) |
 | **Table**, **Poetry**, **Link** | the table, poetry and link commands, as buttons; each tab appears (tinted) only while the caret is in a table, a poetry couplet or a link |
 
-Save, undo and redo (the "Quick access" group) sit **before the tabs**, and drafts, search (find and
-replace) and help (the "Document tools" group) sit **after them**; their buttons are flat, with no
+Save, undo and redo (the "Quick access" group) sit **before the tabs**, and zoom (uniform font mode
+only), drafts, search (find and replace) and help (the "Document tools" group) sit **after them**; their buttons are flat, with no
 border or background (hover tints them, "on" and "unsaved changes" are shown by an accent icon and a
 bar or dot). Neither group is on a tab, so
 they stay in reach whichever tab is open, and when there are no tabs. A tab with nothing in it (its

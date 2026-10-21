@@ -78,16 +78,15 @@ test.describe('tabs and their commands', () => {
     await expect(panel(page).getByRole('button', { name: 'Find and replace' })).toHaveCount(0);
   });
 
-  test('View appears only in uniform font mode, and holds the zoom controls', async ({ editor, page }) => {
+  test('there is no View tab: zoom is on the tab row, not on a tab', async ({ editor, page }) => {
     await openRibbon(editor);
     await expect(tab(page, 'View')).toHaveCount(0);
+    await expect(utilities(page).getByRole('button', { name: 'Zoom in' })).toHaveCount(0); // only in uniform font mode
 
     await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
-    await tab(page, 'View').click();
-    await expect(panel(page).getByRole('button', { name: 'Zoom in' })).toBeVisible();
-    await expect(panel(page).getByRole('button', { name: 'Zoom out' })).toBeVisible();
-    // Drafts, search and help are not on it: they are on the tab row.
-    await expect(panel(page).getByRole('button', { name: 'Drafts' })).toHaveCount(0);
+    await expect(tab(page, 'View')).toHaveCount(0);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools']);
+    for (const name of ['Zoom out', /^Reset zoom to 100%/, 'Zoom in']) await expect(utilities(page).getByRole('button', { name })).toBeVisible();
   });
 
   test('a command on each tab does its job', async ({ editor, page }) => {
@@ -334,6 +333,53 @@ test.describe('drafts, search and help sit on the tab row, outside every tab', (
     await expect(utilities(page).getByRole('button', { name: 'Find and replace' })).toBeVisible();
   });
 
+  test('zoom sits with the document tools on every tab, and not in any tab panel', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
+    for (const name of ['Home', 'Insert', 'Tools']) {
+      await tab(page, name).click();
+      await expect(utilities(page).getByRole('button', { name: 'Zoom in' })).toBeVisible();
+      await expect(panel(page).getByRole('button', { name: /Zoom/ })).toHaveCount(0);
+    }
+  });
+
+  test('the zoom buttons work from the row, and lead the other document tools', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
+    await editor.content.click();
+    await editor.type('zoom me');
+    const size = () => editor.content.locator('p').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    const before = await size();
+
+    await utilities(page).getByRole('button', { name: 'Zoom in' }).click();
+    await expect.poll(size).toBeGreaterThan(before);
+    await utilities(page).getByRole('button', { name: /^Reset zoom to 100%/ }).click();
+    await expect.poll(size).toBeCloseTo(before, 0);
+    await utilities(page).getByRole('button', { name: 'Zoom out' }).click();
+    await expect.poll(size).toBeLessThan(before);
+
+    const zoom = (await utilities(page).getByRole('button', { name: 'Zoom out' }).boundingBox())!;
+    const drafts = (await utilities(page).getByRole('button', { name: 'Drafts' }).boundingBox())!;
+    expect(zoom.x).toBeLessThan(drafts.x);
+  });
+
+  test('zoom is still on the row with the ribbon collapsed', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
+    await utilities(page).getByRole('button', { name: 'Collapse the ribbon' }).click();
+    await expect(utilities(page).getByRole('button', { name: 'Zoom in' })).toBeVisible();
+    await expect(utilities(page).getByRole('button', { name: 'Zoom out' })).toBeVisible();
+  });
+
+  test('zoom follows the font-size feature: gone when it is off (minimal preset)', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
+    await expect(utilities(page).getByRole('button', { name: 'Zoom in' })).toBeVisible();
+
+    await page.getByRole('combobox', { name: 'Preset' }).selectOption('minimal');
+    await expect(utilities(page).getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  });
+
   test('save, undo and redo come before the tabs, drafts, search and help after them', async ({ editor, page }) => {
     await openRibbon(editor);
     const box = async (locator: ReturnType<Page['locator']>) => (await locator.boundingBox())!;
@@ -394,6 +440,20 @@ test.describe('the buttons on the tab row are flat', () => {
     ];
     for (const button of buttons) {
       expect(await look(button), (await button.getAttribute('aria-label')) ?? undefined).toEqual({
+        background: TRANSPARENT,
+        border: '0px 0px',
+        clusterBorder: '0px',
+        clusterBackground: TRANSPARENT,
+      });
+    }
+  });
+
+  test('the zoom buttons are flat too', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
+    await page.mouse.move(0, 0);
+    for (const name of ['Zoom out', /^Reset zoom to 100%/, 'Zoom in']) {
+      expect(await look(utilities(page).getByRole('button', { name })), String(name)).toEqual({
         background: TRANSPARENT,
         border: '0px 0px',
         clusterBorder: '0px',

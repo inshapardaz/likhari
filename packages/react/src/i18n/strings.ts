@@ -90,7 +90,6 @@ export interface Strings {
       home: string;
       insert: string;
       tools: string;
-      view: string;
       /** Contextual tabs, shown only while the caret is in that kind of content. */
       table: string;
       poetry: string;
@@ -398,7 +397,6 @@ const en: Strings = {
       home: 'Home',
       insert: 'Insert',
       tools: 'Tools',
-      view: 'View',
       table: 'Table',
       poetry: 'Poetry',
       link: 'Link',
@@ -699,7 +697,6 @@ const ur: Strings = {
       home: 'ہوم',
       insert: 'شامل کریں',
       tools: 'اوزار',
-      view: 'منظر',
       table: 'جدول',
       poetry: 'شاعری',
       link: 'لنک',
@@ -1000,7 +997,6 @@ const paShahmukhi: Strings = {
       home: 'ہوم',
       insert: 'شامل کرو',
       tools: 'اوزار',
-      view: 'ویکھو',
       table: 'جدول',
       poetry: 'شاعری',
       link: 'لنک',

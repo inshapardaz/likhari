@@ -117,10 +117,10 @@ An opt-in layout, `toolbarStyle.layout: 'ribbon'`, for hosts that want an office
 **It does not replace the classic toolbar**: §3.1 and §3.3 stay the default and still describe
 it. The ribbon has the same commands and the same configuration toggles, regrouped:
 
-- **Tab strip** (a `tablist`): Home, Insert, Tools, View, then any context tabs. Two groups sit on the
+- **Tab strip** (a `tablist`): Home, Insert, Tools, then any context tabs. Two groups sit on the
   same row but are on no tab, so they stay in reach on every tab and when there are no tabs at all:
-  **quick access** (save, undo, redo) before the tabs, and **document tools** (drafts, search/find and
-  replace, help) after them, each its own named toolbar. Their buttons are flat icons: no border or
+  **quick access** (save, undo, redo) before the tabs, and **document tools** (zoom in uniform font mode, then drafts,
+  search/find and replace, help) after them, each its own named toolbar. Their buttons are flat icons: no border or
   background at rest (hover tints them); an open state (search) is an accent icon with a short bar
   under it, and unsaved changes on Save an accent icon with a dot, rather than the classic toolbar's
   filled Save. In RTL (§5) the row mirrors as a whole.
@@ -130,8 +130,7 @@ it. The ribbon has the same commands and the same configuration toggles, regroup
 - **Home**: block type, inline formatting (with its more-formatting menu), alignment and indent,
   font family and size. **Insert**: link, image, rule, table, columns, footnote, page break, poetry
   couplet. **Tools**: auto-correct, correct whole document, spell check, join lines.
-  **View**: zoom (uniform font mode only).
-- **Context tabs** (Table, Poetry, Link) are added after View only while the caret is in that
+- **Context tabs** (Table, Poetry, Link) are added after Tools only while the caret is in that
   kind of content, tinted with `--accent-soft` so they read as appearing because of the caret. They
   show the commands the classic toolbar keeps in its table, poetry and link menus, as buttons. They
   never select themselves; if one is selected when the caret leaves, the first tab is selected.

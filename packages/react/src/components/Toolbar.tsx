@@ -692,8 +692,8 @@ function PoetryMenuItems({
   );
 }
 
-/** The ribbon's tabs: four always-there ones, and three that show only while the caret is in that content. */
-type RibbonTabId = 'home' | 'insert' | 'tools' | 'view' | 'table' | 'poetry' | 'link';
+/** The ribbon's tabs: three always-there ones, and three that show only while the caret is in that content. */
+type RibbonTabId = 'home' | 'insert' | 'tools' | 'table' | 'poetry' | 'link';
 
 /** Appearance of the toolbar. The accent colour comes from the editor's `accentColor`. */
 export interface ToolbarStyle {
@@ -2087,7 +2087,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       home: [formatSection, alignSection, fontSection],
       insert: [showInsertGroup && cluster('insert', insertButtons(false))],
       tools: [hasToolsGroup && toolsSection],
-      view: [zoomGroup],
       table: [
         config.tables &&
           state.inTable &&
@@ -2140,7 +2139,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     };
     const CONTEXTUAL: RibbonTabId[] = ['table', 'poetry', 'link'];
     // A tab with nothing to show (its features are off, or the caret is not in that content) is left out.
-    const tabs = (['home', 'insert', 'tools', 'view', ...CONTEXTUAL] as RibbonTabId[])
+    const tabs = (['home', 'insert', 'tools', ...CONTEXTUAL] as RibbonTabId[])
       .map((id) => ({ id, label: rt[id], groups: groupsByTab[id].filter(Boolean) }))
       .filter((tab) => tab.groups.length > 0);
     const activeTab = tabs.find((tab) => tab.id === ribbonTab) ?? tabs[0];
@@ -2188,7 +2187,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           onClick={toggleCollapsed}
         />,
       );
-    const utilityBar = [utilities, collapseGroup].filter(Boolean);
+    // Zoom (uniform font mode) is a view setting, not a tab: it leads the document tools.
+    const utilityBar = [zoomGroup, utilities, collapseGroup].filter(Boolean);
     return (
       <div
         ref={ribbonRootRef}
