@@ -250,6 +250,18 @@ const INITIAL_STATE: ToolbarState = {
 const ICON_SIZE = 17;
 const ICON_STROKE = 1.75;
 
+/** The right-click menu: compact items, and a gap kept between it and the edge of the window. */
+const CONTEXT_MENU_WIDTH = 220;
+const CONTEXT_MENU_VIEWPORT_PADDING = 8;
+/** `likhari-context-menu` (editor.css) shrinks the icons to match the smaller text. */
+const CONTEXT_MENU_CLASS_NAMES = { dropdown: 'likhari-context-menu' };
+const CONTEXT_MENU_STYLES = {
+  dropdown: { overflowY: 'auto', padding: 4 },
+  item: { fontSize: 'var(--mantine-font-size-xs)', padding: '4px 8px', minHeight: 0 },
+  label: { fontSize: 'var(--mantine-font-size-xs)', padding: '2px 8px' },
+  divider: { margin: '3px 0' },
+} as const;
+
 /** The CSS Custom Highlight name; editor.css paints it like a native text selection. */
 const SELECTION_HIGHLIGHT = 'likhari-toolbar-selection';
 
@@ -1911,7 +1923,12 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       withinPortal
       portalProps={{ target: portalTarget }}
       shadow="sm"
-      width={260}
+      width={CONTEXT_MENU_WIDTH}
+      // Stays inside the visible area: flips above the click or shifts sideways when it fits that
+      // way, and otherwise is cut to the room there is and scrolls (a long menu in a short window).
+      middlewares={{ flip: true, shift: true, size: { padding: CONTEXT_MENU_VIEWPORT_PADDING } }}
+      styles={CONTEXT_MENU_STYLES}
+      classNames={CONTEXT_MENU_CLASS_NAMES}
     >
       <Menu.Target>
         {/* Invisible 1px anchor positioned at the right-click */}
