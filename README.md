@@ -224,6 +224,28 @@ round-trips and what degrades. Font family and size are not part of the dialect 
 styled run keeps its other formatting but loses the font on export, keeping Markdown
 close to plain GFM.
 
+### Merging pages without the editor
+
+`mergePages` in `@inshapardaz/likhari-converters` combines an array of pages into one
+document with a page break between each pair. It needs no editor, React or DOM for
+Markdown and Lexical JSON input, so it runs in a server, a worker or a build script.
+(HTML input uses `DOMParser`, as above.) The caller picks the output format.
+
+```ts
+import { mergePages } from '@inshapardaz/likhari-converters';
+
+const book = mergePages(pageMarkdown, { outputFormat: 'lexical-json' }); // pages are Markdown by default
+
+mergePages(pageJson, { inputFormat: 'lexical-json', outputFormat: 'markdown' });
+mergePages([md, { content: json, format: 'lexical-json' }], { outputFormat: 'html' }); // mixed
+```
+
+Blank pages are kept, so page numbers still line up. Footnote ids are only unique within a
+page, so a clashing id on a later page is renamed (`1` becomes `1-2`) in its references and
+note; every page's notes end up in one list at the end. A page that cannot be read throws an
+error naming it (`page 2 is not valid lexical-json: …`). `mergePagesToState` returns the
+combined Lexical state instead of a string, to load or post-process it.
+
 ### Images
 
 With `images.linked` / `images.embedded` enabled, the toolbar's image button opens
