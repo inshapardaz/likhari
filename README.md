@@ -285,32 +285,19 @@ result with `setContent(merged, 'markdown')` (or whichever output format you cho
 another, the same way `mergePages` combines pages: a plain function with no editor, React or DOM
 needed for Markdown, Lexical JSON and plain text (HTML input uses `DOMParser`). It goes through the
 editor's own parsers and serializers, so the result is exactly what the editor would save in the
-output format.
+output format. The text itself is not touched: no spaces are collapsed or trimmed and nothing is
+normalised.
 
 ```ts
 import { convertContent } from '@inshapardaz/likhari-converters';
 
 const html = convertContent(markdown, { inputFormat: 'markdown', outputFormat: 'html' });
 const json = convertContent(html, { inputFormat: 'html', outputFormat: 'lexical-json' });
-const tidy = convertContent(markdown, { inputFormat: 'markdown', outputFormat: 'markdown' }); // clean-up only
 ```
 
-**Clean by default.** The text is tidied on the way (`clean: true`; pass `clean: false` to convert
-exactly what is there):
-
-- Unicode NFC, so Arabic-script letters stored as separate code points are composed (`ا` + `ٓ`
-  becomes `آ`)
-- runs of spaces or tabs collapsed to one space (as the editor's "clean up text" does)
-- stray spaces at the start and end of a block, before a line break, and doubled across a link or
-  formatting edge, removed
-- neighbouring text runs with the same formatting merged, and empty runs dropped
-
-Code-formatted text is left exactly as written. Structure and everything that is not text (images,
-tables, page breaks, footnotes, direction, alignment, indent) are untouched, and **empty paragraphs
-are kept**, since one at the end of a page can be the `mergePages` marker. Cleaning twice gives the
-same result as once. `cleanState(state)` runs the same tidy-up on Lexical state you already hold,
-and `convertContentToState` returns the cleaned state instead of a string. The `context` and
-`registry` options work as in `mergePages`.
+Converting a format to itself rewrites it the way the editor writes it (`Title\n=====` becomes
+`# Title`). `context` (for example an image URL resolver) and `registry` work as in `mergePages`,
+and `convertContentToState` returns the parsed Lexical state instead of a string.
 
 Converting to a format that holds less than the input (rich text to plain text, a table to
 Markdown, poetry to plain text) degrades the way that format's fidelity matrix says, see
