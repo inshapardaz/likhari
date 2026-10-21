@@ -114,6 +114,8 @@ import {
   IconBold,
   IconClearFormatting,
   IconDeviceFloppy,
+  IconChevronDown,
+  IconChevronUp,
   IconDots,
   IconHelpCircle,
   IconHistory,
@@ -1152,6 +1154,29 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const [contextMenu, setContextMenu] = useState<EditorContextMenu | null>(null);
   const [ribbonTab, setRibbonTab] = useState<RibbonTabId>('home');
   const ribbonId = useId();
+  // Collapsed: only the tabs show. Clicking a tab then "peeks" at its commands in a panel over the canvas.
+  const [ribbonCollapsed, setRibbonCollapsed] = useState(false);
+  const [ribbonPeek, setRibbonPeek] = useState(false);
+  const ribbonRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ribbonPeek) return;
+    // A click outside the ribbon closes the peek, but not one in a menu or dropdown it opened: those
+    // render in the editor's portal anchor, outside the ribbon's own DOM.
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (target && (ribbonRootRef.current?.contains(target) || target.closest?.('.likhari-portal-target'))) return;
+      setRibbonPeek(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRibbonPeek(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [ribbonPeek]);
 
   useEffect(() => {
     const onContextMenu = async (event: MouseEvent) => {
@@ -2122,6 +2147,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     // A context tab that went away (the caret left the table) must not come back selected on its own later.
     if (activeTab && activeTab.id !== ribbonTab) setRibbonTab(activeTab.id);
 
+    const panelVisible = !ribbonCollapsed || ribbonPeek;
+    const toggleCollapsed = () => {
+      setRibbonCollapsed((collapsed) => !collapsed);
+      setRibbonPeek(false);
+    };
     const tabDomId = (id: RibbonTabId) => `${ribbonId}-tab-${id}`;
     const onTabKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || tabs.length === 0) return;
@@ -2146,8 +2176,31 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           {helpButton}
         </>,
       );
+    // The collapse button belongs to the row, not to a tab, and is only offered when there are tabs to hide the commands of.
+    const collapseGroup =
+      tabs.length > 0 &&
+      cluster(
+        'collapse',
+        <ToolbarButton
+          icon={ribbonCollapsed ? IconChevronDown : IconChevronUp}
+          title={ribbonCollapsed ? rt.expand : rt.collapse}
+          aria-expanded={!ribbonCollapsed}
+          onClick={toggleCollapsed}
+        />,
+      );
+    const utilityBar = [utilities, collapseGroup].filter(Boolean);
     return (
-      <div className={bordered ? 'likhari-ribbon' : 'likhari-ribbon likhari-ribbon--plain'}>
+      <div
+        ref={ribbonRootRef}
+        className={['likhari-ribbon', bordered ? '' : 'likhari-ribbon--plain', ribbonCollapsed ? 'likhari-ribbon--collapsed' : ''].filter(Boolean).join(' ')}
+        onKeyDown={(event) => {
+          // Ctrl+F1 collapses and expands the ribbon, as in office suites.
+          if (event.key === 'F1' && event.ctrlKey && tabs.length > 0) {
+            event.preventDefault();
+            toggleCollapsed();
+          }
+        }}
+      >
         <div className="likhari-ribbon-top">
           {quickAccess.length > 0 && (
             <MantineToolbar
@@ -2163,7 +2216,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           {tabs.length > 0 && (
           <div role="tablist" aria-label={rt.tabsLabel} className="likhari-ribbon-tabs" onKeyDown={onTabKeyDown}>
             {tabs.map((tab) => {
-              const selected = tab.id === activeTab?.id;
+              // While the ribbon is collapsed a tab only counts as selected when its panel is peeking open.
+              const selected = panelVisible && tab.id === activeTab?.id;
               return (
                 <button
                   key={tab.id}
@@ -2171,13 +2225,18 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                   role="tab"
                   id={tabDomId(tab.id)}
                   aria-selected={selected}
-                  aria-controls={`${ribbonId}-panel`}
-                  tabIndex={selected ? 0 : -1}
+                  aria-controls={selected ? `${ribbonId}-panel` : undefined}
+                  tabIndex={tab.id === activeTab?.id ? 0 : -1}
                   className="likhari-ribbon-tab"
                   data-contextual={CONTEXTUAL.includes(tab.id) ? 'true' : undefined}
                   // Keep the editor's selection: a mousedown here would blur the canvas.
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => setRibbonTab(tab.id)}
+                  onClick={() => {
+                    setRibbonTab(tab.id);
+                    // Collapsed: a tab opens its commands over the canvas, and clicking it again closes them.
+                    if (ribbonCollapsed) setRibbonPeek(!(ribbonPeek && tab.id === activeTab?.id));
+                  }}
+                  onDoubleClick={toggleCollapsed}
                 >
                   {tab.label}
                 </button>
@@ -2185,7 +2244,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             })}
           </div>
           )}
-          {utilities && (
+          {utilityBar.length > 0 && (
             <MantineToolbar
               aria-label={rt.utilities}
               className="likhari-ribbon-utilities"
@@ -2193,12 +2252,23 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               variant={variant}
               color="var(--editor-accent)"
             >
-              {utilities}
+              {withDividers(utilityBar)}
             </MantineToolbar>
           )}
         </div>
-        {activeTab && (
-          <div role="tabpanel" id={`${ribbonId}-panel`} aria-labelledby={tabDomId(activeTab.id)} className="likhari-ribbon-panel-wrap">
+        {panelVisible && activeTab && (
+          <div
+            role="tabpanel"
+            id={`${ribbonId}-panel`}
+            aria-labelledby={tabDomId(activeTab.id)}
+            className={ribbonCollapsed ? 'likhari-ribbon-panel-wrap likhari-ribbon-panel-wrap--peek' : 'likhari-ribbon-panel-wrap'}
+            onClick={(event) => {
+              // A command chosen from the peeking panel closes it, as in office suites. A button that opens a
+              // menu (More formatting) keeps it open, so the menu is not pulled away from under the pointer.
+              const button = (event.target as Element).closest('button, a');
+              if (ribbonCollapsed && button && !button.hasAttribute('aria-haspopup')) setRibbonPeek(false);
+            }}
+          >
             <MantineToolbar
               aria-label={strings.toolbar.ariaLabel}
               className={bordered ? 'likhari-toolbar likhari-ribbon-panel' : 'likhari-toolbar likhari-toolbar--plain likhari-ribbon-panel'}

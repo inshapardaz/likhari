@@ -462,6 +462,214 @@ test.describe('the buttons on the tab row are flat', () => {
   });
 });
 
+test.describe('collapsing the ribbon', () => {
+  const collapseButton = (page: Page) => utilities(page).getByRole('button', { name: 'Collapse the ribbon' });
+  const expandButton = (page: Page) => utilities(page).getByRole('button', { name: 'Expand the ribbon' });
+  const panelBox = async (page: Page) => (await page.getByRole('tabpanel').boundingBox())!;
+  const contentTop = async (editor: EditorPage) => (await editor.content.boundingBox())!.y;
+
+  test('the chevron on the row hides the command row and brings it back on the same tab', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await tab(page, 'Insert').click();
+    await expect(collapseButton(page)).toHaveAttribute('aria-expanded', 'true');
+
+    await collapseButton(page).click();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+    await expect(panel(page)).toHaveCount(0);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools']); // the tabs stay
+    await expect(expandButton(page)).toHaveAttribute('aria-expanded', 'false');
+
+    await expandButton(page).click();
+    await expect(tab(page, 'Insert')).toHaveAttribute('aria-selected', 'true');
+    await expect(cmd(page, 'Insert table')).toBeVisible();
+  });
+
+  test('collapsing gives the canvas the room the command row used', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const expanded = await contentTop(editor);
+    await collapseButton(page).click();
+    await expect.poll(() => contentTop(editor)).toBeLessThan(expanded - 30);
+
+    await expandButton(page).click();
+    await expect.poll(() => contentTop(editor)).toBe(expanded);
+  });
+
+  test('double-clicking a tab collapses the ribbon, and double-clicking again expands it', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await tab(page, 'Home').dblclick();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+    await expect(expandButton(page)).toBeVisible();
+
+    await tab(page, 'Insert').dblclick();
+    await expect(page.getByRole('tabpanel')).toBeVisible();
+    await expect(collapseButton(page)).toBeVisible();
+    await expect(tab(page, 'Insert')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('Ctrl+F1 collapses and expands it from the tabs', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await tab(page, 'Home').focus();
+    await page.keyboard.press('Control+F1');
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+    await page.keyboard.press('Control+F1');
+    await expect(page.getByRole('tabpanel')).toBeVisible();
+  });
+
+  test('collapsed, no tab is selected and no panel is shown until a tab is clicked', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    for (const name of ['Home', 'Insert', 'Tools']) await expect(tab(page, name)).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+  });
+
+  test('collapsed, clicking a tab shows its commands over the canvas without moving it', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    const before = await contentTop(editor);
+
+    await tab(page, 'Insert').click();
+    await expect(page.getByRole('tabpanel')).toBeVisible();
+    await expect(tab(page, 'Insert')).toHaveAttribute('aria-selected', 'true');
+    await expect(cmd(page, 'Insert table')).toBeVisible();
+    expect(await contentTop(editor)).toBe(before); // nothing was pushed down
+    expect((await panelBox(page)).y + (await panelBox(page)).height).toBeGreaterThan(before); // it sits over the canvas
+    // The click on the panel must really reach its buttons, not the canvas underneath.
+    await expect(cmd(page, 'Insert table')).toBeInViewport();
+    await cmd(page, 'Insert table').click({ trial: true });
+  });
+
+  test('clicking the open tab again closes the peek, and another tab switches it', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Insert').click();
+    await tab(page, 'Tools').click();
+    await expect(tab(page, 'Tools')).toHaveAttribute('aria-selected', 'true');
+    await expect(cmd(page, 'Spell-checker')).toBeVisible();
+
+    await tab(page, 'Tools').click();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+  });
+
+  test('a command chosen from the peeking panel runs and closes the panel', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await editor.type('word');
+    await editor.selectAll();
+    await collapseButton(page).click();
+    await tab(page, 'Home').click();
+    await cmd(page, 'Bold').click();
+
+    // Checked before reading the HTML back: that clicks a button outside the ribbon, which would close the panel itself.
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+    expect(await editor.html()).toContain('<strong>word</strong>');
+  });
+
+  test('a dropdown in the peeking panel works: the panel stays open while one is chosen', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await editor.type('a heading');
+    await collapseButton(page).click();
+    await tab(page, 'Home').click();
+    await panel(page).getByRole('combobox', { name: 'Formatting', exact: true }).click();
+    await page.getByRole('option', { name: 'Heading 2' }).click();
+
+    expect(await editor.html()).toMatch(/<h2[^>]*>a heading/);
+  });
+
+  test('a menu opened from the peeking panel (More formatting) is not pulled away', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await editor.type('word');
+    await editor.selectAll();
+    await collapseButton(page).click();
+    await tab(page, 'Home').click();
+    await cmd(page, 'More formatting').first().click();
+    await page.getByRole('menuitem', { name: 'Superscript' }).click();
+
+    expect(await editor.html()).toContain('<sup>');
+  });
+
+  test('Escape closes the peeking panel', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Insert').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+  });
+
+  test('clicking in the editor closes the peeking panel and keeps typing working', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Insert').click();
+    await editor.content.click();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+
+    await editor.type('typed');
+    await expect(editor.content).toHaveText('typed');
+  });
+
+  test('clicking elsewhere on the page closes the peeking panel', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Insert').click();
+    await page.getByRole('heading', { level: 1 }).click();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+  });
+
+  test('arrow keys move between tabs without opening the panel, Enter opens it', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Home').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(tab(page, 'Insert')).toBeFocused();
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+
+    await page.keyboard.press('Enter');
+    await expect(tab(page, 'Insert')).toHaveAttribute('aria-selected', 'true');
+    await expect(cmd(page, 'Insert table')).toBeVisible();
+  });
+
+  test('save, undo, redo, drafts and search stay put, and the context tabs still appear', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    for (const name of ['Save', 'Undo', 'Redo']) await expect(quick(page).getByRole('button', { name })).toBeVisible();
+    for (const name of ['Drafts', 'Find and replace']) await expect(utilities(page).getByRole('button', { name })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Load Markdown sample' }).click();
+    await editor.content.locator('td').first().click();
+    await expect(tab(page, 'Table')).toBeVisible();
+    await tab(page, 'Table').click();
+    await cmd(page, 'Insert row after').click();
+    await expect(editor.content.locator('tr')).toHaveCount(3);
+  });
+
+  test('there is nothing to collapse without tabs, so no chevron', async ({ editor, page }) => {
+    await openRibbon(editor, { preset: 'minimal' });
+    await expect(collapseButton(page)).toHaveCount(0);
+    await expect(expandButton(page)).toHaveCount(0);
+  });
+
+  test('the collapse button is flat like the rest of the row, and labelled in Urdu', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.mouse.move(0, 0);
+    expect(await collapseButton(page).evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderTopWidth }))).toEqual({
+      bg: 'rgba(0, 0, 0, 0)',
+      border: '0px',
+    });
+  });
+
+  test('its name is translated', async ({ editor, page }) => {
+    await openRibbon(editor, { locale: 'ur' });
+    await expect(page.getByRole('toolbar', { name: 'دستاویز کے اوزار' }).getByRole('button', { name: 'ربن چھپائیں' })).toBeVisible();
+  });
+
+  test('a collapsed ribbon also works in a narrow window', async ({ editor, page }) => {
+    await page.setViewportSize({ width: 560, height: 700 });
+    await openRibbon(editor);
+    await collapseButton(page).click();
+    await tab(page, 'Insert').click();
+    await expect(cmd(page, 'Insert table')).toBeAttached();
+    await expect(page.getByRole('tabpanel')).toBeVisible();
+  });
+});
+
 test.describe('keyboard and accessibility', () => {
   test('tabs are a tablist with one tab in the tab order and a labelled panel', async ({ editor, page }) => {
     await openRibbon(editor);
@@ -528,11 +736,24 @@ test.describe('narrow windows', () => {
     await expect(toolbar.getByRole('combobox', { name: 'Font size', exact: true })).toBeInViewport();
   });
 
-  test('the tabs and the save/undo/redo strip share one row', async ({ editor, page }) => {
+  test('in a wide editor the tabs and the two button groups share one row', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const tabs = (await page.getByRole('tablist').boundingBox())!;
+    const quickBox = (await quick(page).boundingBox())!;
+    expect(Math.abs(tabs.y - quickBox.y)).toBeLessThan(30);
+  });
+
+  test('in a narrow editor the tabs get a line of their own, and every tab can still be used', async ({ editor, page }) => {
     await page.setViewportSize({ width: 560, height: 700 });
     await openRibbon(editor);
     const tabs = (await page.getByRole('tablist').boundingBox())!;
-    const quick = (await page.getByRole('toolbar', { name: 'Quick access' }).boundingBox())!;
-    expect(Math.abs(tabs.y - quick.y)).toBeLessThan(30);
+    const quickBox = (await quick(page).boundingBox())!;
+    expect(tabs.width).toBeGreaterThan(150); // not squeezed to nothing
+    expect(tabs.y).toBeGreaterThan(quickBox.y + quickBox.height - 4); // below the save/undo group
+
+    for (const name of ['Insert', 'Tools', 'Home']) {
+      await tab(page, name).click();
+      await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+    }
   });
 });

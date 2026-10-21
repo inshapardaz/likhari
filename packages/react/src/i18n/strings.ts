@@ -84,6 +84,9 @@ export interface Strings {
       quickAccess: string;
       /** aria-label on the group after the tabs that holds drafts, search and help. */
       utilities: string;
+      /** The button that hides the command row, leaving only the tabs, and the one that brings it back. */
+      collapse: string;
+      expand: string;
       home: string;
       insert: string;
       tools: string;
@@ -390,6 +393,8 @@ const en: Strings = {
       tabsLabel: 'Ribbon tabs',
       quickAccess: 'Quick access',
       utilities: 'Document tools',
+      collapse: 'Collapse the ribbon',
+      expand: 'Expand the ribbon',
       home: 'Home',
       insert: 'Insert',
       tools: 'Tools',
@@ -689,6 +694,8 @@ const ur: Strings = {
       tabsLabel: 'ربن کے ٹیب',
       quickAccess: 'فوری رسائی',
       utilities: 'دستاویز کے اوزار',
+      collapse: 'ربن چھپائیں',
+      expand: 'ربن دکھائیں',
       home: 'ہوم',
       insert: 'شامل کریں',
       tools: 'اوزار',
@@ -988,6 +995,8 @@ const paShahmukhi: Strings = {
       tabsLabel: 'ربن دے ٹیب',
       quickAccess: 'جھٹ رسائی',
       utilities: 'دستاویز دے اوزار',
+      collapse: 'ربن لکو',
+      expand: 'ربن وکھاؤ',
       home: 'ہوم',
       insert: 'شامل کرو',
       tools: 'اوزار',

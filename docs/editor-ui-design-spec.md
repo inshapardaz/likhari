@@ -136,6 +136,15 @@ it. The ribbon has the same commands and the same configuration toggles, regroup
   show the commands the classic toolbar keeps in its table, poetry and link menus, as buttons. They
   never select themselves; if one is selected when the caret leaves, the first tab is selected.
 - A tab with no commands (features off, or no context) is not shown.
+- **Collapse**: a chevron at the end of the row (the last button of the document tools), a double-click
+  on a tab, or Ctrl+F1 hides the command row, leaving the tab row closed off with a hairline. Collapsed,
+  no tab is selected; clicking a tab peeks its commands in a panel laid over the canvas (no reflow,
+  with a shadow), which closes on a second click of that tab, Escape, a click outside the ribbon, or a
+  chosen command, but not while a dropdown or menu opened from it is in use. Arrow keys move between
+  tabs without opening them; Enter/Space opens. Only offered when there are tabs.
+- **Narrow editors**: below 560px of editor width (a container query, not the window's) the tabs drop
+  to a line of their own beneath the quick-access and document-tool groups, instead of being squeezed
+  out of the row.
 - Selected tab: `--accent` text with a 2px `--accent` underline, the same restraint as §3.2's
   one-accent rule. Clicking a tab does not move focus out of the editor.
 - RTL (§5): the strip and row mirror as a whole, arrow-key direction reverses, and the tab names

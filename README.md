@@ -562,6 +562,16 @@ border or background (hover tints them, "on" and "unsaved changes" are shown by 
 bar or dot). Neither group is on a tab, so
 they stay in reach whichever tab is open, and when there are no tabs. A tab with nothing in it (its
 features are off) is not shown, so the `minimal` preset has no tabs at all, only those two groups.
+**Collapsing.** The chevron at the end of the tab row (or a double-click on a tab, or Ctrl+F1 from the
+tabs) hides the command row and leaves only the tab row, giving the canvas the room back; click it
+(or double-click a tab) again to bring the row back on the tab you were on. While it is collapsed,
+clicking a tab shows that tab's commands in a panel over the canvas, without moving the text: it
+closes when you click the tab again, press Escape, click anywhere outside the ribbon, or choose a
+command (a dropdown or a menu such as More formatting keeps it open while you pick). Arrow keys move
+between collapsed tabs without opening them; Enter or Space opens one. Nothing is collapsible when
+there are no tabs (the `minimal` preset). The collapsed state lives in the page, not in storage, so a
+reload brings the row back.
+
 A context tab never takes the selection by itself: it appears and you open it when you want it. If
 you are on it when the caret leaves, you go back to the first tab. On a narrow screen the active
 tab's commands scroll sideways. The tabs are a proper tab list: arrow keys, Home and End move
