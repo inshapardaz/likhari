@@ -1121,7 +1121,7 @@
 
 
 /* Ribbon layout (toolbarStyle.layout: 'ribbon', UI spec §3.4): a strip of tabs over one row of the active
-   tab's command groups, with save, undo and redo at the end of the strip. */
+   tab's command groups, with drafts, search, help, save, undo and redo at the end of the strip. */
 .likhari-ribbon {
   display: flex;
   flex-direction: column;
@@ -1187,6 +1187,8 @@
 
 .likhari-ribbon-quick {
   display: flex;
+  /* At the end of the row, also when there are no tabs to push it there. */
+  margin-inline-start: auto;
   flex: 0 0 auto;
   flex-wrap: nowrap;
   align-items: center;

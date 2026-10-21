@@ -118,14 +118,16 @@ An opt-in layout, `toolbarStyle.layout: 'ribbon'`, for hosts that want an office
 it. The ribbon has the same commands and the same configuration toggles, regrouped:
 
 - **Tab strip** (a `tablist`): Home, Insert, Tools, View, then any context tabs, with the
-  quick-access group (save, undo, redo) at the logical end of the strip, outside the tabs.
+  quick-access group at the logical end of the strip, outside the tabs: drafts, search (find and
+  replace) and help, then save, undo and redo. These are on no tab, so they stay in reach on every
+  tab and when there are no tabs at all.
 - **Command row**: the selected tab's groups, in the §3.2 sizes (46px row, 30×30px buttons,
   hairline dividers). It never wraps and never collapses into a "..." menu; on a narrow screen it
   scrolls sideways, and so does the tab strip.
 - **Home**: block type, inline formatting (with its more-formatting menu), alignment and indent,
   font family and size. **Insert**: link, image, rule, table, columns, footnote, page break, poetry
-  couplet. **Tools**: auto-correct, correct whole document, spell check, join lines, find and
-  replace. **View**: zoom, drafts, help.
+  couplet. **Tools**: auto-correct, correct whole document, spell check, join lines.
+  **View**: zoom (uniform font mode only).
 - **Context tabs** (Table, Poetry, Link) are added after View only while the caret is in that
   kind of content, tinted with `--accent-soft` so they read as appearing because of the caret. They
   show the commands the classic toolbar keeps in its table, poetry and link menus, as buttons. They

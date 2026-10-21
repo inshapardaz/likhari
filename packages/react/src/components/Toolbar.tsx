@@ -2061,18 +2061,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     const groupsByTab: Record<RibbonTabId, (ReactNode | false)[]> = {
       home: [formatSection, alignSection, fontSection],
       insert: [showInsertGroup && cluster('insert', insertButtons(false))],
-      tools: [hasToolsGroup && toolsSection, findButton && cluster('find', findButton)],
-      view: [
-        zoomGroup,
-        (draftsButton || helpButton) &&
-          cluster(
-            'view-utilities',
-            <>
-              {draftsButton}
-              {helpButton}
-            </>,
-          ),
-      ],
+      tools: [hasToolsGroup && toolsSection],
+      view: [zoomGroup],
       table: [
         config.tables &&
           state.inTable &&
@@ -2144,10 +2134,21 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
     };
 
-    const quickAccess = [saveGroup, historyGroup].filter(Boolean);
+    // Drafts, search and help are not part of any tab: they stay on the tab row, with save, undo and redo.
+    const utilities = (draftsButton || findButton || helpButton) &&
+      cluster(
+        'utilities',
+        <>
+          {draftsButton}
+          {findButton}
+          {helpButton}
+        </>,
+      );
+    const quickAccess = [utilities, saveGroup, historyGroup].filter(Boolean);
     return (
       <div className={bordered ? 'likhari-ribbon' : 'likhari-ribbon likhari-ribbon--plain'}>
         <div className="likhari-ribbon-top">
+          {tabs.length > 0 && (
           <div role="tablist" aria-label={rt.tabsLabel} className="likhari-ribbon-tabs" onKeyDown={onTabKeyDown}>
             {tabs.map((tab) => {
               const selected = tab.id === activeTab?.id;
@@ -2171,6 +2172,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               );
             })}
           </div>
+          )}
           {quickAccess.length > 0 && (
             <MantineToolbar
               aria-label={rt.quickAccess}

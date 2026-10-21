@@ -6,6 +6,7 @@ const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: t
 const cmd = (page: Page, name: string | RegExp) => ribbon(page).getByRole('button', { name });
 const panel = (page: Page) => page.getByRole('toolbar', { name: 'Formatting' });
 const tabNames = (page: Page) => page.getByRole('tab').allInnerTexts();
+const quick = (page: Page) => page.getByRole('toolbar', { name: 'Quick access' });
 
 async function openRibbon(editor: EditorPage, prefs: Parameters<EditorPage['open']>[0] = {}) {
   await editor.open({ ribbon: true, ...prefs });
@@ -38,9 +39,9 @@ test.describe('the layout is opt-in', () => {
 });
 
 test.describe('tabs and their commands', () => {
-  test('a full editor has Home, Insert, Tools and View, and no context tabs yet', async ({ editor, page }) => {
+  test('a full editor has Home, Insert and Tools, and no context tabs yet', async ({ editor, page }) => {
     await openRibbon(editor);
-    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools', 'View']);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools']);
   });
 
   test('Home holds text formatting, alignment, indent and font, and starts selected', async ({ editor, page }) => {
@@ -66,25 +67,26 @@ test.describe('tabs and their commands', () => {
     await expect(cmd(page, 'Bold')).toHaveCount(0);
   });
 
-  test('Tools holds the language tools and find and replace', async ({ editor, page }) => {
+  test('Tools holds the language tools, but not find and replace', async ({ editor, page }) => {
     await openRibbon(editor);
     await tab(page, 'Tools').click();
 
-    for (const name of ['Auto-correct', 'Correct whole document', 'Spell-checker', 'Join lines', 'Find and replace']) {
-      await expect(cmd(page, name)).toBeVisible();
+    for (const name of ['Auto-correct', 'Correct whole document', 'Spell-checker', 'Join lines']) {
+      await expect(panel(page).getByRole('button', { name })).toBeVisible();
     }
+    await expect(panel(page).getByRole('button', { name: 'Find and replace' })).toHaveCount(0);
   });
 
-  test('View holds drafts and help, and zoom in uniform font mode', async ({ editor, page }) => {
+  test('View appears only in uniform font mode, and holds the zoom controls', async ({ editor, page }) => {
     await openRibbon(editor);
-    await tab(page, 'View').click();
-    await expect(cmd(page, 'Drafts')).toBeVisible();
-    await expect(ribbon(page).getByRole('link', { name: 'Help' })).toHaveAttribute('href', /markdown-dialect\.md$/);
-    await expect(cmd(page, 'Zoom in')).toHaveCount(0);
+    await expect(tab(page, 'View')).toHaveCount(0);
 
     await page.getByRole('checkbox', { name: 'Uniform font + zoom' }).check();
-    await expect(cmd(page, 'Zoom in')).toBeVisible();
-    await expect(cmd(page, 'Zoom out')).toBeVisible();
+    await tab(page, 'View').click();
+    await expect(panel(page).getByRole('button', { name: 'Zoom in' })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: 'Zoom out' })).toBeVisible();
+    // Drafts, search and help are not on it: they are on the tab row.
+    await expect(panel(page).getByRole('button', { name: 'Drafts' })).toHaveCount(0);
   });
 
   test('a command on each tab does its job', async ({ editor, page }) => {
@@ -99,8 +101,8 @@ test.describe('tabs and their commands', () => {
     await expect(editor.content.locator('hr')).toHaveCount(1);
 
     await tab(page, 'Tools').click();
-    await cmd(page, 'Find and replace').click();
-    await expect(page.getByRole('search')).toBeVisible();
+    await expect(cmd(page, 'Join lines')).toBeVisible();
+    await expect(cmd(page, 'Spell-checker')).toBeVisible();
   });
 
   test('Insert → Insert table opens the table dialog and inserts a table', async ({ editor, page }) => {
@@ -114,17 +116,16 @@ test.describe('tabs and their commands', () => {
 
   test('Save, undo and redo stay in reach on every tab', async ({ editor, page }) => {
     await openRibbon(editor);
-    const quick = page.getByRole('toolbar', { name: 'Quick access' });
     await editor.type('first');
     await editor.page.waitForTimeout(300);
 
-    for (const name of ['Home', 'Insert', 'Tools', 'View']) {
+    for (const name of ['Home', 'Insert', 'Tools']) {
       await tab(page, name).click();
-      for (const button of ['Save', 'Undo', 'Redo']) await expect(quick.getByRole('button', { name: button })).toBeVisible();
+      for (const button of ['Save', 'Undo', 'Redo']) await expect(quick(page).getByRole('button', { name: button })).toBeVisible();
     }
-    await quick.getByRole('button', { name: 'Undo' }).click();
+    await quick(page).getByRole('button', { name: 'Undo' }).click();
     await expect(editor.content).not.toContainText('first');
-    await expect(quick.getByRole('button', { name: 'Redo' })).toBeEnabled();
+    await expect(quick(page).getByRole('button', { name: 'Redo' })).toBeEnabled();
   });
 
   test('the right-click menu and the dialogs still work', async ({ editor, page }) => {
@@ -167,10 +168,10 @@ test.describe('context tabs', () => {
   test('the Table tab appears with the caret in a table, holds the table commands, and goes when it leaves', async ({ editor, page }) => {
     await openRibbon(editor);
     await page.getByRole('button', { name: 'Load Markdown sample' }).click();
-    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools', 'View']);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools']);
 
     await editor.content.locator('td').first().click();
-    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools', 'View', 'Table']);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools', 'Table']);
     await expect(tab(page, 'Table')).toHaveAttribute('data-contextual', 'true');
     await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true'); // it does not steal the selection
 
@@ -192,7 +193,7 @@ test.describe('context tabs', () => {
     await tab(page, 'Table').click();
 
     await editor.content.getByRole('heading').click();
-    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools', 'View']);
+    expect(await tabNames(page)).toEqual(['Home', 'Insert', 'Tools']);
     await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true');
 
     // Back into the table without touching the tabs: Home stays selected, the Table tab only becomes available.
@@ -249,10 +250,14 @@ test.describe('context tabs', () => {
 });
 
 test.describe('only tabs with something in them are shown', () => {
-  test('the minimal preset leaves just View (drafts and help)', async ({ editor, page }) => {
+  test('the minimal preset has no tabs at all, just the row of drafts, undo and the rest', async ({ editor, page }) => {
     await openRibbon(editor, { preset: 'minimal' });
-    expect(await tabNames(page)).toEqual(['View']);
-    await expect(page.getByRole('toolbar', { name: 'Quick access' }).getByRole('button', { name: 'Undo' })).toBeVisible();
+    expect(await tabNames(page)).toEqual([]);
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    await expect(page.getByRole('tabpanel')).toHaveCount(0);
+    for (const name of ['Drafts', 'Help', 'Save', 'Undo', 'Redo']) {
+      await expect(quick(page).getByRole(name === 'Help' ? 'link' : 'button', { name })).toBeVisible();
+    }
   });
 
   test('turning off every insert feature removes the Insert tab', async ({ editor, page }) => {
@@ -271,9 +276,70 @@ test.describe('only tabs with something in them are shown', () => {
     await tab(page, 'Tools').click();
 
     await expect(cmd(page, 'Join lines')).toBeVisible();
-    await expect(cmd(page, 'Find and replace')).toBeVisible();
     await expect(cmd(page, 'Spell-checker')).toHaveCount(0);
     await expect(cmd(page, 'Auto-correct')).toHaveCount(0);
+  });
+});
+
+test.describe('drafts, search and help sit on the tab row, outside every tab', () => {
+  test('they are on the row with save, undo and redo, and on no tab', async ({ editor, page }) => {
+    await openRibbon(editor);
+    for (const name of ['Drafts', 'Find and replace']) await expect(quick(page).getByRole('button', { name })).toBeVisible();
+    await expect(quick(page).getByRole('link', { name: 'Help' })).toHaveAttribute('href', /markdown-dialect\.md$/);
+
+    for (const name of ['Home', 'Insert', 'Tools']) {
+      await tab(page, name).click();
+      for (const button of ['Drafts', 'Find and replace']) await expect(quick(page).getByRole('button', { name: button })).toBeVisible();
+      for (const button of ['Drafts', 'Find and replace']) await expect(panel(page).getByRole('button', { name: button })).toHaveCount(0);
+      await expect(panel(page).getByRole('link', { name: 'Help' })).toHaveCount(0);
+    }
+  });
+
+  test('they are not inside the tab strip itself either', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await expect(page.getByRole('tablist').getByRole('button')).toHaveCount(0);
+    await expect(page.getByRole('tablist').getByRole('link')).toHaveCount(0);
+  });
+
+  test('search opens find and replace from any tab, and the button shows it is on', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await editor.type('find me');
+    await tab(page, 'Insert').click();
+    await quick(page).getByRole('button', { name: 'Find and replace' }).click();
+
+    await expect(page.getByRole('search')).toBeVisible();
+    await expect(quick(page).getByRole('button', { name: 'Find and replace' })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('search').getByRole('textbox', { name: 'Find' }).fill('find');
+    await expect(page.getByRole('search').getByText('1 / 1')).toBeVisible();
+  });
+
+  test('drafts opens the drafts dialog from any tab', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await tab(page, 'Tools').click();
+    await quick(page).getByRole('button', { name: 'Drafts' }).click();
+    await expect(page.getByRole('dialog', { name: 'Saved drafts' })).toBeVisible();
+  });
+
+  test('they stay when there are no tabs at all', async ({ editor, page }) => {
+    await openRibbon(editor, { preset: 'minimal' });
+    await expect(quick(page).getByRole('button', { name: 'Drafts' })).toBeVisible();
+  });
+
+  test('they stay beside a context tab', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await page.getByRole('button', { name: 'Load Markdown sample' }).click();
+    await editor.content.locator('td').first().click();
+    await expect(tab(page, 'Table')).toBeVisible();
+    await expect(quick(page).getByRole('button', { name: 'Find and replace' })).toBeVisible();
+  });
+
+  test('the row keeps them at its end, after the tabs', async ({ editor, page }) => {
+    await openRibbon(editor);
+    const lastTab = (await tab(page, 'Tools').boundingBox())!;
+    const drafts = (await quick(page).getByRole('button', { name: 'Drafts' }).boundingBox())!;
+    const redo = (await quick(page).getByRole('button', { name: 'Redo' }).boundingBox())!;
+    expect(drafts.x).toBeGreaterThan(lastTab.x + lastTab.width);
+    expect(redo.x).toBeGreaterThan(drafts.x);
   });
 });
 
@@ -297,11 +363,11 @@ test.describe('keyboard and accessibility', () => {
     await expect(tab(page, 'Insert')).toHaveAttribute('aria-selected', 'true');
     await expect(tab(page, 'Insert')).toBeFocused();
     await page.keyboard.press('End');
-    await expect(tab(page, 'View')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, 'Tools')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowRight');
     await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowLeft');
-    await expect(tab(page, 'View')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, 'Tools')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Home');
     await expect(tab(page, 'Home')).toHaveAttribute('aria-selected', 'true');
   });
@@ -317,15 +383,15 @@ test.describe('keyboard and accessibility', () => {
 test.describe('languages and direction', () => {
   test('tab names are translated', async ({ editor, page }) => {
     await openRibbon(editor, { locale: 'ur' });
-    expect(await tabNames(page)).toEqual(['ہوم', 'شامل کریں', 'اوزار', 'منظر']);
+    expect(await tabNames(page)).toEqual(['ہوم', 'شامل کریں', 'اوزار']);
     await expect(page.getByRole('tablist', { name: 'ربن کے ٹیب' })).toBeVisible();
   });
 
   test('the tabs start on the right in a right-to-left editor', async ({ editor, page }) => {
     await openRibbon(editor, { locale: 'ur' });
     const home = (await tab(page, 'ہوم').boundingBox())!;
-    const view = (await tab(page, 'منظر').boundingBox())!;
-    expect(home.x).toBeGreaterThan(view.x);
+    const tools = (await tab(page, 'اوزار').boundingBox())!;
+    expect(home.x).toBeGreaterThan(tools.x);
   });
 });
 

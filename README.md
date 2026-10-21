@@ -552,12 +552,14 @@ unless you ask for it.
 |---|---|
 | **Home** | block type, bold, italic, underline, strikethrough and the more-formatting menu, alignment, indent, font family and size |
 | **Insert** | link, image, rule, table, columns, footnote, page break, poetry couplet |
-| **Tools** | auto-correct, correct whole document, spell check, join lines, find and replace |
-| **View** | zoom (uniform font mode), drafts, help |
+| **Tools** | auto-correct, correct whole document, spell check, join lines |
+| **View** | zoom (shown only in uniform font mode) |
 | **Table**, **Poetry**, **Link** | the table, poetry and link commands, as buttons; each tab appears (tinted) only while the caret is in a table, a poetry couplet or a link |
 
-Save, undo and redo sit at the end of the tab strip and stay in reach on every tab. A tab with
-nothing in it (its features are off) is not shown, so the `minimal` preset has only View.
+Drafts, search (find and replace), help, save, undo and redo are **not on any tab**: they sit at the
+end of the tab row and stay in reach whichever tab is open (and when there are no tabs). A tab with
+nothing in it (its features are off) is not shown, so the `minimal` preset has no tabs at all, only
+that row.
 A context tab never takes the selection by itself: it appears and you open it when you want it. If
 you are on it when the caret leaves, you go back to the first tab. On a narrow screen the active
 tab's commands scroll sideways. The tabs are a proper tab list: arrow keys, Home and End move
