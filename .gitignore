@@ -4,3 +4,7 @@ dist/
 .DS_Store
 # Copied from packages/react at build time (apps/demo prebuild).
 apps/demo/public/dictionaries/en/
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/

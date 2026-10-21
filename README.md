@@ -42,7 +42,37 @@ npm install
 npm run dev      # demo app at the printed localhost URL
 npm test         # vitest
 npm run typecheck
+npm run test:e2e # Playwright UI tests (see below)
 ```
+
+### UI tests (Playwright)
+
+`e2e/` holds integration tests that load the whole editor, through the demo app, in a
+real Chromium and drive it the way a user would: formatting, lists, tables, images,
+columns, footnotes, poetry, find and replace, spell check, auto-correct, autocomplete,
+the thesaurus, import and export, drafts and the leave dialog, languages and RTL, themes
+and the feature config.
+
+**Every network call is mocked** (`e2e/support/mocks.ts`): the spelling dictionaries are
+replaced with tiny fixtures, WordNet and the Urdu web fonts are answered locally, and any
+other request that leaves the app is blocked and fails the test. A test therefore never
+depends on the internet or on real dictionary contents.
+
+```bash
+npx playwright install chromium   # once
+npm run test:e2e                  # against the dev server (starts it for you)
+npm run test:e2e:build            # against the production build: run `VITE_BASE=/ npm run build` first
+npx playwright test -c e2e/playwright.config.ts find-replace   # one spec file
+npx playwright show-report e2e/playwright-report               # after a CI-style run
+```
+
+CI runs the suite against the production build in the `UI tests (Playwright)` job of
+`.github/workflows/publish.yml`, and the publish job `needs` it, so nothing is published
+while a UI test fails. Add new tests next to the feature's existing spec; use
+`EditorPage` in `e2e/support/fixtures.ts` rather than raw selectors where you can.
+
+Tests marked `test.fail(...)` document a known bug: they pass while the bug exists and fail
+once it is fixed, which is the cue to remove the marker.
 
 ### PR previews
 

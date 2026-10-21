@@ -38,9 +38,54 @@ jobs:
       - name: Test
         run: npm test
 
+  # Drives the whole editor in a real browser against the production build of the demo, with
+  # every network call mocked. Publishing waits for this, so a change that breaks the editor
+  # for users never reaches npm.
+  e2e:
+    name: UI tests (Playwright)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check the UI tests
+        run: npm run typecheck:e2e
+
+      - name: Build (demo served from the root, as the tests expect)
+        run: npm run build
+        env:
+          VITE_BASE: /
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run UI tests
+        run: npm run test:e2e:build
+
+      - name: Upload report and traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
   publish:
     name: Publish to npm
-    needs: build-and-test
+    needs: [build-and-test, e2e]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     concurrency:
