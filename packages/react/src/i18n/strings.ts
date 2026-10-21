@@ -80,8 +80,10 @@ export interface Strings {
     ribbon: {
       /** aria-label on the tab strip. */
       tabsLabel: string;
-      /** aria-label on the group beside the tabs that holds save, undo and redo. */
+      /** aria-label on the group before the tabs that holds save, undo and redo. */
       quickAccess: string;
+      /** aria-label on the group after the tabs that holds drafts, search and help. */
+      utilities: string;
       home: string;
       insert: string;
       tools: string;
@@ -387,6 +389,7 @@ const en: Strings = {
     ribbon: {
       tabsLabel: 'Ribbon tabs',
       quickAccess: 'Quick access',
+      utilities: 'Document tools',
       home: 'Home',
       insert: 'Insert',
       tools: 'Tools',
@@ -685,6 +688,7 @@ const ur: Strings = {
     ribbon: {
       tabsLabel: 'ربن کے ٹیب',
       quickAccess: 'فوری رسائی',
+      utilities: 'دستاویز کے اوزار',
       home: 'ہوم',
       insert: 'شامل کریں',
       tools: 'اوزار',
@@ -983,6 +987,7 @@ const paShahmukhi: Strings = {
     ribbon: {
       tabsLabel: 'ربن دے ٹیب',
       quickAccess: 'جھٹ رسائی',
+      utilities: 'دستاویز دے اوزار',
       home: 'ہوم',
       insert: 'شامل کرو',
       tools: 'اوزار',

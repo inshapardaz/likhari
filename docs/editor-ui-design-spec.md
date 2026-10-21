@@ -117,10 +117,10 @@ An opt-in layout, `toolbarStyle.layout: 'ribbon'`, for hosts that want an office
 **It does not replace the classic toolbar**: §3.1 and §3.3 stay the default and still describe
 it. The ribbon has the same commands and the same configuration toggles, regrouped:
 
-- **Tab strip** (a `tablist`): Home, Insert, Tools, View, then any context tabs, with the
-  quick-access group at the logical end of the strip, outside the tabs: drafts, search (find and
-  replace) and help, then save, undo and redo. These are on no tab, so they stay in reach on every
-  tab and when there are no tabs at all.
+- **Tab strip** (a `tablist`): Home, Insert, Tools, View, then any context tabs. Two groups sit on the
+  same row but are on no tab, so they stay in reach on every tab and when there are no tabs at all:
+  **quick access** (save, undo, redo) before the tabs, and **document tools** (drafts, search/find and
+  replace, help) after them, each its own named toolbar. In RTL (§5) the row mirrors as a whole.
 - **Command row**: the selected tab's groups, in the §3.2 sizes (46px row, 30×30px buttons,
   hairline dividers). It never wraps and never collapses into a "..." menu; on a narrow screen it
   scrolls sideways, and so does the tab strip.

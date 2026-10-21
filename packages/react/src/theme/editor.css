@@ -1121,7 +1121,7 @@
 
 
 /* Ribbon layout (toolbarStyle.layout: 'ribbon', UI spec §3.4): a strip of tabs over one row of the active
-   tab's command groups, with drafts, search, help, save, undo and redo at the end of the strip. */
+   tab's command groups, with save, undo and redo before the tabs and drafts, search and help after them. */
 .likhari-ribbon {
   display: flex;
   flex-direction: column;
@@ -1185,10 +1185,9 @@
   outline-offset: -2px;
 }
 
-.likhari-ribbon-quick {
+.likhari-ribbon-quick,
+.likhari-ribbon-utilities {
   display: flex;
-  /* At the end of the row, also when there are no tabs to push it there. */
-  margin-inline-start: auto;
   flex: 0 0 auto;
   flex-wrap: nowrap;
   align-items: center;
@@ -1196,6 +1195,11 @@
   min-height: 0;
   padding: 0;
   background: transparent;
+}
+
+/* Drafts, search and help at the end of the row, also when there are no tabs to push them there. */
+.likhari-ribbon-utilities {
+  margin-inline-start: auto;
 }
 
 /* The panel scrolls sideways when its groups do not fit, instead of wrapping onto a second row. */

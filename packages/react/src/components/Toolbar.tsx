@@ -2134,7 +2134,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
     };
 
-    // Drafts, search and help are not part of any tab: they stay on the tab row, with save, undo and redo.
+    // Save, undo and redo come before the tabs; drafts, search and help come after them. Neither is on a tab,
+    // so both stay in reach whichever tab is open (and when there are no tabs).
+    const quickAccess = [saveGroup, historyGroup].filter(Boolean);
     const utilities = (draftsButton || findButton || helpButton) &&
       cluster(
         'utilities',
@@ -2144,10 +2146,20 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           {helpButton}
         </>,
       );
-    const quickAccess = [utilities, saveGroup, historyGroup].filter(Boolean);
     return (
       <div className={bordered ? 'likhari-ribbon' : 'likhari-ribbon likhari-ribbon--plain'}>
         <div className="likhari-ribbon-top">
+          {quickAccess.length > 0 && (
+            <MantineToolbar
+              aria-label={rt.quickAccess}
+              className="likhari-ribbon-quick"
+              withBorder={false}
+              variant={variant}
+              color="var(--editor-accent)"
+            >
+              {withDividers(quickAccess)}
+            </MantineToolbar>
+          )}
           {tabs.length > 0 && (
           <div role="tablist" aria-label={rt.tabsLabel} className="likhari-ribbon-tabs" onKeyDown={onTabKeyDown}>
             {tabs.map((tab) => {
@@ -2173,15 +2185,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             })}
           </div>
           )}
-          {quickAccess.length > 0 && (
+          {utilities && (
             <MantineToolbar
-              aria-label={rt.quickAccess}
-              className="likhari-ribbon-quick"
+              aria-label={rt.utilities}
+              className="likhari-ribbon-utilities"
               withBorder={false}
               variant={variant}
               color="var(--editor-accent)"
             >
-              {withDividers(quickAccess)}
+              {utilities}
             </MantineToolbar>
           )}
         </div>

@@ -7,6 +7,7 @@ const cmd = (page: Page, name: string | RegExp) => ribbon(page).getByRole('butto
 const panel = (page: Page) => page.getByRole('toolbar', { name: 'Formatting' });
 const tabNames = (page: Page) => page.getByRole('tab').allInnerTexts();
 const quick = (page: Page) => page.getByRole('toolbar', { name: 'Quick access' });
+const utilities = (page: Page) => page.getByRole('toolbar', { name: 'Document tools' });
 
 async function openRibbon(editor: EditorPage, prefs: Parameters<EditorPage['open']>[0] = {}) {
   await editor.open({ ribbon: true, ...prefs });
@@ -255,9 +256,9 @@ test.describe('only tabs with something in them are shown', () => {
     expect(await tabNames(page)).toEqual([]);
     await expect(page.getByRole('tablist')).toHaveCount(0);
     await expect(page.getByRole('tabpanel')).toHaveCount(0);
-    for (const name of ['Drafts', 'Help', 'Save', 'Undo', 'Redo']) {
-      await expect(quick(page).getByRole(name === 'Help' ? 'link' : 'button', { name })).toBeVisible();
-    }
+    for (const name of ['Save', 'Undo', 'Redo']) await expect(quick(page).getByRole('button', { name })).toBeVisible();
+    await expect(utilities(page).getByRole('button', { name: 'Drafts' })).toBeVisible();
+    await expect(utilities(page).getByRole('link', { name: 'Help' })).toBeVisible();
   });
 
   test('turning off every insert feature removes the Insert tab', async ({ editor, page }) => {
@@ -282,14 +283,14 @@ test.describe('only tabs with something in them are shown', () => {
 });
 
 test.describe('drafts, search and help sit on the tab row, outside every tab', () => {
-  test('they are on the row with save, undo and redo, and on no tab', async ({ editor, page }) => {
+  test('they are on the row after the tabs, and on no tab', async ({ editor, page }) => {
     await openRibbon(editor);
-    for (const name of ['Drafts', 'Find and replace']) await expect(quick(page).getByRole('button', { name })).toBeVisible();
-    await expect(quick(page).getByRole('link', { name: 'Help' })).toHaveAttribute('href', /markdown-dialect\.md$/);
+    for (const name of ['Drafts', 'Find and replace']) await expect(utilities(page).getByRole('button', { name })).toBeVisible();
+    await expect(utilities(page).getByRole('link', { name: 'Help' })).toHaveAttribute('href', /markdown-dialect\.md$/);
 
     for (const name of ['Home', 'Insert', 'Tools']) {
       await tab(page, name).click();
-      for (const button of ['Drafts', 'Find and replace']) await expect(quick(page).getByRole('button', { name: button })).toBeVisible();
+      for (const button of ['Drafts', 'Find and replace']) await expect(utilities(page).getByRole('button', { name: button })).toBeVisible();
       for (const button of ['Drafts', 'Find and replace']) await expect(panel(page).getByRole('button', { name: button })).toHaveCount(0);
       await expect(panel(page).getByRole('link', { name: 'Help' })).toHaveCount(0);
     }
@@ -305,10 +306,10 @@ test.describe('drafts, search and help sit on the tab row, outside every tab', (
     await openRibbon(editor);
     await editor.type('find me');
     await tab(page, 'Insert').click();
-    await quick(page).getByRole('button', { name: 'Find and replace' }).click();
+    await utilities(page).getByRole('button', { name: 'Find and replace' }).click();
 
     await expect(page.getByRole('search')).toBeVisible();
-    await expect(quick(page).getByRole('button', { name: 'Find and replace' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(utilities(page).getByRole('button', { name: 'Find and replace' })).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('search').getByRole('textbox', { name: 'Find' }).fill('find');
     await expect(page.getByRole('search').getByText('1 / 1')).toBeVisible();
   });
@@ -316,13 +317,13 @@ test.describe('drafts, search and help sit on the tab row, outside every tab', (
   test('drafts opens the drafts dialog from any tab', async ({ editor, page }) => {
     await openRibbon(editor);
     await tab(page, 'Tools').click();
-    await quick(page).getByRole('button', { name: 'Drafts' }).click();
+    await utilities(page).getByRole('button', { name: 'Drafts' }).click();
     await expect(page.getByRole('dialog', { name: 'Saved drafts' })).toBeVisible();
   });
 
   test('they stay when there are no tabs at all', async ({ editor, page }) => {
     await openRibbon(editor, { preset: 'minimal' });
-    await expect(quick(page).getByRole('button', { name: 'Drafts' })).toBeVisible();
+    await expect(utilities(page).getByRole('button', { name: 'Drafts' })).toBeVisible();
   });
 
   test('they stay beside a context tab', async ({ editor, page }) => {
@@ -330,16 +331,38 @@ test.describe('drafts, search and help sit on the tab row, outside every tab', (
     await page.getByRole('button', { name: 'Load Markdown sample' }).click();
     await editor.content.locator('td').first().click();
     await expect(tab(page, 'Table')).toBeVisible();
-    await expect(quick(page).getByRole('button', { name: 'Find and replace' })).toBeVisible();
+    await expect(utilities(page).getByRole('button', { name: 'Find and replace' })).toBeVisible();
   });
 
-  test('the row keeps them at its end, after the tabs', async ({ editor, page }) => {
+  test('save, undo and redo come before the tabs, drafts, search and help after them', async ({ editor, page }) => {
     await openRibbon(editor);
-    const lastTab = (await tab(page, 'Tools').boundingBox())!;
-    const drafts = (await quick(page).getByRole('button', { name: 'Drafts' }).boundingBox())!;
-    const redo = (await quick(page).getByRole('button', { name: 'Redo' }).boundingBox())!;
-    expect(drafts.x).toBeGreaterThan(lastTab.x + lastTab.width);
-    expect(redo.x).toBeGreaterThan(drafts.x);
+    const box = async (locator: ReturnType<Page['locator']>) => (await locator.boundingBox())!;
+    const save = await box(quick(page).getByRole('button', { name: 'Save' }));
+    const redo = await box(quick(page).getByRole('button', { name: 'Redo' }));
+    const home = await box(tab(page, 'Home'));
+    const tools = await box(tab(page, 'Tools'));
+    const drafts = await box(utilities(page).getByRole('button', { name: 'Drafts' }));
+    const help = await box(utilities(page).getByRole('link', { name: 'Help' }));
+
+    expect(save.x).toBeLessThan(redo.x);
+    expect(redo.x + redo.width).toBeLessThanOrEqual(home.x); // all of them left of the first tab
+    expect(drafts.x).toBeGreaterThanOrEqual(tools.x + tools.width); // all of them right of the last tab
+    expect(drafts.x).toBeLessThan(help.x);
+  });
+
+  test('the two groups are separate toolbars, each with its own name', async ({ editor, page }) => {
+    await openRibbon(editor);
+    await expect(quick(page).getByRole('button', { name: 'Drafts' })).toHaveCount(0);
+    await expect(utilities(page).getByRole('button', { name: 'Save' })).toHaveCount(0);
+  });
+
+  test('in a right-to-left editor the two groups swap sides with the tabs', async ({ editor, page }) => {
+    await openRibbon(editor, { locale: 'ur' });
+    const quickBox = (await page.getByRole('toolbar', { name: 'فوری رسائی' }).boundingBox())!;
+    const utilitiesBox = (await page.getByRole('toolbar', { name: 'دستاویز کے اوزار' }).boundingBox())!;
+    const home = (await tab(page, 'ہوم').boundingBox())!;
+    expect(quickBox.x).toBeGreaterThan(home.x); // save, undo and redo start on the right, before the tabs
+    expect(utilitiesBox.x).toBeLessThan(home.x); // drafts, search and help are at the left end
   });
 });
 
