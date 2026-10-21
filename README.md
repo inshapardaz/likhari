@@ -224,6 +224,86 @@ round-trips and what degrades. Font family and size are not part of the dialect 
 styled run keeps its other formatting but loses the font on export, keeping Markdown
 close to plain GFM.
 
+### Merging pages without the editor
+
+`mergePages` in `@inshapardaz/likhari-converters` combines an array of pages into one
+document with a page break between each pair. It needs no editor, React or DOM for
+Markdown and Lexical JSON input, so it runs in a server, a worker or a build script.
+(HTML input uses `DOMParser`, as above.) The caller picks the output format.
+
+```ts
+import { mergePages } from '@inshapardaz/likhari-converters';
+
+const book = mergePages(pageMarkdown, { outputFormat: 'lexical-json' }); // pages are Markdown by default
+
+mergePages(pageJson, { inputFormat: 'lexical-json', outputFormat: 'markdown' });
+mergePages([md, { content: json, format: 'lexical-json' }], { outputFormat: 'html' }); // mixed
+```
+
+Blank pages are kept by default, so page numbers still line up; pass `skipBlankPages: true` to
+leave out pages that are empty, whitespace or only empty paragraphs (a page with a rule, image or
+break is not blank), with no stray page break left behind. Footnote ids are only unique within a
+page, so a clashing id on a later page is renamed (`1` becomes `1-2`) in its references and
+note; every page's notes end up in one list at the end. A page that cannot be read throws an
+error naming it (`page 2 is not valid lexical-json: …`). `mergePagesToState` returns the
+combined Lexical state instead of a string, to load or post-process it.
+
+**Paragraphs that run across a page.** Pass `joinParagraphs` to merge a page that carries on the
+previous page's last paragraph into that paragraph instead of breaking the page. Two modes:
+
+- `joinParagraphs: 'blank-line'` — **an empty line or empty paragraph at the end of a page ends
+  its paragraph**; a page without one continues. So the text is the signal: leave a blank line
+  where a paragraph really ends and nothing where it runs over. The marker only signals, so it is
+  not kept in the output.
+- `joinParagraphs: 'punctuation'` — a guess instead: the page continues when its last paragraph
+  does not end in `۔ ؟ ! ? . …` (closing quotes and brackets aside; a comma, colon or plain word
+  counts as unfinished). Use it for pages that carry no marker.
+
+In both modes pages only join when the next page opens with an unindented paragraph of the same
+direction and alignment after a plain paragraph; headings, lists, quotes, tables and blank pages
+never join. Joined paragraphs are merged into one, separated by a single space, each run keeping
+its formatting. A page break cannot sit inside a paragraph, so **no break is inserted where pages
+are joined**.
+
+**Saving the marker.** The editor never trims a trailing empty paragraph, and every format keeps it
+through save and load: Lexical JSON, HTML and plain text natively, and Markdown as a `::blank` line
+(see [`docs/markdown-dialect.md`](docs/markdown-dialect.md)). For Markdown you write by hand, ending
+the page with a blank line (`\n\n`, not just the final newline) works too. Only a run of empty
+paragraphs at the very end of a page is written as `::blank`; empty paragraphs in the middle are
+still dropped from Markdown.
+
+**From React, Vue or the web component:** it is a plain function, so call it anywhere in app
+code, not only inside a component. `npm install @inshapardaz/likhari-converters` and import it
+(the React, Vue and web-component packages depend on it, but list it yourself if you import it
+directly, since a strict package manager will not expose a transitive dependency). Load the
+result with `setContent(merged, 'markdown')` (or whichever output format you chose) on
+`EditorRef`, the Vue wrapper or the web component.
+
+### Converting between formats without the editor
+
+`convertContent` in `@inshapardaz/likhari-converters` converts a document from one format to
+another, the same way `mergePages` combines pages: a plain function with no editor, React or DOM
+needed for Markdown, Lexical JSON and plain text (HTML input uses `DOMParser`). It goes through the
+editor's own parsers and serializers, so the result is exactly what the editor would save in the
+output format. The text itself is not touched: no spaces are collapsed or trimmed and nothing is
+normalised.
+
+```ts
+import { convertContent } from '@inshapardaz/likhari-converters';
+
+const html = convertContent(markdown, { inputFormat: 'markdown', outputFormat: 'html' });
+const json = convertContent(html, { inputFormat: 'html', outputFormat: 'lexical-json' });
+```
+
+Converting a format to itself rewrites it the way the editor writes it (`Title\n=====` becomes
+`# Title`). `context` (for example an image URL resolver) and `registry` work as in `mergePages`,
+and `convertContentToState` returns the parsed Lexical state instead of a string.
+
+Converting to a format that holds less than the input (rich text to plain text, a table to
+Markdown, poetry to plain text) degrades the way that format's fidelity matrix says, see
+[`docs/markdown-dialect.md`](docs/markdown-dialect.md) and `docs/lexical-editor-spec.md` §2.2.
+Input that cannot be read throws `convertContent: the input is not valid <format>: …`.
+
 ### Images
 
 With `images.linked` / `images.embedded` enabled, the toolbar's image button opens

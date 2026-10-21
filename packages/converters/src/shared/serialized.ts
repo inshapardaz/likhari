@@ -69,3 +69,12 @@ export function collectFootnoteOrder(blocks: SNode[]): Map<string, number> {
   blocks.forEach(visit);
   return order;
 }
+
+/** A paragraph with nothing in it: no children, or only whitespace and line breaks. */
+export function isEmptyParagraph(node: SNode | undefined): boolean {
+  return (
+    !!node &&
+    node.type === 'paragraph' &&
+    (node.children ?? []).every((child) => (child.type === 'text' ? String(child.text ?? '').trim() === '' : child.type === 'linebreak'))
+  );
+}

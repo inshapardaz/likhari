@@ -250,4 +250,61 @@ describe('markdown images', () => {
     const [back] = parse(md([image]));
     expect(back).toMatchObject({ type: 'image', caption: 'cap', width: 300, height: 200, altText: 'alt' });
   });
+
+});
+
+describe('markdownConverter: empty paragraphs at the end (::blank)', () => {
+  const doc = (...blocks: SNode[]) => makeState(blocks);
+  const kinds = (state: unknown) => (state as { root: { children: SNode[] } }).root.children.map((b) => `${b.type}:${(b.children ?? []).length}`);
+
+  it('writes a trailing empty paragraph as ::blank and reads it back', () => {
+    const md = markdownConverter.serialize(doc(paragraph([textNode('text')]), paragraph()));
+    expect(md).toBe('text\n\n::blank\n');
+    expect(kinds(markdownConverter.parse(md))).toEqual(['paragraph:1', 'paragraph:0']);
+  });
+
+  it('keeps how many there are', () => {
+    const md = markdownConverter.serialize(doc(paragraph([textNode('text')]), paragraph(), paragraph(), paragraph()));
+    expect(md).toBe('text\n\n::blank\n\n::blank\n\n::blank\n');
+    expect(kinds(markdownConverter.parse(md))).toEqual(['paragraph:1', 'paragraph:0', 'paragraph:0', 'paragraph:0']);
+  });
+
+  it('also counts whitespace-only paragraphs and line-break-only paragraphs as empty', () => {
+    const md = markdownConverter.serialize(doc(paragraph([textNode('text')]), paragraph([textNode('  ')]), paragraph([{ type: 'linebreak', version: 1 }])));
+    expect(md).toBe('text\n\n::blank\n\n::blank\n');
+  });
+
+  it('still drops empty paragraphs in the middle, as before', () => {
+    const md = markdownConverter.serialize(doc(paragraph([textNode('a')]), paragraph(), paragraph([textNode('b')])));
+    expect(md).toBe('a\n\nb\n');
+  });
+
+  it('leaves a document that is only empty paragraphs empty', () => {
+    expect(markdownConverter.serialize(doc(paragraph(), paragraph()))).toBe('');
+  });
+
+  it('is written after the body and before footnote definitions', () => {
+    const md = markdownConverter.serialize(
+      doc(
+        paragraph([textNode('claim'), { type: 'footnote-reference', version: 1, footnoteId: 'n' }]),
+        paragraph(),
+        elementBase('footnote-list', [elementBase('footnote-item', [paragraph([textNode('note')])], { footnoteId: 'n' })]),
+      ),
+    );
+    expect(md).toBe('claim[^n]\n\n::blank\n\n[^n]: note\n');
+    expect(kinds(markdownConverter.parse(md))).toEqual(['paragraph:2', 'paragraph:0', 'footnote-list:1']);
+  });
+
+  it('is only for the end of the document: an empty paragraph inside a table cell is not written', () => {
+    const cell = (kids: SNode[]) => elementBase('tablecell', kids, { colSpan: 1, rowSpan: 1, headerState: 0 });
+    const table = elementBase('table', [elementBase('tablerow', [cell([paragraph([textNode('a')])]), cell([paragraph()])])]);
+    const md = markdownConverter.serialize(doc(table, paragraph()));
+    expect(md.match(/::blank/g)).toHaveLength(1); // the trailing one after the table, none in the cell
+    expect(md.indexOf('::blank')).toBeGreaterThan(md.lastIndexOf('|'));
+  });
+
+  it('reads ::blank anywhere as one empty paragraph, and does not mistake it for prose', () => {
+    expect(kinds(markdownConverter.parse('a\n\n::blank\n\nb'))).toEqual(['paragraph:1', 'paragraph:0', 'paragraph:1']);
+    expect(kinds(markdownConverter.parse('::blankish'))).toEqual(['paragraph:1']);
+  });
 });
