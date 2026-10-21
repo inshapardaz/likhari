@@ -248,21 +248,29 @@ note; every page's notes end up in one list at the end. A page that cannot be re
 error naming it (`page 2 is not valid lexical-json: …`). `mergePagesToState` returns the
 combined Lexical state instead of a string, to load or post-process it.
 
-**Paragraphs that run across a page.** Text alone cannot say whether a page carries on the
-previous page's last paragraph, so there are two ways to tell the merge:
+**Paragraphs that run across a page.** Pass `joinParagraphs` to merge a page that carries on the
+previous page's last paragraph into that paragraph instead of breaking the page. Two modes:
 
-- `joinParagraphs: true` guesses. Page *n+1* continues page *n* when *n*'s last block is a
-  paragraph that stops mid-sentence (it does not end in `۔ ؟ ! ? . …`, ignoring closing quotes
-  and brackets; a comma, colon, semicolon or plain word counts as unfinished) and *n+1* opens
-  with an unindented paragraph of the same direction and alignment. Headings, lists, quotes,
-  tables and blank pages never join.
-- `{ content, continues: true | false }` on a page decides for that page, over the guess (and
-  works with `joinParagraphs` off). Use it where you know, for instance from a proofreader's flag.
+- `joinParagraphs: 'blank-line'` — **an empty line or empty paragraph at the end of a page ends
+  its paragraph**; a page without one continues. So the text is the signal: leave a blank line
+  where a paragraph really ends and nothing where it runs over. The marker only signals, so it is
+  not kept in the output.
+- `joinParagraphs: 'punctuation'` — a guess instead: the page continues when its last paragraph
+  does not end in `۔ ؟ ! ? . …` (closing quotes and brackets aside; a comma, colon or plain word
+  counts as unfinished). Use it for pages that carry no marker.
 
-Joined paragraphs are merged into one, separated by a single space, with each run's formatting
-kept. A page break cannot sit inside a paragraph, so **no break is inserted where pages are
-joined**. The guess is tuned for Urdu and English punctuation; it is a heuristic, so check
-documents where a wrong call matters and use `continues` to correct it.
+In both modes pages only join when the next page opens with an unindented paragraph of the same
+direction and alignment after a plain paragraph; headings, lists, quotes, tables and blank pages
+never join. Joined paragraphs are merged into one, separated by a single space, each run keeping
+its formatting. A page break cannot sit inside a paragraph, so **no break is inserted where pages
+are joined**.
+
+**Saving the marker.** The editor never trims a trailing empty paragraph, and Lexical JSON, HTML
+and plain text keep it through save and load. **Markdown cannot**: it has no way to write an empty
+paragraph, so the serializer drops it (`docs/markdown-dialect.md`). For Markdown pages the merge
+therefore reads the raw text: the page must **end with a blank line** (`\n\n`, not just the final
+newline). That works for text you author or store yourself; Markdown *exported from the editor*
+loses the marker, so keep pages as Lexical JSON (or HTML / plain text) if they rely on it.
 
 **From React, Vue or the web component:** it is a plain function, so call it anywhere in app
 code, not only inside a component. `npm install @inshapardaz/likhari-converters` and import it

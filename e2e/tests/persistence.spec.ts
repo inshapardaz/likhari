@@ -241,3 +241,38 @@ test.describe('leaving with unsaved changes', () => {
     await expect.poll(() => editor.savedDraftText()).toBe('Silent draft');
   });
 });
+
+// mergePages(..., { joinParagraphs: 'blank-line' }) treats an empty paragraph at the end of a
+// page as "the paragraph ends here", so saving must never trim it. (Markdown cannot hold an
+// empty paragraph at all, by design, so it is not covered here.)
+test.describe('a trailing empty paragraph', () => {
+  const trailingEmpty = (html: string) => /<p[^>]*>Page text<\/p>\s*<p[^>]*><\/p>$/.test(html.trim());
+
+  test.beforeEach(async ({ editor }) => {
+    await editor.open();
+    await editor.type('Page text');
+    await editor.page.keyboard.press('Enter');
+  });
+
+  test('is kept in the HTML and Lexical JSON the editor gives back', async ({ editor }) => {
+    expect(trailingEmpty(await editor.html())).toBe(true);
+
+    const json = JSON.parse(await editor.output('Get Lexical JSON'));
+    const blocks = json.root.children as { type: string; children: unknown[] }[];
+    expect(blocks.map((b) => `${b.type}:${b.children.length}`)).toEqual(['paragraph:1', 'paragraph:0']);
+  });
+
+  test('is kept by "Correct whole document" and its text cleanup', async ({ editor }) => {
+    await editor.button('Correct whole document').click();
+    expect(trailingEmpty(await editor.html())).toBe(true);
+  });
+
+  test('is kept in the autosaved draft and when it is restored', async ({ editor, page }) => {
+    await expect.poll(() => editor.savedDraftText()).toBe('Page text');
+    await editor.reload();
+    await page.getByRole('button', { name: 'Restore' }).click();
+
+    await expect(editor.content).toHaveText('Page text');
+    expect(trailingEmpty(await editor.html())).toBe(true);
+  });
+});

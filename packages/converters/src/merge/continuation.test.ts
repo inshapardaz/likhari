@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canJoinParagraphs, endsMidSentence, joinParagraphs } from './continuation';
-import { elementBase, paragraph, textNode } from '../shared/serialized';
+import { elementBase, paragraph, textNode, type SNode } from '../shared/serialized';
 
 const para = (text: string, extra: Record<string, unknown> = {}) => paragraph([textNode(text)], extra);
 
@@ -73,7 +73,7 @@ describe('canJoinParagraphs', () => {
 });
 
 describe('joinParagraphs', () => {
-  const texts = (block: { children?: { text?: unknown }[] }) => (block.children ?? []).map((c) => c.text);
+  const texts = (block: SNode) => (block.children ?? []).map((c) => c.text);
 
   it('puts one space between the two', () => {
     const a = para('first');
