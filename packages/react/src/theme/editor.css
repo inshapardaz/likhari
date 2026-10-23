@@ -1332,3 +1332,26 @@
 .likhari-ribbon-quick [data-dirty='false'][data-disabled] {
   color: var(--editor-ink-soft);
 }
+
+/* The right-click menu is compact: its icons follow the smaller item text (sizes set in Toolbar.tsx). */
+.likhari-context-menu svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Cut, copy and paste as one row of icon buttons in the right-click menu. */
+.likhari-context-row {
+  display: flex;
+  gap: 2px;
+}
+
+.likhari-context-row [data-menu-item] {
+  flex: 1 1 0;
+  justify-content: center;
+  padding-block: 5px;
+}
+
+.likhari-context-row [data-menu-item] > * {
+  display: flex;
+  justify-content: center;
+}

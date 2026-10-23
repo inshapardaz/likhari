@@ -356,7 +356,8 @@ table (rows, columns, optional header row). Cells can't be merged or split yet (
 the open risk in `docs/lexical-editor-spec.md` §12), so every table is a plain grid.
 
 **Table actions.** While the caret is in a table the toolbar shows a *Table options*
-button, and right-clicking a cell opens the same menu at the pointer:
+button, and right-clicking a cell offers the same actions in a *Table* submenu of the right-click
+menu (see [The right-click menu](#the-right-click-menu)):
 
 - *Insert row before / after*, *Insert column before / after*
 - *Delete row*, *Delete column*, *Delete table*
@@ -366,6 +367,27 @@ the menu switches to *Insert rows / columns before / after* and inserts as many 
 selected, on the outside edge of the selection; *Delete rows / columns* removes every
 row or column the selection touches. In a right-to-left table "before" is the right-hand
 side. Deleting the last remaining row or column removes the table.
+
+### The right-click menu
+
+One menu replaces the browser's own and adds what applies to what is under the pointer. It has
+compact items (12px text, small icons), and what it shows depends on where you click:
+
+- **A misspelled word**: only its spelling fixes (suggestions, *Ignore*, *Add to dictionary*, *Add
+  to auto-correct*) and the clipboard row. Nothing else, even when the word is in a table cell or a
+  link: the toolbar still has the table and link commands.
+- **Anywhere else**: submenus for what is under the pointer, then the clipboard row and *Select all*.
+  *Synonyms* opens a submenu of the word's synonyms (filled in once they arrive); *Link* (open, edit,
+  remove), *Table* (insert and delete rows and columns, merge and split cells, delete the table) and
+  *Poetry* (layout, spacing, couplets) appear when you click on a link, a table cell or a couplet;
+  *Join lines* is an item of its own on plain text.
+- **Cut, copy and paste** are one row of three icon buttons without labels (their names are the
+  tooltips and what a screen reader says).
+
+Submenus open on hover, click or the right-arrow key, flip to the other side when there is no room,
+and stay inside the window. The menu is positioned against the window, not the editor, so it never
+adds a scroll bar to the editor or makes the text jump, and it is not cut off at the editor's edge;
+when it is taller than the room there is, it is cut to fit and scrolls.
 
 ### Fonts
 
