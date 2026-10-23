@@ -249,21 +249,32 @@ test.describe('autocomplete', () => {
 });
 
 test.describe('thesaurus', () => {
-  test('right-click on a word lists its synonyms, and picking one replaces the word', async ({ editor, page }) => {
+  test('right-click on a word lists its synonyms in a submenu, and picking one replaces the word', async ({ editor, page }) => {
     await editor.open();
     await editor.type('a big dog');
     await editor.content.getByText('a big dog').click({ button: 'right', position: { x: 22, y: 8 } });
 
+    await page.getByRole('menuitem', { name: 'Synonyms' }).hover();
     await page.getByRole('menuitem', { name: 'large', exact: true }).click();
     await expect(editor.content).toHaveText('a large dog');
   });
 
   test('says when a word has no synonyms', async ({ editor, page }) => {
     await editor.open();
+    await editor.type('hello'); // spelt right, but the test thesaurus knows nothing about it
+    await editor.content.getByText('hello').click({ button: 'right', position: { x: 8, y: 8 } });
+
+    await page.getByRole('menuitem', { name: 'Synonyms' }).hover();
+    await expect(page.getByRole('menuitem', { name: 'No synonyms' })).toBeDisabled();
+  });
+
+  test('a misspelled word gets no synonyms entry: its menu is the spelling fixes', async ({ editor, page }) => {
+    await editor.open();
     await editor.type('zzz');
     await editor.content.getByText('zzz').click({ button: 'right', position: { x: 8, y: 8 } });
 
-    await expect(page.getByRole('menuitem', { name: 'No synonyms' })).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: 'Ignore', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Synonyms' })).toHaveCount(0);
   });
 });
 

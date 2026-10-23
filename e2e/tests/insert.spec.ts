@@ -249,10 +249,11 @@ test.describe('tables', () => {
     void page;
   });
 
-  test('right-clicking a cell opens the same table menu', async ({ editor, page }) => {
+  test('right-clicking a cell opens the same table commands, in a Table submenu', async ({ editor, page }) => {
     await editor.open();
     await insertTable(editor, 2, 2);
     await editor.content.locator('td').first().click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Table', exact: true }).hover();
     await expect(page.getByRole('menuitem', { name: 'Insert row after' })).toBeVisible();
   });
 });

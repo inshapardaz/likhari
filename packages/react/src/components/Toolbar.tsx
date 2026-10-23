@@ -114,6 +114,7 @@ import {
   IconBold,
   IconClearFormatting,
   IconDeviceFloppy,
+  IconBook,
   IconChevronDown,
   IconChevronUp,
   IconDots,
@@ -255,6 +256,12 @@ const CONTEXT_MENU_WIDTH = 220;
 const CONTEXT_MENU_VIEWPORT_PADDING = 8;
 /** `likhari-context-menu` (editor.css) shrinks the icons to match the smaller text. */
 const CONTEXT_MENU_CLASS_NAMES = { dropdown: 'likhari-context-menu' };
+/** The submenus: opened to the side, flipped or shifted to stay in the window, and positioned against the window (`fixed`) so
+ * the menu's own scrolling does not clip them. */
+const CONTEXT_SUBMENU_PROPS = {
+  floatingStrategy: 'fixed',
+  middlewares: { flip: true, shift: { crossAxis: true, padding: CONTEXT_MENU_VIEWPORT_PADDING }, size: { padding: CONTEXT_MENU_VIEWPORT_PADDING } },
+} as const;
 const CONTEXT_MENU_STYLES = {
   dropdown: { overflowY: 'auto', padding: 4 },
   item: { fontSize: 'var(--mantine-font-size-xs)', padding: '4px 8px', minHeight: 0 },
@@ -485,8 +492,8 @@ interface EditorContextMenu {
   thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
 }
 
-/** Where a command list is shown: as items in a dropdown menu, or as icon buttons on the ribbon. */
-type ItemMode = 'menu' | 'ribbon';
+/** Where a command list is shown: as items in a dropdown menu (`submenu` is the same without its heading, the parent item names it), or as icon buttons on the ribbon. */
+type ItemMode = 'menu' | 'submenu' | 'ribbon';
 
 /** One command, as a menu item or as a ribbon button (the label becomes its tooltip and name). */
 function CommandItem({
@@ -520,8 +527,8 @@ function CommandItem({
   );
 }
 
-/** A group heading in a menu; the ribbon's tab already names the group, so it shows nothing there. */
-const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'ribbon' ? null : <Menu.Label>{children}</Menu.Label>);
+/** A group heading in a menu; the ribbon's tab and a submenu's parent item already name the group, so they show nothing. */
+const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'menu' ? <Menu.Label>{children}</Menu.Label> : null);
 const ItemDivider = ({ mode }: { mode: ItemMode }) => (mode === 'ribbon' ? <MantineToolbar.Divider /> : <Menu.Divider />);
 
 function LinkMenuItems({ url, onEdit, onRemove, strings, mode = 'menu' }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings; mode?: ItemMode }) {
@@ -1256,6 +1263,14 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           }
         }
       }
+      // A misspelled word's menu is its spelling fixes and the clipboard, nothing else: no synonyms to look up either.
+      if (menu.spelling) {
+        menu.thesaurus = undefined;
+        menu.link = undefined;
+        menu.table = undefined;
+        menu.poetry = undefined;
+        menu.text = undefined;
+      }
       setContextMenu(menu);
       if (word && menu.thesaurus) {
         // Synonyms can take a while (the first WordNet lookup downloads the database), so the menu
@@ -1927,6 +1942,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       // Stays inside the visible area: flips above the click or shifts sideways when it fits that
       // way, and otherwise is cut to the room there is and scrolls (a long menu in a short window).
       middlewares={{ flip: true, shift: true, size: { padding: CONTEXT_MENU_VIEWPORT_PADDING } }}
+      // Positioned against the window, not the editor: the menu then takes no room in the editor's layout (so it can
+      // never grow a scroll bar there or make the text jump) and is not cut off at the editor's edge. No open
+      // animation either, as its transform would make the submenus position against the menu instead.
+      floatingStrategy="fixed"
+      transitionProps={{ duration: 0 }}
       styles={CONTEXT_MENU_STYLES}
       classNames={CONTEXT_MENU_CLASS_NAMES}
     >
@@ -1938,7 +1958,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         />
       </Menu.Target>
       <Menu.Dropdown>
-        {contextMenu?.spelling && (
+        {contextMenu?.spelling ? (
+          // A misspelled word gets its fixes and the clipboard row, and nothing else.
           <>
             <Menu.Label>{strings.contextMenu.spelling}</Menu.Label>
             {contextMenu.spelling.suggestions.length === 0 && <Menu.Item disabled>{strings.contextMenu.noSuggestions}</Menu.Item>}
@@ -1986,87 +2007,123 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             )}
             <Menu.Divider />
           </>
-        )}
-        {contextMenu?.thesaurus && (
+        ) : (
+          // Everything that applies to what is under the pointer, each kind of content behind its own submenu.
           <>
-            <Menu.Label>{strings.thesaurus.synonyms}</Menu.Label>
-            {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
-            {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
-            {contextMenu.thesaurus.items?.map((synonym) => (
+            {contextMenu?.thesaurus && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconBook size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.thesaurus.synonyms}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
+                  {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
+                  {contextMenu.thesaurus.items?.map((synonym) => (
+                    <Menu.Item
+                      key={synonym}
+                      onClick={() => {
+                        const match = contextMenu.thesaurus!.match;
+                        editor.update(() => $replaceMatch(match, synonym), { discrete: true });
+                        editor.focus();
+                      }}
+                    >
+                      {synonym}
+                    </Menu.Item>
+                  ))}
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.link !== undefined && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconLink size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.link.menuLabel}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  <LinkMenuItems
+                    mode="submenu"
+                    url={contextMenu.link}
+                    onEdit={() => {
+                      restoreSelection();
+                      openLinkDialog();
+                    }}
+                    onRemove={removeLink}
+                    strings={strings}
+                  />
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.table && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconTable size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.tableMenu.menuLabel}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  <TableMenuItems
+                    mode="submenu"
+                    strings={strings}
+                    direction={direction}
+                    rows={contextMenu.table.rows}
+                    columns={contextMenu.table.columns}
+                    canMergeCells={state.canMergeCells}
+                    canUnmergeCell={state.canUnmergeCell}
+                    onAction={runMenuAction}
+                  />
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.poetry && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.poetryMenu.menuLabel}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  <PoetryMenuItems
+                    mode="submenu"
+                    strings={strings}
+                    layout={state.poetryLayout}
+                    scale={state.poetryScale}
+                    centered={state.poetryCentered}
+                    onAction={runMenuAction}
+                  />
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.text && (
               <Menu.Item
-                key={synonym}
-                onClick={() => {
-                  const match = contextMenu.thesaurus!.match;
-                  editor.update(() => $replaceMatch(match, synonym), { discrete: true });
-                  editor.focus();
-                }}
+                leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
+                disabled={!contextMenu.canJoin}
+                onClick={runMenuAction(() => {
+                  $joinSelectedLines();
+                })}
               >
-                {synonym}
+                {strings.contextMenu.joinLines}
               </Menu.Item>
-            ))}
-            <Menu.Divider />
+            )}
+            {(contextMenu?.thesaurus || contextMenu?.link !== undefined || contextMenu?.table || contextMenu?.poetry || contextMenu?.text) && (
+              <Menu.Divider />
+            )}
           </>
         )}
-        {contextMenu?.link !== undefined && (
+        {/* Cut, copy and paste in one row of icon buttons; their labels are the tooltips and accessible names. */}
+        <div className="likhari-context-row" role="group">
+          <Menu.Item aria-label={strings.contextMenu.cut} title={strings.contextMenu.cut} onClick={() => void copyOrCut(true)()}>
+            <IconCut size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+          <Menu.Item aria-label={strings.contextMenu.copy} title={strings.contextMenu.copy} onClick={() => void copyOrCut(false)()}>
+            <IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+          <Menu.Item aria-label={strings.contextMenu.paste} title={strings.contextMenu.paste} onClick={() => void paste()}>
+            <IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+        </div>
+        {!contextMenu?.spelling && (
           <>
-            <LinkMenuItems
-              url={contextMenu.link}
-              onEdit={() => {
-                restoreSelection();
-                openLinkDialog();
-              }}
-              onRemove={removeLink}
-              strings={strings}
-            />
             <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.table && (
-          <>
-            <TableMenuItems
-              strings={strings}
-              direction={direction}
-              rows={contextMenu.table.rows}
-              columns={contextMenu.table.columns}
-              canMergeCells={state.canMergeCells}
-              canUnmergeCell={state.canUnmergeCell}
-              onAction={runMenuAction}
-            />
-            <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.poetry && (
-          <>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
-            <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.text && (
-          <>
-            <Menu.Item
-              leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
-              disabled={!contextMenu.canJoin}
-              onClick={runMenuAction(() => {
-                $joinSelectedLines();
-              })}
-            >
-              {strings.contextMenu.joinLines}
+            <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
+              {strings.contextMenu.selectAll}
             </Menu.Item>
-            <Menu.Divider />
           </>
         )}
-        <Menu.Item leftSection={<IconCut size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(true)()}>
-          {strings.contextMenu.cut}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(false)()}>
-          {strings.contextMenu.copy}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void paste()}>
-          {strings.contextMenu.paste}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
-          {strings.contextMenu.selectAll}
-        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );
