@@ -166,12 +166,9 @@ import {
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
-  IconArrowsMaximize,
-  IconArrowsMinimize,
   IconArrowsShuffle,
   IconTable,
   IconTableMinus,
-  IconTrash,
   IconTableOptions,
   IconMinus,
   IconPlus,
@@ -181,6 +178,18 @@ import {
   IconWand,
   type IconProps,
 } from '@tabler/icons-react';
+import {
+  IconCoupletCenterNarrow,
+  IconCoupletCenterWide,
+  IconCoupletDelete,
+  IconCoupletGutterNarrow,
+  IconCoupletGutterWide,
+  IconCoupletSpacingLoose,
+  IconCoupletSpacingTight,
+  IconCoupletStaggerNarrow,
+  IconCoupletStaggerWide,
+  IconPoetryDelete,
+} from '../icons/poetryIcons';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
 type ListType = 'bullet' | 'number' | 'check';
@@ -492,10 +501,10 @@ interface EditorContextMenu {
   thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
 }
 
-/** Where a command list is shown: as items in a dropdown menu (`submenu` is the same without its heading, the parent item names it), or as icon buttons on the ribbon. */
-type ItemMode = 'menu' | 'submenu' | 'ribbon';
+/** Where a command list is shown: as items in a dropdown menu (`submenu` is the same without its heading, the parent item names it), as icon buttons on the ribbon, or as an unlabelled row of icon buttons inline in the right-click menu (`icons`). */
+type ItemMode = 'menu' | 'submenu' | 'ribbon' | 'icons';
 
-/** One command, as a menu item or as a ribbon button (the label becomes its tooltip and name). */
+/** One command, as a menu item, a ribbon button, or an icon-only menu item (`icons`) — in every case the label becomes its tooltip and accessible name except in a labelled menu. */
 function CommandItem({
   mode,
   icon: Icon,
@@ -514,6 +523,20 @@ function CommandItem({
   if (mode === 'ribbon') {
     return <ToolbarButton icon={Icon} title={label} disabled={disabled} data-danger={color === 'red' ? 'true' : undefined} onClick={onClick} />;
   }
+  if (mode === 'icons') {
+    return (
+      <Menu.Item
+        aria-label={label}
+        title={label}
+        color={color}
+        disabled={disabled}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onClick}
+      >
+        <Icon size={ICON_SIZE} stroke={ICON_STROKE} />
+      </Menu.Item>
+    );
+  }
   return (
     <Menu.Item
       color={color}
@@ -527,9 +550,10 @@ function CommandItem({
   );
 }
 
-/** A group heading in a menu; the ribbon's tab and a submenu's parent item already name the group, so they show nothing. */
+/** A group heading in a menu; the ribbon's tab, a submenu's parent item, and an icon row's own aria-label already name the group, so they show nothing. */
 const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'menu' ? <Menu.Label>{children}</Menu.Label> : null);
-const ItemDivider = ({ mode }: { mode: ItemMode }) => (mode === 'ribbon' ? <MantineToolbar.Divider /> : <Menu.Divider />);
+const ItemDivider = ({ mode }: { mode: ItemMode }) =>
+  mode === 'ribbon' ? <MantineToolbar.Divider /> : mode === 'icons' ? <span className="likhari-context-icons-divider" /> : <Menu.Divider />;
 
 function LinkMenuItems({ url, onEdit, onRemove, strings, mode = 'menu' }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings; mode?: ItemMode }) {
   // Only offer the link as clickable if it's a URL the editor would have accepted.
@@ -674,39 +698,82 @@ function PoetryMenuItems({
     const node = $getPoetryBlockFromSelection();
     if (node) $setPoetryLayout(node, next);
   };
-  return (
+
+  // Which layout applies (single/two-column/staggered), kept apart from what that layout's
+  // selection then allows (insert, spacing, centering, delete) — two rows of icon buttons
+  // in `icons` mode, one heading-less list everywhere else.
+  const layoutItems = (
     <>
-      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
       {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
-      <ItemDivider mode={mode} />
-      <ItemDivider mode={mode} />
+    </>
+  );
+  // `icons` mode puts a divider between each group of similar actions (insert /
+  // spacing / this layout's own adjustments), and leaves "Delete poetry" out —
+  // it comes back as a full labelled item below, since a single trash icon in a
+  // row of several would be too easy to hit by mistake.
+  const groupDivider = mode === 'icons' ? <ItemDivider mode={mode} /> : null;
+  const actionItems = (
+    <>
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
-      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
-      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
+      {groupDivider}
+      {item(IconCoupletSpacingTight, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
+      {item(IconCoupletSpacingLoose, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
       {layout === 'staggered' && (
         <>
-          {item(IconArrowsMinimize, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
-          {item(IconArrowsMaximize, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
+          {groupDivider}
+          {item(IconCoupletStaggerNarrow, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
+          {item(IconCoupletStaggerWide, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
         </>
       )}
       {layout === 'two-column' && (
         <>
+          {groupDivider}
           {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
           {centered && (
             <>
-              {item(IconArrowsMinimize, t.narrowerCenter, () => $adjustPoetryCenterWidth(-1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, -1))}
-              {item(IconArrowsMaximize, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
+              {item(IconCoupletCenterNarrow, t.narrowerCenter, () => $adjustPoetryCenterWidth(-1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, -1))}
+              {item(IconCoupletCenterWide, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
             </>
           )}
-          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
-          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
+          {item(IconCoupletGutterNarrow, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
+          {item(IconCoupletGutterWide, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
         </>
       )}
-      {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
-      {item(IconTrash, t.deletePoetry, $deletePoetryBlock, false, 'red')}
+      {groupDivider}
+      {item(IconCoupletDelete, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
+      {mode !== 'icons' && item(IconPoetryDelete, t.deletePoetry, $deletePoetryBlock, false, 'red')}
+    </>
+  );
+
+  if (mode === 'icons') {
+    return (
+      <>
+        <div className="likhari-context-icon-rows" role="group" aria-label={t.menuLabel}>
+          <div className="likhari-context-icons">{layoutItems}</div>
+          <div className="likhari-context-icon-rows-divider" />
+          <div className="likhari-context-icons">{actionItems}</div>
+        </div>
+        <Menu.Item
+          color="red"
+          leftSection={<IconPoetryDelete size={ICON_SIZE} stroke={ICON_STROKE} />}
+          onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+          onClick={onAction($deletePoetryBlock)}
+        >
+          {t.deletePoetry}
+        </Menu.Item>
+      </>
+    );
+  }
+  return (
+    <>
+      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
+      {layoutItems}
+      <ItemDivider mode={mode} />
+      <ItemDivider mode={mode} />
+      {actionItems}
     </>
   );
 }
@@ -2010,14 +2077,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         ) : (
           // Everything that applies to what is under the pointer, each kind of content behind its own submenu.
           <>
-            {contextMenu?.thesaurus && (
+            {contextMenu?.thesaurus && contextMenu.thesaurus.items?.length !== 0 && (
               <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
                 <Menu.Sub.Target>
                   <Menu.Sub.Item leftSection={<IconBook size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.thesaurus.synonyms}</Menu.Sub.Item>
                 </Menu.Sub.Target>
                 <Menu.Sub.Dropdown>
                   {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
-                  {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
                   {contextMenu.thesaurus.items?.map((synonym) => (
                     <Menu.Item
                       key={synonym}
@@ -2053,40 +2119,28 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </Menu.Sub>
             )}
             {contextMenu?.table && (
-              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
-                <Menu.Sub.Target>
-                  <Menu.Sub.Item leftSection={<IconTable size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.tableMenu.menuLabel}</Menu.Sub.Item>
-                </Menu.Sub.Target>
-                <Menu.Sub.Dropdown>
-                  <TableMenuItems
-                    mode="submenu"
-                    strings={strings}
-                    direction={direction}
-                    rows={contextMenu.table.rows}
-                    columns={contextMenu.table.columns}
-                    canMergeCells={state.canMergeCells}
-                    canUnmergeCell={state.canUnmergeCell}
-                    onAction={runMenuAction}
-                  />
-                </Menu.Sub.Dropdown>
-              </Menu.Sub>
+              <div className="likhari-context-icons" role="group" aria-label={strings.tableMenu.menuLabel}>
+                <TableMenuItems
+                  mode="icons"
+                  strings={strings}
+                  direction={direction}
+                  rows={contextMenu.table.rows}
+                  columns={contextMenu.table.columns}
+                  canMergeCells={state.canMergeCells}
+                  canUnmergeCell={state.canUnmergeCell}
+                  onAction={runMenuAction}
+                />
+              </div>
             )}
             {contextMenu?.poetry && (
-              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
-                <Menu.Sub.Target>
-                  <Menu.Sub.Item leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.poetryMenu.menuLabel}</Menu.Sub.Item>
-                </Menu.Sub.Target>
-                <Menu.Sub.Dropdown>
-                  <PoetryMenuItems
-                    mode="submenu"
-                    strings={strings}
-                    layout={state.poetryLayout}
-                    scale={state.poetryScale}
-                    centered={state.poetryCentered}
-                    onAction={runMenuAction}
-                  />
-                </Menu.Sub.Dropdown>
-              </Menu.Sub>
+              <PoetryMenuItems
+                mode="icons"
+                strings={strings}
+                layout={state.poetryLayout}
+                scale={state.poetryScale}
+                centered={state.poetryCentered}
+                onAction={runMenuAction}
+              />
             )}
             {contextMenu?.text && (
               <Menu.Item
@@ -2099,9 +2153,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 {strings.contextMenu.joinLines}
               </Menu.Item>
             )}
-            {(contextMenu?.thesaurus || contextMenu?.link !== undefined || contextMenu?.table || contextMenu?.poetry || contextMenu?.text) && (
-              <Menu.Divider />
-            )}
+            {((contextMenu?.thesaurus && contextMenu.thesaurus.items?.length !== 0) ||
+              contextMenu?.link !== undefined ||
+              contextMenu?.table ||
+              contextMenu?.poetry ||
+              contextMenu?.text) && <Menu.Divider />}
           </>
         )}
         {/* Cut, copy and paste in one row of icon buttons; their labels are the tooltips and accessible names. */}

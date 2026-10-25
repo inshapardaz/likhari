@@ -37,7 +37,7 @@ test.describe('what the menu shows', () => {
     for (const name of ['world', 'Ignore', 'Add to dictionary', 'Add to auto-correct', 'Cut', 'Copy', 'Paste']) {
       await expect(item(page, name)).toBeVisible();
     }
-    for (const name of ['Synonyms', 'Select all', 'Join lines', 'Table', 'Link', 'Poetry']) {
+    for (const name of ['Synonyms', 'Select all', 'Join lines', 'Insert row before', 'Link', 'Single column']) {
       await expect(item(page, name)).toHaveCount(0);
     }
   });
@@ -54,7 +54,7 @@ test.describe('what the menu shows', () => {
     await page.waitForTimeout(250);
 
     await expect(item(page, 'Ignore')).toBeVisible();
-    await expect(item(page, 'Table')).toHaveCount(0);
+    await expect(item(page, 'Insert row before')).toHaveCount(0);
     await expect(item(page, 'Select all')).toHaveCount(0);
   });
 
@@ -107,16 +107,15 @@ test.describe('submenus', () => {
     await expect(submenu(page)).toBeVisible();
   });
 
-  test('Table holds the table commands and they work', async ({ editor, page }) => {
+  test('Table shows its commands as icon buttons in the main menu and they work', async ({ editor, page }) => {
     await editor.open();
     await page.getByRole('button', { name: 'Load Markdown sample' }).click();
     const rows = editor.content.locator('tr');
     const before = await rows.count();
     await editor.content.locator('td').first().click({ button: 'right' });
 
-    await item(page, 'Table').hover();
     for (const name of ['Insert row before', 'Insert row after', 'Insert column before', 'Insert column after', 'Delete row', 'Delete column', 'Delete table']) {
-      await expect(submenu(page).getByRole('menuitem', { name })).toBeVisible();
+      await expect(item(page, name)).toBeVisible();
     }
     await item(page, 'Insert row after').click();
     await expect(rows).toHaveCount(before + 1);
@@ -134,14 +133,13 @@ test.describe('submenus', () => {
     await expect(editor.content.getByRole('link')).toHaveCount(0);
   });
 
-  test('Poetry holds the poetry commands and they work', async ({ editor, page }) => {
+  test('Poetry shows its commands as icon buttons in the main menu and they work', async ({ editor, page }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
     await editor.type('شعر');
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
 
-    await item(page, 'شاعری').hover();
-    await expect(submenu(page).getByRole('menuitem', { name: 'دو کالم' })).toBeVisible();
+    await expect(item(page, 'دو کالم')).toBeVisible();
     await item(page, 'دو کالم').click();
     await expect.poll(() => editor.html()).toContain('data-likhari-poetry-layout="two-column"');
   });
@@ -160,10 +158,12 @@ test.describe('submenus', () => {
   test('a submenu stays inside the window, opening to the left when there is no room on the right', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1000, height: 700 });
     await editor.open();
-    await page.getByRole('button', { name: 'Load Markdown sample' }).click();
-    const cell = (await editor.content.locator('td').last().boundingBox())!; // a number: not a misspelled word
-    await page.mouse.click(cell.x + cell.width - 12, cell.y + 12, { button: 'right' }); // the right-hand end of the editor
-    await item(page, 'Table').hover();
+    await editor.type('a big dog');
+    const box = (await editor.content.boundingBox())!;
+    await page.mouse.click(box.x + box.width - 4, box.y + 8, { button: 'right' }); // the right-hand end of the editor
+    await expect(menu(page)).toBeVisible();
+    await page.waitForTimeout(250);
+    await item(page, 'Synonyms').hover();
     await expect(submenu(page)).toBeVisible();
 
     await expectInsideWindow(menu(page));
@@ -324,16 +324,14 @@ test.describe('context menu stays on screen', () => {
     await expectInsideWindow(menu(page));
   });
 
-  test('the table menu, with its submenu, fits a short window', async ({ editor, page }) => {
+  test('the table menu fits a short window', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1000, height: 420 });
     await editor.open();
     await page.getByRole('button', { name: 'Load Markdown sample' }).click();
     await editor.content.locator('td').first().click({ button: 'right' });
-    await item(page, 'Table').hover();
-    await expect(submenu(page).getByRole('menuitem', { name: 'Insert row after' })).toBeAttached();
+    await expect(item(page, 'Insert row after')).toBeAttached();
 
     await expectInsideWindow(menu(page));
-    await expectInsideWindow(submenu(page));
   });
 
   test('right-to-left editors too', async ({ editor, page }) => {
@@ -365,12 +363,11 @@ test.describe('the menu lives outside the editor, so the editor does not react t
   test('opening it, and a submenu, grows no scroll area in the editor and does not move the text', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1100, height: 600 });
     await editor.open();
-    await page.getByRole('button', { name: 'Load Markdown sample' }).click();
-    await editor.content.locator('td').last().click();
+    await editor.type('a big dog');
     const before = await editorMetrics(page);
 
-    await editor.content.locator('td').last().click({ button: 'right' });
-    await item(page, 'Table').hover();
+    await openMenuOnWord(editor, 'a big dog', 22);
+    await item(page, 'Synonyms').hover();
     await expect(submenu(page)).toBeVisible();
     await page.waitForTimeout(300);
 

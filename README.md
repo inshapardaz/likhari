@@ -356,8 +356,8 @@ table (rows, columns, optional header row). Cells can't be merged or split yet (
 the open risk in `docs/lexical-editor-spec.md` §12), so every table is a plain grid.
 
 **Table actions.** While the caret is in a table the toolbar shows a *Table options*
-button, and right-clicking a cell offers the same actions in a *Table* submenu of the right-click
-menu (see [The right-click menu](#the-right-click-menu)):
+button, and right-clicking a cell offers the same actions as a row of icon buttons in the
+right-click menu (see [The right-click menu](#the-right-click-menu)):
 
 - *Insert row before / after*, *Insert column before / after*
 - *Delete row*, *Delete column*, *Delete table*
@@ -376,18 +376,22 @@ compact items (12px text, small icons), and what it shows depends on where you c
 - **A misspelled word**: only its spelling fixes (suggestions, *Ignore*, *Add to dictionary*, *Add
   to auto-correct*) and the clipboard row. Nothing else, even when the word is in a table cell or a
   link: the toolbar still has the table and link commands.
-- **Anywhere else**: submenus for what is under the pointer, then the clipboard row and *Select all*.
-  *Synonyms* opens a submenu of the word's synonyms (filled in once they arrive); *Link* (open, edit,
-  remove), *Table* (insert and delete rows and columns, merge and split cells, delete the table) and
-  *Poetry* (layout, spacing, couplets) appear when you click on a link, a table cell or a couplet;
-  *Join lines* is an item of its own on plain text.
+- **Anywhere else**: what applies to what is under the pointer, then the clipboard row and *Select
+  all*. *Synonyms* opens a submenu of the word's synonyms (filled in once they arrive), and only
+  when some were found; *Link* opens a submenu too (the URL, *Edit link*, *Remove link*), since it
+  needs room to show the URL text. *Table* (insert and delete rows and columns, merge and split
+  cells, delete the table) and *Poetry* (layout, spacing, couplets) instead show their actions
+  directly as a row of icon buttons — like cut, copy and paste — when you click on a table cell or
+  a couplet, so the common actions are one click away instead of a submenu. *Join lines* is an item
+  of its own on plain text.
 - **Cut, copy and paste** are one row of three icon buttons without labels (their names are the
   tooltips and what a screen reader says).
 
-Submenus open on hover, click or the right-arrow key, flip to the other side when there is no room,
-and stay inside the window. The menu is positioned against the window, not the editor, so it never
-adds a scroll bar to the editor or makes the text jump, and it is not cut off at the editor's edge;
-when it is taller than the room there is, it is cut to fit and scrolls.
+A submenu (Synonyms, Link) opens on hover, click or the right-arrow key, flips to the other side
+when there is no room, and stays inside the window. The menu itself is positioned against the
+window, not the editor, so it never adds a scroll bar to the editor or makes the text jump, and it
+is not cut off at the editor's edge; when it is taller than the room there is, it is cut to fit and
+scrolls.
 
 ### Fonts
 
