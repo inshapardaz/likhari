@@ -375,7 +375,10 @@ compact items (12px text, small icons), and what it shows depends on where you c
 
 - **A misspelled word**: only its spelling fixes (suggestions, *Ignore*, *Add to dictionary*, *Add
   to auto-correct*) and the clipboard row. Nothing else, even when the word is in a table cell or a
-  link: the toolbar still has the table and link commands.
+  link: the toolbar still has the table and link commands. This only applies when the selection is
+  no wider than that one word (a caret, or a selection inside it); right-clicking a misspelled word
+  that happens to sit inside a larger selection — a whole line, several words, several lines — shows
+  the usual selection options instead, since that's what was actually selected.
 - **Anywhere else**: what applies to what is under the pointer, then the clipboard row and *Select
   all*. *Synonyms* opens a submenu of the word's synonyms (filled in once they arrive), and only
   when some were found; *Link* opens a submenu too (the URL, *Edit link*, *Remove link*), since it
@@ -392,6 +395,15 @@ when there is no room, and stays inside the window. The menu itself is positione
 window, not the editor, so it never adds a scroll bar to the editor or makes the text jump, and it
 is not cut off at the editor's edge; when it is taller than the room there is, it is cut to fit and
 scrolls.
+
+**Keyboard shortcuts.** The menu's own actions also work from the keyboard, without a mouse: *Join
+lines* is **Ctrl+Alt+J** (selection must span more than one line; not plain Ctrl+J, which browsers
+already use for the bookmarks manager); on a misspelled word at the caret, *Ignore* is
+**Ctrl+Alt+I**, *Add to dictionary* is **Ctrl+Alt+D**, and *Add to auto-correct* is **Ctrl+Alt+A**.
+Each does nothing where its menu item wouldn't appear either (no selection to join, or a
+correctly-spelled word at the caret). These, and the editor's other shortcuts (e.g. Ctrl+K for a
+link), are matched on the physical key pressed, so they work the same while typing in Urdu or any
+other non-Latin layout.
 
 ### Fonts
 

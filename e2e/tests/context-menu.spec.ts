@@ -42,6 +42,20 @@ test.describe('what the menu shows', () => {
     }
   });
 
+  test('a selection spanning a misspelled word is not treated as just that word: no spelling fixes, the usual selection options instead', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('a wrold here');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Shift+End'); // select the whole line, including the misspelled word
+    await editor.content.click({ button: 'right', position: { x: 30, y: 8 } }); // right-click inside the selection, on 'wrold'
+    await expect(menu(page)).toBeVisible();
+    await page.waitForTimeout(250);
+
+    await expect(page.getByText('Spelling suggestions')).toHaveCount(0);
+    for (const name of ['Ignore', 'Add to dictionary', 'Add to auto-correct', 'Synonyms']) await expect(item(page, name)).toHaveCount(0);
+    for (const name of ['Join lines', 'Select all', 'Cut', 'Copy', 'Paste']) await expect(item(page, name)).toBeVisible();
+  });
+
   test('also when the misspelled word is in a table cell: no table entries', async ({ editor, page }) => {
     await editor.open();
     await page.getByRole('button', { name: 'Load Markdown sample' }).click();

@@ -44,7 +44,7 @@ import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
 import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
 import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStores';
 import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
-import { $wordAtDomPoint, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
+import { $selectionIsWithinWord, $wordAtDomPoint, $wordAtSelection, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -484,6 +484,17 @@ function MoreMenuItem({
   );
 }
 
+/** A menu item's keyboard shortcut, shown dimmed at its trailing edge. Hidden from
+ * assistive tech (the item's `aria-keyshortcuts` carries that instead), so it never
+ * changes the item's accessible name. */
+function ShortcutHint({ keys }: { keys: string }) {
+  return (
+    <span aria-hidden="true" className="likhari-context-shortcut">
+      {keys}
+    </span>
+  );
+}
+
 /** The link menu's contents — shared by the toolbar button and the right-click
  * menu: the URL (opens in a new tab), Edit link, Remove link. */
 /** What the right-click menu offers, based on what is under the pointer. */
@@ -631,7 +642,10 @@ function TableMenuItems({
   const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => (
     <CommandItem mode={mode} icon={icon} label={label} onClick={onAction(action)} color={color} />
   );
-  return (
+  // `icons` mode leaves "Delete table" out of the icon row — it comes back as a full
+  // labelled item below, since a single trash icon among several would be too easy to
+  // hit by mistake (same treatment as "Delete poetry" in PoetryMenuItems).
+  const rowItems = (
     <>
       <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconRowInsertTop, manyRows ? t.insertRowsBefore : t.insertRowBefore, () => $insertTableRows(false))}
@@ -648,9 +662,28 @@ function TableMenuItems({
       <ItemDivider mode={mode} />
       {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
       {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
-      {item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
+      {mode !== 'icons' && item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
     </>
   );
+
+  if (mode === 'icons') {
+    return (
+      <>
+        <div className="likhari-context-icons" role="group" aria-label={t.menuLabel}>
+          {rowItems}
+        </div>
+        <Menu.Item
+          color="red"
+          leftSection={<IconTableMinus size={ICON_SIZE} stroke={ICON_STROKE} />}
+          onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+          onClick={onAction($deleteTable)}
+        >
+          {t.deleteTable}
+        </Menu.Item>
+      </>
+    );
+  }
+  return rowItems;
 }
 
 /** The poetry couplet menu's contents — layout (single/two-column) and
@@ -1308,7 +1341,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               if (!$getPoetryBlockFromSelection()) block.selectStart();
             }
           }
-          if (point) word = $wordAtDomPoint(point.node, point.offset);
+          if (point) {
+            const atPoint = $wordAtDomPoint(point.node, point.offset);
+            // A selection that reaches beyond this one word (several words, a whole line, several
+            // lines) means the user is after something else entirely: no spelling fixes or
+            // synonyms for a word that's merely under the pointer, not what's actually selected.
+            if (atPoint && $selectionIsWithinWord(atPoint)) word = atPoint;
+          }
           if (!cell && !couplet && config.joinLines) {
             menu.text = true;
             menu.canJoin = $canJoinLines();
@@ -1396,13 +1435,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
-  // Ctrl/Cmd+K opens the link dialog.
+  // Ctrl/Cmd+K opens the link dialog. Matched on event.code (the physical key),
+  // not event.key, so it still fires while typing in Urdu or another non-Latin
+  // layout, where event.key would be whatever character that layout produces.
   useEffect(() => {
     if (!config.links) return;
     return editor.registerCommand(
       KEY_MODIFIER_COMMAND,
       (event: KeyboardEvent) => {
-        if (event.key.toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey)) return false;
+        if (event.code !== 'KeyK' || !(event.ctrlKey || event.metaKey)) return false;
         event.preventDefault();
         openLinkDialog();
         return true;
@@ -1796,6 +1837,78 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
+  /** Runs `action` on the misspelled word at the caret — the same check the right-click
+   * menu makes before offering Ignore / Add to dictionary / Add to auto-correct, so the
+   * matching keyboard shortcuts only fire where those menu items would actually appear. */
+  const wordActionAtCaret = async (action: (language: SpellLanguage, word: string) => void | Promise<void>) => {
+    if (!config.language.spellCheck) return;
+    const word = editor.getEditorState().read(() => $wordAtSelection());
+    if (!word) return;
+    const language: SpellLanguage = spellCheckLanguage !== 'auto' ? spellCheckLanguage : word.direction === 'rtl' ? 'ur' : 'en';
+    const speller = getSpeller(language);
+    if (!speller) return;
+    const checked = await speller;
+    if (checked.correct(word.word)) return;
+    await action(language, word.word);
+  };
+
+  const ignoreWordAtCaret = () => {
+    void wordActionAtCaret((language, word) => ignoreWord(language, word));
+  };
+
+  const addWordAtCaretToDictionary = () => {
+    void wordActionAtCaret(async (language, word) => {
+      const added = await addUserWord(dictionaryStores, language, word);
+      if (!added) ignoreWord(language, word);
+    });
+  };
+
+  const addWordAtCaretToAutoCorrect = () => {
+    if (!onAddAutoCorrect || !config.language.autocorrect) return;
+    void wordActionAtCaret((language, word) => onAddAutoCorrect(word, language));
+  };
+
+  // Keyboard shortcuts mirroring the right-click menu: Ctrl/Cmd+Alt+J joins the
+  // selected lines (plain Ctrl+J is already the browser's bookmarks-manager
+  // shortcut), and Ctrl/Cmd+Alt+I/D/A act on the misspelled word at the caret the
+  // way the menu's Ignore / Add to dictionary / Add to auto-correct items do.
+  // Matched on event.code (the physical key), not event.key, so they still fire
+  // while typing in Urdu or another non-Latin layout, where event.key would be
+  // whatever character that layout produces rather than "j"/"i"/"d"/"a".
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_MODIFIER_COMMAND,
+      (event: KeyboardEvent) => {
+        if (!(event.ctrlKey || event.metaKey) || !event.altKey) return false;
+        switch (event.code) {
+          case 'KeyJ':
+            if (!config.joinLines) return false;
+            event.preventDefault();
+            joinLines();
+            return true;
+          case 'KeyI':
+            if (!config.language.spellCheck) return false;
+            event.preventDefault();
+            ignoreWordAtCaret();
+            return true;
+          case 'KeyD':
+            if (!config.language.spellCheck) return false;
+            event.preventDefault();
+            addWordAtCaretToDictionary();
+            return true;
+          case 'KeyA':
+            if (!config.language.spellCheck || !onAddAutoCorrect || !config.language.autocorrect) return false;
+            event.preventDefault();
+            addWordAtCaretToAutoCorrect();
+            return true;
+          default:
+            return false;
+        }
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  });
+
   // The tools group is always built, even when every command in it is off, so the ribbon asks first.
   const hasToolsGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck || config.joinLines;
   const toolsSection = (
@@ -2043,6 +2156,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </Menu.Item>
             ))}
             <Menu.Item
+              rightSection={<ShortcutHint keys="Ctrl+Alt+I" />}
+              aria-keyshortcuts="Control+Alt+I"
               onClick={() => {
                 ignoreWord(contextMenu.spelling!.language, contextMenu.spelling!.word);
                 setContextMenu(null);
@@ -2051,6 +2166,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               {strings.contextMenu.ignore}
             </Menu.Item>
             <Menu.Item
+              rightSection={<ShortcutHint keys="Ctrl+Alt+D" />}
+              aria-keyshortcuts="Control+Alt+D"
               onClick={() => {
                 const { language, word } = contextMenu.spelling!;
                 // Without a writable store, the word is ignored for this session instead.
@@ -2064,6 +2181,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             </Menu.Item>
             {onAddAutoCorrect && config.language.autocorrect && (
               <Menu.Item
+                rightSection={<ShortcutHint keys="Ctrl+Alt+A" />}
+                aria-keyshortcuts="Control+Alt+A"
                 onClick={() => {
                   onAddAutoCorrect(contextMenu.spelling!.word, contextMenu.spelling!.language);
                   setContextMenu(null);
@@ -2119,18 +2238,16 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </Menu.Sub>
             )}
             {contextMenu?.table && (
-              <div className="likhari-context-icons" role="group" aria-label={strings.tableMenu.menuLabel}>
-                <TableMenuItems
-                  mode="icons"
-                  strings={strings}
-                  direction={direction}
-                  rows={contextMenu.table.rows}
-                  columns={contextMenu.table.columns}
-                  canMergeCells={state.canMergeCells}
-                  canUnmergeCell={state.canUnmergeCell}
-                  onAction={runMenuAction}
-                />
-              </div>
+              <TableMenuItems
+                mode="icons"
+                strings={strings}
+                direction={direction}
+                rows={contextMenu.table.rows}
+                columns={contextMenu.table.columns}
+                canMergeCells={state.canMergeCells}
+                canUnmergeCell={state.canUnmergeCell}
+                onAction={runMenuAction}
+              />
             )}
             {contextMenu?.poetry && (
               <PoetryMenuItems
@@ -2145,6 +2262,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             {contextMenu?.text && (
               <Menu.Item
                 leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
+                rightSection={<ShortcutHint keys="Ctrl+Alt+J" />}
+                aria-keyshortcuts="Control+Alt+J"
                 disabled={!contextMenu.canJoin}
                 onClick={runMenuAction(() => {
                   $joinSelectedLines();

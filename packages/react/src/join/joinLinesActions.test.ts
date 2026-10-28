@@ -5,6 +5,8 @@ import {
   $createTextNode,
   $getRoot,
   $createRangeSelection,
+  $getSelection,
+  $isRangeSelection,
   $setSelection,
   createEditor,
   type LexicalEditor,
@@ -170,5 +172,66 @@ describe('joinSelectedLines', () => {
       { discrete: true },
     );
     expect(joinable).toBe(true);
+  });
+
+  it('leaves the unselected rest of a partly-selected last paragraph as its own paragraph', () => {
+    const editor = makeEditor();
+    setParagraphs(editor, ['abc', 'defghi']);
+    // Select from the start of 'abc' through 'def' in the second paragraph, leaving 'ghi' unselected.
+    editor.update(
+      () => {
+        const texts = $getRoot().getAllTextNodes();
+        const selection = $createRangeSelection();
+        selection.anchor.set(texts[0]!.getKey(), 0, 'text');
+        selection.focus.set(texts[1]!.getKey(), 3, 'text');
+        $setSelection(selection);
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    expect(paragraphPlain(editor)).toEqual(['abc def', 'ghi']);
+  });
+
+  it('keeps the caret where the selection began instead of at the end of everything joined', () => {
+    const editor = makeEditor();
+    setParagraphs(editor, ['alpha', 'beta', 'gamma']);
+    editor.update(
+      () => {
+        $selectAll();
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    const selectionInfo = editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection) || !selection.isCollapsed()) return null;
+      return selection.anchor.offset;
+    });
+    expect(paragraphPlain(editor)).toEqual(['alpha beta gamma']);
+    // The selection began at the very start of the (now joined) text: the caret should stay
+    // there, not jump to the end of everything that got joined.
+    expect(selectionInfo).toBe(0);
+  });
+
+  it('keeps the caret at the selection start even when that start is mid-paragraph', () => {
+    const editor = makeEditor();
+    setParagraphs(editor, ['alpha', 'beta', 'gamma']);
+    editor.update(
+      () => {
+        const texts = $getRoot().getAllTextNodes();
+        const selection = $createRangeSelection();
+        selection.anchor.set(texts[0]!.getKey(), 2, 'text'); // just after 'al'
+        selection.focus.set(texts[2]!.getKey(), texts[2]!.getTextContentSize(), 'text');
+        $setSelection(selection);
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    const offset = editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      return $isRangeSelection(selection) && selection.isCollapsed() ? selection.anchor.offset : null;
+    });
+    expect(paragraphPlain(editor)).toEqual(['alpha beta gamma']);
+    expect(offset).toBe(2);
   });
 });

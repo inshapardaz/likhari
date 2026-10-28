@@ -29,6 +29,19 @@ test.describe('links', () => {
     await expect(editor.content.getByRole('link', { name: 'Example' })).toBeVisible();
   });
 
+  test('still opens from a non-Latin keyboard layout, where the K key produces a different character', async ({ editor, page }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.content.click();
+
+    // Simulates a layout (e.g. an Urdu one) where the physical K key types something other
+    // than "k": event.code still names the physical key, which is what the shortcut must match.
+    await editor.content.evaluate((el) => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ک', code: 'KeyK', ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+
+    await expect(page.getByRole('dialog', { name: 'Insert link' })).toBeVisible();
+  });
+
   test('rejects an unsafe URL', async ({ editor, page }) => {
     await editor.open();
     await page.keyboard.press('ControlOrMeta+K');

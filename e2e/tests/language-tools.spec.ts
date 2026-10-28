@@ -59,6 +59,32 @@ test.describe('spell check', () => {
     await expect.poll(() => misspelled(page)).toEqual([]);
   });
 
+  test('Ctrl+Alt+I ignores the word at the caret, without the context menu', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('wrold ');
+    await expect.poll(() => misspelled(page)).toEqual(['wrold']);
+
+    await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } }); // places the caret in the word
+    await page.keyboard.press('Control+Alt+I');
+    await expect.poll(() => misspelled(page)).toEqual([]);
+  });
+
+  test('Ctrl+Alt+I still fires from a non-Latin keyboard layout, where the I key produces a different character', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('wrold ');
+    await expect.poll(() => misspelled(page)).toEqual(['wrold']);
+
+    await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } });
+    // Simulates a layout (e.g. an Urdu one) where the physical I key types something other
+    // than "i": event.code still names the physical key, which is what the shortcut must match.
+    await editor.content.evaluate((el) => {
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ی', code: 'KeyI', ctrlKey: true, altKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+    await expect.poll(() => misspelled(page)).toEqual([]);
+  });
+
   test('Add to dictionary teaches the speller, and it is remembered after a reload', async ({ editor, page }) => {
     await editor.open();
     await editor.type('likhari ');
@@ -73,6 +99,16 @@ test.describe('spell check', () => {
     await editor.type('likhari ');
     await page.waitForTimeout(500);
     expect(await misspelled(page)).toEqual([]);
+  });
+
+  test('Ctrl+Alt+D adds the word at the caret to the dictionary', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('likhari ');
+    await expect.poll(() => misspelled(page)).toEqual(['likhari']);
+
+    await editor.content.getByText('likhari').click({ position: { x: 10, y: 8 } });
+    await page.keyboard.press('Control+Alt+D');
+    await expect.poll(() => misspelled(page)).toEqual([]);
   });
 
   test('checks Urdu text against the Urdu dictionary in right-to-left blocks', async ({ editor, page }) => {
@@ -128,6 +164,17 @@ test.describe('auto-correct', () => {
     await expect.poll(() => misspelled(page)).toEqual(['wrold']);
     await editor.content.getByText('wrold').click({ button: 'right', position: { x: 10, y: 8 } });
     await page.getByRole('menuitem', { name: 'Add to auto-correct' }).click();
+
+    const panel = page.getByRole('region', { name: 'Auto-correct' });
+    await expect(panel.getByRole('textbox', { name: 'Typed word' })).toHaveValue('wrold');
+  });
+
+  test('Ctrl+Alt+A opens the auto-correct panel with the word at the caret filled in', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('wrold ');
+    await expect.poll(() => misspelled(page)).toEqual(['wrold']);
+    await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } });
+    await page.keyboard.press('Control+Alt+A');
 
     const panel = page.getByRole('region', { name: 'Auto-correct' });
     await expect(panel.getByRole('textbox', { name: 'Typed word' })).toHaveValue('wrold');
@@ -290,5 +337,34 @@ test.describe('join lines', () => {
     await editor.button('Join lines').click();
     await expect(editor.content.locator('p')).toHaveCount(1);
     await expect(editor.content).toContainText('first second');
+  });
+
+  test('Ctrl+Alt+J joins the selection, the same as the toolbar button', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('first');
+    await page.keyboard.press('Enter');
+    await editor.type('second');
+    await editor.selectAll();
+
+    await page.keyboard.press('Control+Alt+J');
+    await expect(editor.content.locator('p')).toHaveCount(1);
+    await expect(editor.content).toContainText('first second');
+  });
+
+  test('still fires from a non-Latin keyboard layout, where the J key produces a different character', async ({ editor, page }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.type('اول');
+    await page.keyboard.press('Enter');
+    await editor.type('دوم');
+    await editor.selectAll();
+
+    // Simulates a layout (e.g. an Urdu one) where the physical J key types something other
+    // than "j": event.code still names the physical key, which is what the shortcut must match.
+    await editor.content.evaluate((el) => {
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ج', code: 'KeyJ', ctrlKey: true, altKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+    await expect(editor.content.locator('p')).toHaveCount(1);
   });
 });

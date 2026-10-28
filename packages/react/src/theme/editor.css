@@ -1339,6 +1339,13 @@
   height: 14px;
 }
 
+/* A menu item's keyboard shortcut, dimmed at its trailing edge. */
+.likhari-context-shortcut {
+  font-size: 11px;
+  color: var(--editor-ink-soft);
+  white-space: nowrap;
+}
+
 /* Cut, copy and paste as one row of icon buttons in the right-click menu. */
 .likhari-context-row {
   display: flex;
