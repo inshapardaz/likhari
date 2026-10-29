@@ -320,14 +320,16 @@ test.describe('context menu stays on screen', () => {
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1280, height: 330 });
-    await editor.open();
-    // A misspelling the spell checker has the full 5 suggestions for (verified locally
-    // with nspell against this package's own dictionary — 'wrold' and 'definately' turned
-    // out to have only one or two, too short a list on its own to force scrolling): the
-    // suggestions alone make the menu long, regardless of which optional items would
-    // otherwise apply to a correctly-spelled word.
-    await editor.type('teh');
-    await openMenuOnWord(editor, 'teh');
+    // The poetry couplet menu (layout row + action row, "Delete poetry", Select all, the
+    // clipboard row) is reliably long — unlike a word's spell-check suggestions, which
+    // turned out to vary between a local check and the actual browser and so aren't a
+    // dependable way to force this menu tall.
+    await editor.open({ preset: 'poetry' });
+    await editor.button('Insert poetry couplet').click();
+    await editor.type('a couplet');
+    await editor.content.locator('.likhari-poetry').click({ button: 'right' });
+    await expect(menu(page)).toBeVisible();
+    await page.waitForTimeout(250);
 
     expect((await rectOf(menu(page))).scrollable).toBe(true);
     await item(page, 'Paste').click(); // scrolls it into view first
