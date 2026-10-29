@@ -162,7 +162,8 @@ test.describe('toolbar presentation', () => {
   });
 
   test('stays on one row at a width with room for everything, even with the overflow menu enabled', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 });
+    // The 'full' preset's toolbar, with every group inline, is wide: this needs real room.
+    await page.setViewportSize({ width: 2600, height: 900 });
     await editor.open({ overflow: true });
 
     // Only the unrelated, always-present formatting-overflow button ("strikethrough,
@@ -174,7 +175,10 @@ test.describe('toolbar presentation', () => {
   });
 
   test('moves groups into the overflow menu instead of wrapping onto a second row, once they stop fitting', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 800, height: 900 });
+    // Narrow enough that several movable groups (tools, font, insert, ...) must move into
+    // the "..." menu, but still comfortably wide enough for the groups that never do
+    // (save, undo/redo, formatting, align/indent) to fit on their own in one row.
+    await page.setViewportSize({ width: 1100, height: 900 });
     await editor.open({ overflow: true });
 
     // The responsive "..." trigger, last in DOM order after the unrelated formatting one.
