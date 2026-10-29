@@ -332,7 +332,9 @@ test.describe('context menu stays on screen', () => {
     await page.waitForTimeout(250);
 
     expect(await editor.content.isVisible(), 'editor content should still be visible at this viewport').toBe(true);
-    expect((await rectOf(menu(page))).scrollable).toBe(true);
+    const rect = await rectOf(menu(page));
+    console.log('DIAGNOSTIC AT 400', JSON.stringify(rect));
+    expect(rect.scrollable).toBe(true);
     await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
     await expect(menu(page)).toHaveCount(0);
   });
