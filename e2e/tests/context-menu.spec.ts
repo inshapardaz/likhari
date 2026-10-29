@@ -319,13 +319,13 @@ test.describe('context menu stays on screen', () => {
   }
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    // Short enough that the menu needs to scroll regardless of exactly how many items
-    // it ends up with (e.g. Join Lines is hidden unless the selection spans more than
-    // one line, so it isn't reliably one of them here).
-    await page.setViewportSize({ width: 1280, height: 200 });
+    await page.setViewportSize({ width: 1280, height: 330 });
     await editor.open();
     await editor.type('a big wrold');
-    await openMenuOnWord(editor, 'a big wrold');
+    // Right on 'wrold' specifically (not the default x, which lands on 'big'): the
+    // misspelled word's spelling-suggestions list is reliably long regardless of which
+    // optional items (e.g. Join Lines) would otherwise show up on a correctly-spelled one.
+    await openMenuOnWord(editor, 'a big wrold', 75);
 
     expect((await rectOf(menu(page))).scrollable).toBe(true);
     await item(page, 'Paste').click(); // scrolls it into view first
