@@ -9,6 +9,7 @@ import {
   type LexicalNode,
   type LineBreakNode,
   type ParagraphNode,
+  type PointType,
   type RangeSelection,
   type TextNode,
 } from 'lexical';
@@ -75,24 +76,58 @@ function $appendParagraph(target: ParagraphNode, paragraph: ParagraphNode): void
   paragraph.remove();
 }
 
-/** Turns a soft break into a paragraph break: the content after it moves to a new paragraph. */
-function $splitParagraphAt(lineBreak: LineBreakNode, paragraph: ParagraphNode): void {
-  const rest = $createParagraphNode();
-  let sibling = lineBreak.getNextSibling();
-  while (sibling) {
-    const next = sibling.getNextSibling();
-    rest.append(sibling);
-    sibling = next;
+/** Moves `tail` into a new paragraph right after `paragraph`. A leading soft break is the
+ * split point itself, so it is dropped rather than carried over as the new paragraph's first child. */
+function $moveTailToNewParagraph(paragraph: ParagraphNode, tail: LexicalNode[]): void {
+  if ($isLineBreakNode(tail[0])) {
+    tail[0].remove();
+    tail.shift();
   }
-  lineBreak.remove();
+  if (tail.length === 0) return;
+  const rest = $createParagraphNode();
+  for (const node of tail) rest.append(node);
   paragraph.insertAfter(rest);
+}
+
+/**
+ * Splits off whatever in `paragraph` comes after the selection's end point into a
+ * paragraph of its own, so content the user didn't select isn't swept into the join
+ * along with it — whether that's the rest of a partly-selected line, or the
+ * paragraph's remaining soft-broken lines.
+ */
+function $splitUnselectedTail(paragraph: ParagraphNode, end: PointType): void {
+  if (end.type === 'text') {
+    const endNode = end.getNode();
+    if (endNode.getTopLevelElement()?.getKey() !== paragraph.getKey()) return;
+    const text = endNode.getTextContent();
+    const tail: LexicalNode[] = [];
+    if (end.offset === 0) {
+      tail.push(endNode);
+    } else if (end.offset < text.length) {
+      endNode.setTextContent(text.slice(0, end.offset));
+      tail.push($createTextNode(text.slice(end.offset)));
+    }
+    let sibling = endNode.getNextSibling();
+    while (sibling) {
+      const next = sibling.getNextSibling();
+      tail.push(sibling);
+      sibling = next;
+    }
+    $moveTailToNewParagraph(paragraph, tail);
+  } else {
+    const endNode = end.getNode();
+    if (endNode.getKey() !== paragraph.getKey()) return;
+    $moveTailToNewParagraph(paragraph, endNode.getChildren().slice(end.offset));
+  }
 }
 
 /**
  * Joins the lines in the selection into one paragraph. Soft breaks and the
  * paragraph breaks between selected paragraphs become a single space each,
- * unless there is already a space at that point. A soft break right after the
- * selection becomes a paragraph break, so the joined text stands on its own.
+ * unless there is already a space at that point. Anything after the
+ * selection's end point — the unselected rest of a partly-selected line, or
+ * further soft-broken lines — splits off into its own paragraph, so it stands
+ * apart from the text that was actually joined.
  */
 export function $joinSelectedLines(): boolean {
   const selection = $getSelection();
@@ -104,21 +139,25 @@ export function $joinSelectedLines(): boolean {
   const textsWithNewlines = $textNodesWithNewlines(selection);
   if (paragraphs.length < 2 && lineBreaks.length === 0 && textsWithNewlines.length === 0) return false;
 
-  const last = nodes[nodes.length - 1];
-  const breakAfter = last?.getNextSibling();
-  const trailingBreak = $isLineBreakNode(breakAfter) ? breakAfter : null;
+  const [start, end] = selection.getStartEndPoints() ?? [];
 
   for (const lineBreak of lineBreaks) $replaceBreakWithSpace(lineBreak);
   for (const textNode of textsWithNewlines) $replaceNewlinesInText(textNode, selection);
 
   const [target, ...rest] = paragraphs;
   if (!target) return false;
+
+  const lastParagraph = paragraphs[paragraphs.length - 1];
+  if (end) $splitUnselectedTail(lastParagraph, end);
   for (const paragraph of rest) $appendParagraph(target, paragraph);
 
-  if (trailingBreak?.isAttached()) {
-    const paragraph = trailingBreak.getParent();
-    if ($isParagraphNode(paragraph)) $splitParagraphAt(trailingBreak, paragraph);
+  // Keep the caret where the selection began, rather than at the end of everything
+  // just joined — useful on its own, and essential when many lines were joined at
+  // once, where "the end" could otherwise land far past where the user was working.
+  if (start) {
+    start.getNode().select(start.offset, start.offset);
+  } else {
+    target.selectEnd();
   }
-  target.selectEnd();
   return true;
 }

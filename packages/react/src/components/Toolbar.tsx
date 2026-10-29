@@ -44,7 +44,7 @@ import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
 import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
 import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStores';
 import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
-import { $wordAtDomPoint, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
+import { $selectionIsWithinWord, $wordAtDomPoint, $wordAtSelection, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -114,6 +114,7 @@ import {
   IconBold,
   IconClearFormatting,
   IconDeviceFloppy,
+  IconBook,
   IconChevronDown,
   IconChevronUp,
   IconDots,
@@ -165,12 +166,9 @@ import {
   IconRowInsertBottom,
   IconRowInsertTop,
   IconRowRemove,
-  IconArrowsMaximize,
-  IconArrowsMinimize,
   IconArrowsShuffle,
   IconTable,
   IconTableMinus,
-  IconTrash,
   IconTableOptions,
   IconMinus,
   IconPlus,
@@ -180,6 +178,18 @@ import {
   IconWand,
   type IconProps,
 } from '@tabler/icons-react';
+import {
+  IconCoupletCenterNarrow,
+  IconCoupletCenterWide,
+  IconCoupletDelete,
+  IconCoupletGutterNarrow,
+  IconCoupletGutterWide,
+  IconCoupletSpacingLoose,
+  IconCoupletSpacingTight,
+  IconCoupletStaggerNarrow,
+  IconCoupletStaggerWide,
+  IconPoetryDelete,
+} from '../icons/poetryIcons';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
 type ListType = 'bullet' | 'number' | 'check';
@@ -249,6 +259,24 @@ const INITIAL_STATE: ToolbarState = {
 
 const ICON_SIZE = 17;
 const ICON_STROKE = 1.75;
+
+/** The right-click menu: compact items, and a gap kept between it and the edge of the window. */
+const CONTEXT_MENU_WIDTH = 220;
+const CONTEXT_MENU_VIEWPORT_PADDING = 8;
+/** `likhari-context-menu` (editor.css) shrinks the icons to match the smaller text. */
+const CONTEXT_MENU_CLASS_NAMES = { dropdown: 'likhari-context-menu' };
+/** The submenus: opened to the side, flipped or shifted to stay in the window, and positioned against the window (`fixed`) so
+ * the menu's own scrolling does not clip them. */
+const CONTEXT_SUBMENU_PROPS = {
+  floatingStrategy: 'fixed',
+  middlewares: { flip: true, shift: { crossAxis: true, padding: CONTEXT_MENU_VIEWPORT_PADDING }, size: { padding: CONTEXT_MENU_VIEWPORT_PADDING } },
+} as const;
+const CONTEXT_MENU_STYLES = {
+  dropdown: { overflowY: 'auto', padding: 4 },
+  item: { fontSize: 'var(--mantine-font-size-xs)', padding: '4px 8px', minHeight: 0 },
+  label: { fontSize: 'var(--mantine-font-size-xs)', padding: '2px 8px' },
+  divider: { margin: '3px 0' },
+} as const;
 
 /** The CSS Custom Highlight name; editor.css paints it like a native text selection. */
 const SELECTION_HIGHLIGHT = 'likhari-toolbar-selection';
@@ -456,6 +484,17 @@ function MoreMenuItem({
   );
 }
 
+/** A menu item's keyboard shortcut, shown dimmed at its trailing edge. Hidden from
+ * assistive tech (the item's `aria-keyshortcuts` carries that instead), so it never
+ * changes the item's accessible name. */
+function ShortcutHint({ keys }: { keys: string }) {
+  return (
+    <span aria-hidden="true" className="likhari-context-shortcut">
+      {keys}
+    </span>
+  );
+}
+
 /** The link menu's contents — shared by the toolbar button and the right-click
  * menu: the URL (opens in a new tab), Edit link, Remove link. */
 /** What the right-click menu offers, based on what is under the pointer. */
@@ -473,10 +512,10 @@ interface EditorContextMenu {
   thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
 }
 
-/** Where a command list is shown: as items in a dropdown menu, or as icon buttons on the ribbon. */
-type ItemMode = 'menu' | 'ribbon';
+/** Where a command list is shown: as items in a dropdown menu (`submenu` is the same without its heading, the parent item names it), as icon buttons on the ribbon, or as an unlabelled row of icon buttons inline in the right-click menu (`icons`). */
+type ItemMode = 'menu' | 'submenu' | 'ribbon' | 'icons';
 
-/** One command, as a menu item or as a ribbon button (the label becomes its tooltip and name). */
+/** One command, as a menu item, a ribbon button, or an icon-only menu item (`icons`) — in every case the label becomes its tooltip and accessible name except in a labelled menu. */
 function CommandItem({
   mode,
   icon: Icon,
@@ -495,6 +534,20 @@ function CommandItem({
   if (mode === 'ribbon') {
     return <ToolbarButton icon={Icon} title={label} disabled={disabled} data-danger={color === 'red' ? 'true' : undefined} onClick={onClick} />;
   }
+  if (mode === 'icons') {
+    return (
+      <Menu.Item
+        aria-label={label}
+        title={label}
+        color={color}
+        disabled={disabled}
+        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+        onClick={onClick}
+      >
+        <Icon size={ICON_SIZE} stroke={ICON_STROKE} />
+      </Menu.Item>
+    );
+  }
   return (
     <Menu.Item
       color={color}
@@ -508,9 +561,10 @@ function CommandItem({
   );
 }
 
-/** A group heading in a menu; the ribbon's tab already names the group, so it shows nothing there. */
-const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'ribbon' ? null : <Menu.Label>{children}</Menu.Label>);
-const ItemDivider = ({ mode }: { mode: ItemMode }) => (mode === 'ribbon' ? <MantineToolbar.Divider /> : <Menu.Divider />);
+/** A group heading in a menu; the ribbon's tab, a submenu's parent item, and an icon row's own aria-label already name the group, so they show nothing. */
+const ItemLabel = ({ mode, children }: { mode: ItemMode; children: ReactNode }) => (mode === 'menu' ? <Menu.Label>{children}</Menu.Label> : null);
+const ItemDivider = ({ mode }: { mode: ItemMode }) =>
+  mode === 'ribbon' ? <MantineToolbar.Divider /> : mode === 'icons' ? <span className="likhari-context-icons-divider" /> : <Menu.Divider />;
 
 function LinkMenuItems({ url, onEdit, onRemove, strings, mode = 'menu' }: { url: string; onEdit: () => void; onRemove: () => void; strings: Strings; mode?: ItemMode }) {
   // Only offer the link as clickable if it's a URL the editor would have accepted.
@@ -588,7 +642,10 @@ function TableMenuItems({
   const item = (icon: TablerIcon, label: string, action: () => void, color?: string) => (
     <CommandItem mode={mode} icon={icon} label={label} onClick={onAction(action)} color={color} />
   );
-  return (
+  // `icons` mode leaves "Delete table" out of the icon row — it comes back as a full
+  // labelled item below, since a single trash icon among several would be too easy to
+  // hit by mistake (same treatment as "Delete poetry" in PoetryMenuItems).
+  const rowItems = (
     <>
       <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconRowInsertTop, manyRows ? t.insertRowsBefore : t.insertRowBefore, () => $insertTableRows(false))}
@@ -605,9 +662,28 @@ function TableMenuItems({
       <ItemDivider mode={mode} />
       {item(IconRowRemove, manyRows ? t.deleteRows : t.deleteRow, $deleteTableRows)}
       {item(IconColumnRemove, manyColumns ? t.deleteColumns : t.deleteColumn, $deleteTableColumns)}
-      {item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
+      {mode !== 'icons' && item(IconTableMinus, t.deleteTable, $deleteTable, 'red')}
     </>
   );
+
+  if (mode === 'icons') {
+    return (
+      <>
+        <div className="likhari-context-icons" role="group" aria-label={t.menuLabel}>
+          {rowItems}
+        </div>
+        <Menu.Item
+          color="red"
+          leftSection={<IconTableMinus size={ICON_SIZE} stroke={ICON_STROKE} />}
+          onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+          onClick={onAction($deleteTable)}
+        >
+          {t.deleteTable}
+        </Menu.Item>
+      </>
+    );
+  }
+  return rowItems;
 }
 
 /** The poetry couplet menu's contents — layout (single/two-column) and
@@ -655,39 +731,82 @@ function PoetryMenuItems({
     const node = $getPoetryBlockFromSelection();
     if (node) $setPoetryLayout(node, next);
   };
-  return (
+
+  // Which layout applies (single/two-column/staggered), kept apart from what that layout's
+  // selection then allows (insert, spacing, centering, delete) — two rows of icon buttons
+  // in `icons` mode, one heading-less list everywhere else.
+  const layoutItems = (
     <>
-      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
       {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
       {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
-      <ItemDivider mode={mode} />
-      <ItemDivider mode={mode} />
+    </>
+  );
+  // `icons` mode puts a divider between each group of similar actions (insert /
+  // spacing / this layout's own adjustments), and leaves "Delete poetry" out —
+  // it comes back as a full labelled item below, since a single trash icon in a
+  // row of several would be too easy to hit by mistake.
+  const groupDivider = mode === 'icons' ? <ItemDivider mode={mode} /> : null;
+  const actionItems = (
+    <>
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
       {item(IconRowInsertBottom, t.insertCoupletAfter, () => $insertCoupletRelativeToSelection('after'))}
-      {item(IconArrowsMinimize, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
-      {item(IconArrowsMaximize, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
+      {groupDivider}
+      {item(IconCoupletSpacingTight, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
+      {item(IconCoupletSpacingLoose, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
       {layout === 'staggered' && (
         <>
-          {item(IconArrowsMinimize, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
-          {item(IconArrowsMaximize, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
+          {groupDivider}
+          {item(IconCoupletStaggerNarrow, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
+          {item(IconCoupletStaggerWide, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
         </>
       )}
       {layout === 'two-column' && (
         <>
+          {groupDivider}
           {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
           {centered && (
             <>
-              {item(IconArrowsMinimize, t.narrowerCenter, () => $adjustPoetryCenterWidth(-1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, -1))}
-              {item(IconArrowsMaximize, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
+              {item(IconCoupletCenterNarrow, t.narrowerCenter, () => $adjustPoetryCenterWidth(-1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, -1))}
+              {item(IconCoupletCenterWide, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
             </>
           )}
-          {item(IconColumns2, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
-          {item(IconColumns2, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
+          {item(IconCoupletGutterNarrow, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
+          {item(IconCoupletGutterWide, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
         </>
       )}
-      {item(IconTrash, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
-      {item(IconTrash, t.deletePoetry, $deletePoetryBlock, false, 'red')}
+      {groupDivider}
+      {item(IconCoupletDelete, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
+      {mode !== 'icons' && item(IconPoetryDelete, t.deletePoetry, $deletePoetryBlock, false, 'red')}
+    </>
+  );
+
+  if (mode === 'icons') {
+    return (
+      <>
+        <div className="likhari-context-icon-rows" role="group" aria-label={t.menuLabel}>
+          <div className="likhari-context-icons">{layoutItems}</div>
+          <div className="likhari-context-icon-rows-divider" />
+          <div className="likhari-context-icons">{actionItems}</div>
+        </div>
+        <Menu.Item
+          color="red"
+          leftSection={<IconPoetryDelete size={ICON_SIZE} stroke={ICON_STROKE} />}
+          onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+          onClick={onAction($deletePoetryBlock)}
+        >
+          {t.deletePoetry}
+        </Menu.Item>
+      </>
+    );
+  }
+  return (
+    <>
+      <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
+      {layoutItems}
+      <ItemDivider mode={mode} />
+      <ItemDivider mode={mode} />
+      {actionItems}
     </>
   );
 }
@@ -1222,7 +1341,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               if (!$getPoetryBlockFromSelection()) block.selectStart();
             }
           }
-          if (point) word = $wordAtDomPoint(point.node, point.offset);
+          if (point) {
+            const atPoint = $wordAtDomPoint(point.node, point.offset);
+            // A selection that reaches beyond this one word (several words, a whole line, several
+            // lines) means the user is after something else entirely: no spelling fixes or
+            // synonyms for a word that's merely under the pointer, not what's actually selected.
+            if (atPoint && $selectionIsWithinWord(atPoint)) word = atPoint;
+          }
           if (!cell && !couplet && config.joinLines) {
             menu.text = true;
             menu.canJoin = $canJoinLines();
@@ -1243,6 +1368,14 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             menu.spelling = { word: word.word, language, suggestions: checked.suggest(word.word).slice(0, 5), match: word.match };
           }
         }
+      }
+      // A misspelled word's menu is its spelling fixes and the clipboard, nothing else: no synonyms to look up either.
+      if (menu.spelling) {
+        menu.thesaurus = undefined;
+        menu.link = undefined;
+        menu.table = undefined;
+        menu.poetry = undefined;
+        menu.text = undefined;
       }
       setContextMenu(menu);
       if (word && menu.thesaurus) {
@@ -1302,13 +1435,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
-  // Ctrl/Cmd+K opens the link dialog.
+  // Ctrl/Cmd+K opens the link dialog. Matched on event.code (the physical key),
+  // not event.key, so it still fires while typing in Urdu or another non-Latin
+  // layout, where event.key would be whatever character that layout produces.
   useEffect(() => {
     if (!config.links) return;
     return editor.registerCommand(
       KEY_MODIFIER_COMMAND,
       (event: KeyboardEvent) => {
-        if (event.key.toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey)) return false;
+        if (event.code !== 'KeyK' || !(event.ctrlKey || event.metaKey)) return false;
         event.preventDefault();
         openLinkDialog();
         return true;
@@ -1702,6 +1837,78 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
+  /** Runs `action` on the misspelled word at the caret — the same check the right-click
+   * menu makes before offering Ignore / Add to dictionary / Add to auto-correct, so the
+   * matching keyboard shortcuts only fire where those menu items would actually appear. */
+  const wordActionAtCaret = async (action: (language: SpellLanguage, word: string) => void | Promise<void>) => {
+    if (!config.language.spellCheck) return;
+    const word = editor.getEditorState().read(() => $wordAtSelection());
+    if (!word) return;
+    const language: SpellLanguage = spellCheckLanguage !== 'auto' ? spellCheckLanguage : word.direction === 'rtl' ? 'ur' : 'en';
+    const speller = getSpeller(language);
+    if (!speller) return;
+    const checked = await speller;
+    if (checked.correct(word.word)) return;
+    await action(language, word.word);
+  };
+
+  const ignoreWordAtCaret = () => {
+    void wordActionAtCaret((language, word) => ignoreWord(language, word));
+  };
+
+  const addWordAtCaretToDictionary = () => {
+    void wordActionAtCaret(async (language, word) => {
+      const added = await addUserWord(dictionaryStores, language, word);
+      if (!added) ignoreWord(language, word);
+    });
+  };
+
+  const addWordAtCaretToAutoCorrect = () => {
+    if (!onAddAutoCorrect || !config.language.autocorrect) return;
+    void wordActionAtCaret((language, word) => onAddAutoCorrect(word, language));
+  };
+
+  // Keyboard shortcuts mirroring the right-click menu: Ctrl/Cmd+Alt+J joins the
+  // selected lines (plain Ctrl+J is already the browser's bookmarks-manager
+  // shortcut), and Ctrl/Cmd+Alt+I/D/A act on the misspelled word at the caret the
+  // way the menu's Ignore / Add to dictionary / Add to auto-correct items do.
+  // Matched on event.code (the physical key), not event.key, so they still fire
+  // while typing in Urdu or another non-Latin layout, where event.key would be
+  // whatever character that layout produces rather than "j"/"i"/"d"/"a".
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_MODIFIER_COMMAND,
+      (event: KeyboardEvent) => {
+        if (!(event.ctrlKey || event.metaKey) || !event.altKey) return false;
+        switch (event.code) {
+          case 'KeyJ':
+            if (!config.joinLines) return false;
+            event.preventDefault();
+            joinLines();
+            return true;
+          case 'KeyI':
+            if (!config.language.spellCheck) return false;
+            event.preventDefault();
+            ignoreWordAtCaret();
+            return true;
+          case 'KeyD':
+            if (!config.language.spellCheck) return false;
+            event.preventDefault();
+            addWordAtCaretToDictionary();
+            return true;
+          case 'KeyA':
+            if (!config.language.spellCheck || !onAddAutoCorrect || !config.language.autocorrect) return false;
+            event.preventDefault();
+            addWordAtCaretToAutoCorrect();
+            return true;
+          default:
+            return false;
+        }
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  });
+
   // The tools group is always built, even when every command in it is off, so the ribbon asks first.
   const hasToolsGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck || config.joinLines;
   const toolsSection = (
@@ -1911,7 +2118,17 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       withinPortal
       portalProps={{ target: portalTarget }}
       shadow="sm"
-      width={260}
+      width={CONTEXT_MENU_WIDTH}
+      // Stays inside the visible area: flips above the click or shifts sideways when it fits that
+      // way, and otherwise is cut to the room there is and scrolls (a long menu in a short window).
+      middlewares={{ flip: true, shift: true, size: { padding: CONTEXT_MENU_VIEWPORT_PADDING } }}
+      // Positioned against the window, not the editor: the menu then takes no room in the editor's layout (so it can
+      // never grow a scroll bar there or make the text jump) and is not cut off at the editor's edge. No open
+      // animation either, as its transform would make the submenus position against the menu instead.
+      floatingStrategy="fixed"
+      transitionProps={{ duration: 0 }}
+      styles={CONTEXT_MENU_STYLES}
+      classNames={CONTEXT_MENU_CLASS_NAMES}
     >
       <Menu.Target>
         {/* Invisible 1px anchor positioned at the right-click */}
@@ -1921,7 +2138,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         />
       </Menu.Target>
       <Menu.Dropdown>
-        {contextMenu?.spelling && (
+        {contextMenu?.spelling ? (
+          // A misspelled word gets its fixes and the clipboard row, and nothing else.
           <>
             <Menu.Label>{strings.contextMenu.spelling}</Menu.Label>
             {contextMenu.spelling.suggestions.length === 0 && <Menu.Item disabled>{strings.contextMenu.noSuggestions}</Menu.Item>}
@@ -1938,6 +2156,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </Menu.Item>
             ))}
             <Menu.Item
+              rightSection={<ShortcutHint keys="Ctrl+Alt+I" />}
+              aria-keyshortcuts="Control+Alt+I"
               onClick={() => {
                 ignoreWord(contextMenu.spelling!.language, contextMenu.spelling!.word);
                 setContextMenu(null);
@@ -1946,6 +2166,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               {strings.contextMenu.ignore}
             </Menu.Item>
             <Menu.Item
+              rightSection={<ShortcutHint keys="Ctrl+Alt+D" />}
+              aria-keyshortcuts="Control+Alt+D"
               onClick={() => {
                 const { language, word } = contextMenu.spelling!;
                 // Without a writable store, the word is ignored for this session instead.
@@ -1959,6 +2181,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             </Menu.Item>
             {onAddAutoCorrect && config.language.autocorrect && (
               <Menu.Item
+                rightSection={<ShortcutHint keys="Ctrl+Alt+A" />}
+                aria-keyshortcuts="Control+Alt+A"
                 onClick={() => {
                   onAddAutoCorrect(contextMenu.spelling!.word, contextMenu.spelling!.language);
                   setContextMenu(null);
@@ -1969,87 +2193,112 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             )}
             <Menu.Divider />
           </>
-        )}
-        {contextMenu?.thesaurus && (
+        ) : (
+          // Everything that applies to what is under the pointer, each kind of content behind its own submenu.
           <>
-            <Menu.Label>{strings.thesaurus.synonyms}</Menu.Label>
-            {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
-            {contextMenu.thesaurus.items?.length === 0 && <Menu.Item disabled>{strings.thesaurus.none}</Menu.Item>}
-            {contextMenu.thesaurus.items?.map((synonym) => (
+            {contextMenu?.thesaurus && contextMenu.thesaurus.items?.length !== 0 && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconBook size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.thesaurus.synonyms}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  {contextMenu.thesaurus.items === undefined && <Menu.Item disabled>{strings.thesaurus.loading}</Menu.Item>}
+                  {contextMenu.thesaurus.items?.map((synonym) => (
+                    <Menu.Item
+                      key={synonym}
+                      onClick={() => {
+                        const match = contextMenu.thesaurus!.match;
+                        editor.update(() => $replaceMatch(match, synonym), { discrete: true });
+                        editor.focus();
+                      }}
+                    >
+                      {synonym}
+                    </Menu.Item>
+                  ))}
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.link !== undefined && (
+              <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
+                <Menu.Sub.Target>
+                  <Menu.Sub.Item leftSection={<IconLink size={ICON_SIZE} stroke={ICON_STROKE} />}>{strings.link.menuLabel}</Menu.Sub.Item>
+                </Menu.Sub.Target>
+                <Menu.Sub.Dropdown>
+                  <LinkMenuItems
+                    mode="submenu"
+                    url={contextMenu.link}
+                    onEdit={() => {
+                      restoreSelection();
+                      openLinkDialog();
+                    }}
+                    onRemove={removeLink}
+                    strings={strings}
+                  />
+                </Menu.Sub.Dropdown>
+              </Menu.Sub>
+            )}
+            {contextMenu?.table && (
+              <TableMenuItems
+                mode="icons"
+                strings={strings}
+                direction={direction}
+                rows={contextMenu.table.rows}
+                columns={contextMenu.table.columns}
+                canMergeCells={state.canMergeCells}
+                canUnmergeCell={state.canUnmergeCell}
+                onAction={runMenuAction}
+              />
+            )}
+            {contextMenu?.poetry && (
+              <PoetryMenuItems
+                mode="icons"
+                strings={strings}
+                layout={state.poetryLayout}
+                scale={state.poetryScale}
+                centered={state.poetryCentered}
+                onAction={runMenuAction}
+              />
+            )}
+            {contextMenu?.text && (
               <Menu.Item
-                key={synonym}
-                onClick={() => {
-                  const match = contextMenu.thesaurus!.match;
-                  editor.update(() => $replaceMatch(match, synonym), { discrete: true });
-                  editor.focus();
-                }}
+                leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
+                rightSection={<ShortcutHint keys="Ctrl+Alt+J" />}
+                aria-keyshortcuts="Control+Alt+J"
+                disabled={!contextMenu.canJoin}
+                onClick={runMenuAction(() => {
+                  $joinSelectedLines();
+                })}
               >
-                {synonym}
+                {strings.contextMenu.joinLines}
               </Menu.Item>
-            ))}
-            <Menu.Divider />
+            )}
+            {((contextMenu?.thesaurus && contextMenu.thesaurus.items?.length !== 0) ||
+              contextMenu?.link !== undefined ||
+              contextMenu?.table ||
+              contextMenu?.poetry ||
+              contextMenu?.text) && <Menu.Divider />}
           </>
         )}
-        {contextMenu?.link !== undefined && (
+        {/* Cut, copy and paste in one row of icon buttons; their labels are the tooltips and accessible names. */}
+        <div className="likhari-context-row" role="group">
+          <Menu.Item aria-label={strings.contextMenu.cut} title={strings.contextMenu.cut} onClick={() => void copyOrCut(true)()}>
+            <IconCut size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+          <Menu.Item aria-label={strings.contextMenu.copy} title={strings.contextMenu.copy} onClick={() => void copyOrCut(false)()}>
+            <IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+          <Menu.Item aria-label={strings.contextMenu.paste} title={strings.contextMenu.paste} onClick={() => void paste()}>
+            <IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />
+          </Menu.Item>
+        </div>
+        {!contextMenu?.spelling && (
           <>
-            <LinkMenuItems
-              url={contextMenu.link}
-              onEdit={() => {
-                restoreSelection();
-                openLinkDialog();
-              }}
-              onRemove={removeLink}
-              strings={strings}
-            />
             <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.table && (
-          <>
-            <TableMenuItems
-              strings={strings}
-              direction={direction}
-              rows={contextMenu.table.rows}
-              columns={contextMenu.table.columns}
-              canMergeCells={state.canMergeCells}
-              canUnmergeCell={state.canUnmergeCell}
-              onAction={runMenuAction}
-            />
-            <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.poetry && (
-          <>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
-            <Menu.Divider />
-          </>
-        )}
-        {contextMenu?.text && (
-          <>
-            <Menu.Item
-              leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
-              disabled={!contextMenu.canJoin}
-              onClick={runMenuAction(() => {
-                $joinSelectedLines();
-              })}
-            >
-              {strings.contextMenu.joinLines}
+            <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
+              {strings.contextMenu.selectAll}
             </Menu.Item>
-            <Menu.Divider />
           </>
         )}
-        <Menu.Item leftSection={<IconCut size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(true)()}>
-          {strings.contextMenu.cut}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconCopy size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void copyOrCut(false)()}>
-          {strings.contextMenu.copy}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconClipboard size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={() => void paste()}>
-          {strings.contextMenu.paste}
-        </Menu.Item>
-        <Menu.Item leftSection={<IconSelectAll size={ICON_SIZE} stroke={ICON_STROKE} />} onClick={runMenuAction(() => $selectAll())}>
-          {strings.contextMenu.selectAll}
-        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );

@@ -2,7 +2,7 @@ import type { BrowserContext, Request, Route } from '@playwright/test';
 
 /** Tiny Hunspell dictionaries, so spellcheck is deterministic and nothing is downloaded. */
 const EN_AFF = 'SET UTF-8\nTRY esianrtolcdugmphbyfvkwz\n';
-const EN_WORDS = ['hello', 'world', 'the', 'quick', 'brown', 'fox', 'jumps', 'over', 'lazy', 'dog', 'this', 'is', 'a', 'test', 'and', 'bold', 'italic', 'big', 'large', 'there', 'cat', 'hat', 'bat'];
+const EN_WORDS = ['hello', 'world', 'the', 'quick', 'brown', 'fox', 'jumps', 'over', 'lazy', 'dog', 'this', 'is', 'a', 'test', 'and', 'bold', 'italic', 'big', 'large', 'there', 'cat', 'hat', 'bat', 'link'];
 const UR_AFF = 'SET UTF-8\n';
 const UR_WORDS = ['سلام', 'دنیا', 'یہ', 'اردو', 'کا', 'ہے', 'میں', 'اور'];
 

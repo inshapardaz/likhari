@@ -29,6 +29,20 @@ test.describe('links', () => {
     await expect(editor.content.getByRole('link', { name: 'Example' })).toBeVisible();
   });
 
+  test('still opens from a non-Latin keyboard layout, where the K key produces a different character', async ({ editor, page }) => {
+    await editor.open();
+    await editor.content.click();
+
+    // Simulates a layout (e.g. an Urdu one) where the physical K key types something other
+    // than "k": event.code still names the physical key, which is what the shortcut must match.
+    // (The editor's own locale stays English here — the keyboard layout is a separate thing.)
+    await editor.content.evaluate((el) => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ک', code: 'KeyK', ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+
+    await expect(page.getByRole('dialog', { name: 'Insert link' })).toBeVisible();
+  });
+
   test('rejects an unsafe URL', async ({ editor, page }) => {
     await editor.open();
     await page.keyboard.press('ControlOrMeta+K');
@@ -249,7 +263,7 @@ test.describe('tables', () => {
     void page;
   });
 
-  test('right-clicking a cell opens the same table menu', async ({ editor, page }) => {
+  test('right-clicking a cell opens the same table commands, as icon buttons in the menu', async ({ editor, page }) => {
     await editor.open();
     await insertTable(editor, 2, 2);
     await editor.content.locator('td').first().click({ button: 'right' });
