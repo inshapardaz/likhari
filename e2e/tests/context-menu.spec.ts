@@ -319,7 +319,10 @@ test.describe('context menu stays on screen', () => {
   }
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 1280, height: 330 });
+    // Short enough that the menu needs to scroll regardless of exactly how many items
+    // it ends up with (e.g. Join Lines is hidden unless the selection spans more than
+    // one line, so it isn't reliably one of them here).
+    await page.setViewportSize({ width: 1280, height: 200 });
     await editor.open();
     await editor.type('a big wrold');
     await openMenuOnWord(editor, 'a big wrold');

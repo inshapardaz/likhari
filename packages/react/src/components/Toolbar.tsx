@@ -1929,8 +1929,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {config.language.spellCheck && (
         <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
       )}
-      {config.joinLines && (
-        <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} disabled={!state.canJoinLines} onClick={joinLines} />
+      {config.joinLines && state.canJoinLines && (
+        <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} onClick={joinLines} />
       )}
     </MantineToolbar.Group>
   );
