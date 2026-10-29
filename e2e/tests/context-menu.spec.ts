@@ -172,7 +172,7 @@ test.describe('submenus', () => {
   test('a submenu stays inside the window, opening to the left when there is no room on the right', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1000, height: 700 });
     await editor.open();
-    await editor.type('a big dog');
+    await editor.type('a dog big'); // 'big' last, so it lands at the right-hand click point below, and it's the one word the test thesaurus gives a synonym
     const box = (await editor.content.boundingBox())!;
     await page.mouse.click(box.x + box.width - 4, box.y + 8, { button: 'right' }); // the right-hand end of the editor
     await expect(menu(page)).toBeVisible();

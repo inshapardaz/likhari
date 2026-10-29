@@ -65,6 +65,7 @@ test.describe('spell check', () => {
     await expect.poll(() => misspelled(page)).toEqual(['wrold']);
 
     await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } }); // places the caret in the word
+    await page.waitForTimeout(100); // the click's selection reaches Lexical's editor state a tick after the click itself
     await page.keyboard.press('Control+Alt+I');
     await expect.poll(() => misspelled(page)).toEqual([]);
   });
@@ -75,6 +76,7 @@ test.describe('spell check', () => {
     await expect.poll(() => misspelled(page)).toEqual(['wrold']);
 
     await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } });
+    await page.waitForTimeout(100); // the click's selection reaches Lexical's editor state a tick after the click itself
     // Simulates a layout (e.g. an Urdu one) where the physical I key types something other
     // than "i": event.code still names the physical key, which is what the shortcut must match.
     await editor.content.evaluate((el) => {
@@ -107,6 +109,7 @@ test.describe('spell check', () => {
     await expect.poll(() => misspelled(page)).toEqual(['likhari']);
 
     await editor.content.getByText('likhari').click({ position: { x: 10, y: 8 } });
+    await page.waitForTimeout(100); // the click's selection reaches Lexical's editor state a tick after the click itself
     await page.keyboard.press('Control+Alt+D');
     await expect.poll(() => misspelled(page)).toEqual([]);
   });
@@ -174,6 +177,7 @@ test.describe('auto-correct', () => {
     await editor.type('wrold ');
     await expect.poll(() => misspelled(page)).toEqual(['wrold']);
     await editor.content.getByText('wrold').click({ position: { x: 10, y: 8 } });
+    await page.waitForTimeout(100); // the click's selection reaches Lexical's editor state a tick after the click itself
     await page.keyboard.press('Control+Alt+A');
 
     const panel = page.getByRole('region', { name: 'Auto-correct' });
@@ -306,13 +310,14 @@ test.describe('thesaurus', () => {
     await expect(editor.content).toHaveText('a large dog');
   });
 
-  test('says when a word has no synonyms', async ({ editor, page }) => {
+  test('a correctly spelled word with no synonyms gets no Synonyms entry', async ({ editor, page }) => {
     await editor.open();
     await editor.type('hello'); // spelt right, but the test thesaurus knows nothing about it
     await editor.content.getByText('hello').click({ button: 'right', position: { x: 8, y: 8 } });
+    await expect(page.getByRole('menu').first()).toBeVisible();
+    await page.waitForTimeout(250); // let the (empty) synonym lookup resolve
 
-    await page.getByRole('menuitem', { name: 'Synonyms' }).hover();
-    await expect(page.getByRole('menuitem', { name: 'No synonyms' })).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: 'Synonyms' })).toHaveCount(0);
   });
 
   test('a misspelled word gets no synonyms entry: its menu is the spelling fixes', async ({ editor, page }) => {
