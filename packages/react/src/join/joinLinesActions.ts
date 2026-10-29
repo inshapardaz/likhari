@@ -43,11 +43,10 @@ export function $canJoinLines(): boolean {
 }
 
 /** Replaces the newlines in the selected part of a text node, each by one space (none if one is already there). */
-function $replaceNewlinesInText(node: TextNode, selection: RangeSelection): void {
-  const [start, end] = selection.getStartEndPoints() ?? [];
+function $replaceNewlinesInText(node: TextNode, start: PointType, end: PointType): void {
   const text = node.getTextContent();
-  const from = start && start.key === node.getKey() ? start.offset : 0;
-  const to = end && end.key === node.getKey() ? end.offset : text.length;
+  const from = start.key === node.getKey() ? start.offset : 0;
+  const to = end.key === node.getKey() ? end.offset : text.length;
   const joined = text.slice(from, to).replace(/[ \t]*\r?\n[ \t]*/g, ' ');
   node.setTextContent(text.slice(0, from) + joined + text.slice(to));
 }
@@ -139,25 +138,26 @@ export function $joinSelectedLines(): boolean {
   const textsWithNewlines = $textNodesWithNewlines(selection);
   if (paragraphs.length < 2 && lineBreaks.length === 0 && textsWithNewlines.length === 0) return false;
 
-  const [start, end] = selection.getStartEndPoints() ?? [];
+  // RangeSelection's anchor/focus track drag direction, not document order (and
+  // getStartEndPoints() returns them as-is, anchor first) — reorder them so "start"/"end"
+  // below always mean "earlier"/"later" in the document, regardless of which way the user
+  // dragged, or Shift+arrow'd, the selection. Getting this wrong silently skips the tail
+  // split below (sweeping unselected content into the join) for any backward selection.
+  const [start, end] = selection.isBackward() ? [selection.focus, selection.anchor] : [selection.anchor, selection.focus];
 
   for (const lineBreak of lineBreaks) $replaceBreakWithSpace(lineBreak);
-  for (const textNode of textsWithNewlines) $replaceNewlinesInText(textNode, selection);
+  for (const textNode of textsWithNewlines) $replaceNewlinesInText(textNode, start, end);
 
   const [target, ...rest] = paragraphs;
   if (!target) return false;
 
   const lastParagraph = paragraphs[paragraphs.length - 1];
-  if (end) $splitUnselectedTail(lastParagraph, end);
+  $splitUnselectedTail(lastParagraph, end);
   for (const paragraph of rest) $appendParagraph(target, paragraph);
 
   // Keep the caret where the selection began, rather than at the end of everything
   // just joined — useful on its own, and essential when many lines were joined at
   // once, where "the end" could otherwise land far past where the user was working.
-  if (start) {
-    start.getNode().select(start.offset, start.offset);
-  } else {
-    target.selectEnd();
-  }
+  start.getNode().select(start.offset, start.offset);
   return true;
 }
