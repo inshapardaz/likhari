@@ -321,11 +321,13 @@ test.describe('context menu stays on screen', () => {
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
     await page.setViewportSize({ width: 1280, height: 330 });
     await editor.open();
-    // A misspelling with several plausible corrections (not 'wrold', which the spell
-    // checker has only one close match for): the suggestions list alone is long enough
-    // regardless of which optional items would otherwise apply to a correctly-spelled word.
-    await editor.type('definately');
-    await openMenuOnWord(editor, 'definately');
+    // A misspelling the spell checker has the full 5 suggestions for (verified locally
+    // with nspell against this package's own dictionary — 'wrold' and 'definately' turned
+    // out to have only one or two, too short a list on its own to force scrolling): the
+    // suggestions alone make the menu long, regardless of which optional items would
+    // otherwise apply to a correctly-spelled word.
+    await editor.type('teh');
+    await openMenuOnWord(editor, 'teh');
 
     expect((await rectOf(menu(page))).scrollable).toBe(true);
     await item(page, 'Paste').click(); // scrolls it into view first
