@@ -323,16 +323,17 @@ test.describe('context menu stays on screen', () => {
     // The poetry couplet menu (layout row + action row, "Delete poetry", Select all, the
     // clipboard row) is reliably long — unlike a word's spell-check suggestions, which
     // turned out to vary between a local check and the actual browser and so aren't a
-    // dependable way to force this menu tall.
-    await editor.open({ preset: 'poetry' });
-    await editor.button('Insert poetry couplet').click();
-    await editor.type('a couplet');
+    // dependable way to force this menu tall. Poetry's insert button only shows in a
+    // non-English locale (strings.toolbar.insertPoetryCouplet is Urdu/Punjabi-only).
+    await editor.open({ preset: 'poetry', locale: 'ur' });
+    await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
+    await editor.type('شعر');
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
     await expect(menu(page)).toBeVisible();
     await page.waitForTimeout(250);
 
     expect((await rectOf(menu(page))).scrollable).toBe(true);
-    await item(page, 'Paste').click(); // scrolls it into view first
+    await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
     await expect(menu(page)).toHaveCount(0);
   });
 
