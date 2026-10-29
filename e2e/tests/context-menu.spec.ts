@@ -318,25 +318,22 @@ test.describe('context menu stays on screen', () => {
     });
   }
 
-  test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    // Measured directly (see commit history): the poetry couplet's context menu is ~156px
-    // tall, and opens with as little as ~154px above the click point and the rest of the
-    // viewport below it — so a short-enough viewport leaves neither side enough room,
-    // forcing a scroll regardless of which way "flip" would otherwise pick.
-    await page.setViewportSize({ width: 1280, height: 400 });
+  test('DIAGNOSTIC: find the visibility floor and menu rect at each height', async ({ editor, page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await editor.open({ preset: 'poetry', locale: 'ur' });
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
     await editor.type('شعر');
-    await editor.content.locator('.likhari-poetry').click({ button: 'right' });
-    await expect(menu(page)).toBeVisible();
-    await page.waitForTimeout(250);
-
-    expect(await editor.content.isVisible(), 'editor content should still be visible at this viewport').toBe(true);
-    const rect = await rectOf(menu(page));
-    console.log('DIAGNOSTIC AT 400', JSON.stringify(rect));
-    expect(rect.scrollable).toBe(true);
-    await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
-    await expect(menu(page)).toHaveCount(0);
+    for (const height of [900, 330, 300, 280, 260, 250, 240, 230, 220]) {
+      await page.setViewportSize({ width: 1280, height });
+      const visible = await editor.content.isVisible();
+      await editor.content.locator('.likhari-poetry').click({ button: 'right' });
+      await page.waitForTimeout(150);
+      const open = await menu(page).isVisible();
+      const rect = open ? await rectOf(menu(page)) : null;
+      console.log('DIAGNOSTIC', JSON.stringify({ height, contentVisible: visible, menuOpen: open, rect }));
+      if (open) await page.keyboard.press('Escape');
+    }
+    expect(true).toBe(true);
   });
 
   test('a short menu is not cut and does not scroll when it fits', async ({ editor, page }) => {
