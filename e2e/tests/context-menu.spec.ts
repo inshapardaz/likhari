@@ -318,19 +318,23 @@ test.describe('context menu stays on screen', () => {
     });
   }
 
-  test('DIAGNOSTIC: measure layout', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
+  test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
+    // Measured directly (see commit history): the poetry couplet's context menu is ~156px
+    // tall, and opens with as little as ~154px above the click point and the rest of the
+    // viewport below it — so a short-enough viewport leaves neither side enough room,
+    // forcing a scroll regardless of which way "flip" would otherwise pick.
+    await page.setViewportSize({ width: 1280, height: 400 });
     await editor.open({ preset: 'poetry', locale: 'ur' });
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
     await editor.type('شعر');
-    const contentBox = await editor.content.boundingBox();
-    const toolbarBox = await editor.toolbar.boundingBox();
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
     await expect(menu(page)).toBeVisible();
     await page.waitForTimeout(250);
-    const rect = await rectOf(menu(page));
-    console.log('DIAGNOSTIC', JSON.stringify({ contentBox, toolbarBox, menuRect: rect }));
-    expect(true).toBe(true);
+
+    expect(await editor.content.isVisible(), 'editor content should still be visible at this viewport').toBe(true);
+    expect((await rectOf(menu(page))).scrollable).toBe(true);
+    await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
+    await expect(menu(page)).toHaveCount(0);
   });
 
   test('a short menu is not cut and does not scroll when it fits', async ({ editor, page }) => {
