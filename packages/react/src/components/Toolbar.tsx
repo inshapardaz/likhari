@@ -1868,23 +1868,19 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     void wordActionAtCaret((language, word) => onAddAutoCorrect(word, language));
   };
 
-  // Keyboard shortcuts mirroring the right-click menu: Ctrl/Cmd+Alt+M joins the
-  // selected lines (not Ctrl+Alt+J — some browsers/OSes already bind that to their
-  // bookmarks manager, as plain Ctrl+J is to downloads), and Ctrl/Cmd+Alt+I/D/A act
-  // on the misspelled word at the caret the way the menu's Ignore / Add to
-  // dictionary / Add to auto-correct items do.
+  // Keyboard shortcuts mirroring the right-click menu: Ctrl/Cmd+Alt+J joins the
+  // selected lines, and Ctrl/Cmd+Alt+I/D/A act on the misspelled word at the caret
+  // the way the menu's Ignore / Add to dictionary / Add to auto-correct items do.
   // Matched on event.code (the physical key), not event.key, so they still fire
   // while typing in Urdu or another non-Latin layout, where event.key would be
-  // whatever character that layout produces rather than "m"/"i"/"d"/"a".
+  // whatever character that layout produces rather than "j"/"i"/"d"/"a".
   useEffect(() => {
     return editor.registerCommand(
       KEY_MODIFIER_COMMAND,
       (event: KeyboardEvent) => {
         if (!(event.ctrlKey || event.metaKey) || !event.altKey) return false;
         switch (event.code) {
-          // Not Ctrl+Alt+J ("J" for "join"): some browsers/OSes already bind that to
-          // their bookmarks manager, which would silently win over this handler.
-          case 'KeyM':
+          case 'KeyJ':
             if (!config.joinLines) return false;
             event.preventDefault();
             joinLines();
@@ -2265,8 +2261,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             {contextMenu?.text && (
               <Menu.Item
                 leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
-                rightSection={<ShortcutHint keys="Ctrl+Alt+M" />}
-                aria-keyshortcuts="Control+Alt+M"
+                rightSection={<ShortcutHint keys="Ctrl+Alt+J" />}
+                aria-keyshortcuts="Control+Alt+J"
                 onClick={runMenuAction(() => {
                   $joinSelectedLines();
                 })}

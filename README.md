@@ -399,9 +399,8 @@ is not cut off at the editor's edge; when it is taller than the room there is, i
 scrolls.
 
 **Keyboard shortcuts.** The menu's own actions also work from the keyboard, without a mouse: *Join
-lines* is **Ctrl+Alt+M** (selection must span more than one line — not Ctrl+Alt+J, which some
-browsers/OSes already bind to their bookmarks manager, as plain Ctrl+J is to downloads); on a
-misspelled word at the caret, *Ignore* is
+lines* is **Ctrl+Alt+J** (selection must span more than one line); on a misspelled word at the
+caret, *Ignore* is
 **Ctrl+Alt+I**, *Add to dictionary* is **Ctrl+Alt+D**, and *Add to auto-correct* is **Ctrl+Alt+A**.
 Each does nothing where its menu item wouldn't appear either (no selection to join, or a
 correctly-spelled word at the caret). These, and the editor's other shortcuts (e.g. Ctrl+K for a

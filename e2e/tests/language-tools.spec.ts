@@ -344,30 +344,30 @@ test.describe('join lines', () => {
     await expect(editor.content).toContainText('first second');
   });
 
-  test('Ctrl+Alt+M joins the selection, the same as the toolbar button', async ({ editor, page }) => {
+  test('Ctrl+Alt+J joins the selection, the same as the toolbar button', async ({ editor, page }) => {
     await editor.open();
     await editor.type('first');
     await page.keyboard.press('Enter');
     await editor.type('second');
     await editor.selectAll();
 
-    await page.keyboard.press('Control+Alt+M');
+    await page.keyboard.press('Control+Alt+J');
     await expect(editor.content.locator('p')).toHaveCount(1);
     await expect(editor.content).toContainText('first second');
   });
 
-  test('still fires from a non-Latin keyboard layout, where the M key produces a different character', async ({ editor, page }) => {
+  test('still fires from a non-Latin keyboard layout, where the J key produces a different character', async ({ editor, page }) => {
     await editor.open({ locale: 'ur' });
     await editor.type('اول');
     await page.keyboard.press('Enter');
     await editor.type('دوم');
     await editor.selectAll();
 
-    // Simulates a layout (e.g. an Urdu one) where the physical M key types something other
-    // than "m": event.code still names the physical key, which is what the shortcut must match.
+    // Simulates a layout (e.g. an Urdu one) where the physical J key types something other
+    // than "j": event.code still names the physical key, which is what the shortcut must match.
     await editor.content.evaluate((el) => {
       el.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'م', code: 'KeyM', ctrlKey: true, altKey: true, bubbles: true, cancelable: true }),
+        new KeyboardEvent('keydown', { key: 'ج', code: 'KeyJ', ctrlKey: true, altKey: true, bubbles: true, cancelable: true }),
       );
     });
     await expect(editor.content.locator('p')).toHaveCount(1);
