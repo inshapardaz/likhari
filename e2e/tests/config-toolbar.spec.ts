@@ -160,6 +160,25 @@ test.describe('toolbar presentation', () => {
     await expect(editor.button('Insert table')).toBeVisible();
     await expect(editor.button('Find and replace')).toBeVisible();
   });
+
+  test('stays on one row at a width with room for everything, even with the overflow menu enabled', async ({ editor, page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await editor.open({ overflow: true });
+
+    // Nothing needed to move into the "..." menu at this width, so it isn't rendered at all.
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(0);
+    const height = (await editor.toolbar.boundingBox())!.height;
+    expect(height, 'toolbar wrapped onto a second row despite having room for everything').toBeLessThan(60);
+  });
+
+  test('moves groups into the overflow menu instead of wrapping onto a second row, once they stop fitting', async ({ editor, page }) => {
+    await page.setViewportSize({ width: 800, height: 900 });
+    await editor.open({ overflow: true });
+
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toBeVisible();
+    const height = (await editor.toolbar.boundingBox())!.height;
+    expect(height, 'toolbar wrapped onto a second row instead of using the overflow menu').toBeLessThan(60);
+  });
 });
 
 test.describe('poetry', () => {
