@@ -386,7 +386,9 @@ compact items (12px text, small icons), and what it shows depends on where you c
   cells, delete the table) and *Poetry* (layout, spacing, couplets) instead show their actions
   directly as a row of icon buttons — like cut, copy and paste — when you click on a table cell or
   a couplet, so the common actions are one click away instead of a submenu. *Join lines* is an item
-  of its own on plain text.
+  of its own, shown only when the selection actually spans more than one line (a soft break, a
+  literal newline, or more than one paragraph) — not for a single word or a one-line selection,
+  where it wouldn't do anything.
 - **Cut, copy and paste** are one row of three icon buttons without labels (their names are the
   tooltips and what a screen reader says).
 
@@ -397,8 +399,9 @@ is not cut off at the editor's edge; when it is taller than the room there is, i
 scrolls.
 
 **Keyboard shortcuts.** The menu's own actions also work from the keyboard, without a mouse: *Join
-lines* is **Ctrl+Alt+J** (selection must span more than one line; not plain Ctrl+J, which browsers
-already use for the bookmarks manager); on a misspelled word at the caret, *Ignore* is
+lines* is **Ctrl+Alt+M** (selection must span more than one line — not Ctrl+Alt+J, which some
+browsers/OSes already bind to their bookmarks manager, as plain Ctrl+J is to downloads); on a
+misspelled word at the caret, *Ignore* is
 **Ctrl+Alt+I**, *Add to dictionary* is **Ctrl+Alt+D**, and *Add to auto-correct* is **Ctrl+Alt+A**.
 Each does nothing where its menu item wouldn't appear either (no selection to join, or a
 correctly-spelled word at the caret). These, and the editor's other shortcuts (e.g. Ctrl+K for a
