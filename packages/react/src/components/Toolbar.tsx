@@ -2646,7 +2646,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', top: 0, left: 0, width: 'max-content' }}
         >
           <MantineToolbar.Divider />
-          <ToolbarButton icon={IconDots} title={strings.toolbar.moreFormatting} />
+          {/* Not strings.toolbar.moreFormatting — the real "..." trigger (and an unrelated,
+              always-present formatting-overflow button) already use that name, and giving
+              this hidden measurement-only button the same one makes it ambiguous for
+              anything (tests included) querying by accessible name/role. */}
+          <ToolbarButton icon={IconDots} title="Toolbar overflow measurement" />
         </MantineToolbar>
       )}
 

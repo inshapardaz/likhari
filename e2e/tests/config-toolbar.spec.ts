@@ -165,8 +165,10 @@ test.describe('toolbar presentation', () => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await editor.open({ overflow: true });
 
-    // Nothing needed to move into the "..." menu at this width, so it isn't rendered at all.
-    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(0);
+    // Only the unrelated, always-present formatting-overflow button ("strikethrough,
+    // superscript, ...") shares this name — the responsive "..." trigger isn't rendered
+    // at all unless something actually needs to move into it.
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(1);
     const height = (await editor.toolbar.boundingBox())!.height;
     expect(height, 'toolbar wrapped onto a second row despite having room for everything').toBeLessThan(60);
   });
@@ -175,7 +177,9 @@ test.describe('toolbar presentation', () => {
     await page.setViewportSize({ width: 800, height: 900 });
     await editor.open({ overflow: true });
 
-    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toBeVisible();
+    // The responsive "..." trigger, last in DOM order after the unrelated formatting one.
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(2);
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' }).last()).toBeVisible();
     const height = (await editor.toolbar.boundingBox())!.height;
     expect(height, 'toolbar wrapped onto a second row instead of using the overflow menu').toBeLessThan(60);
   });
