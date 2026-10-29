@@ -319,7 +319,7 @@ test.describe('context menu stays on screen', () => {
   }
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 1280, height: 330 });
+    await page.setViewportSize({ width: 1280, height: 240 });
     // The poetry couplet menu (layout row + action row, "Delete poetry", Select all, the
     // clipboard row) is reliably long — unlike a word's spell-check suggestions, which
     // turned out to vary between a local check and the actual browser and so aren't a
@@ -332,7 +332,10 @@ test.describe('context menu stays on screen', () => {
     await expect(menu(page)).toBeVisible();
     await page.waitForTimeout(250);
 
-    expect((await rectOf(menu(page))).scrollable).toBe(true);
+    const rect = await rectOf(menu(page));
+    console.log('MENU RECT', JSON.stringify(rect));
+    expect(await editor.content.isVisible(), 'editor content should still be visible at this viewport').toBe(true);
+    expect(rect.scrollable).toBe(true);
     await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
     await expect(menu(page)).toHaveCount(0);
   });
