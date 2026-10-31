@@ -160,6 +160,33 @@ test.describe('toolbar presentation', () => {
     await expect(editor.button('Insert table')).toBeVisible();
     await expect(editor.button('Find and replace')).toBeVisible();
   });
+
+  test('stays on one row at a width with room for everything, even with the overflow menu enabled', async ({ editor, page }) => {
+    // The 'full' preset's toolbar, with every group inline, is wide: this needs real room.
+    await page.setViewportSize({ width: 2600, height: 900 });
+    await editor.open({ overflow: true });
+
+    // Only the unrelated, always-present formatting-overflow button ("strikethrough,
+    // superscript, ...") shares this name — the responsive "..." trigger isn't rendered
+    // at all unless something actually needs to move into it.
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(1);
+    const height = (await editor.toolbar.boundingBox())!.height;
+    expect(height, 'toolbar wrapped onto a second row despite having room for everything').toBeLessThan(60);
+  });
+
+  test('moves groups into the overflow menu instead of wrapping onto a second row, once they stop fitting', async ({ editor, page }) => {
+    // Narrow enough that several movable groups (tools, font, insert, ...) must move into
+    // the "..." menu, but still comfortably wide enough for the groups that never do
+    // (save, undo/redo, formatting, align/indent) to fit on their own in one row.
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await editor.open({ overflow: true });
+
+    // The responsive "..." trigger, last in DOM order after the unrelated formatting one.
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' })).toHaveCount(2);
+    await expect(editor.toolbar.getByRole('button', { name: 'More formatting' }).last()).toBeVisible();
+    const height = (await editor.toolbar.boundingBox())!.height;
+    expect(height, 'toolbar wrapped onto a second row instead of using the overflow menu').toBeLessThan(60);
+  });
 });
 
 test.describe('poetry', () => {

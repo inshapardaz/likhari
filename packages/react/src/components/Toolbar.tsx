@@ -913,6 +913,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   // join lines) is lower priority still, so it is first to move.
   const toolbarContainerRef = useRef<HTMLDivElement | null>(null);
   const toolbarMeasureRef = useRef<HTMLDivElement | null>(null);
+  const toolbarOverflowMeasureRef = useRef<HTMLDivElement | null>(null);
   const [overflowGroupKeys, setOverflowGroupKeys] = useState<ReadonlySet<string>>(EMPTY_OVERFLOW);
 
   const updateToolbar = useCallback(() => {
@@ -2064,10 +2065,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     const measure = toolbarMeasureRef.current;
     if (!container || !measure) return;
 
-    // Rough width of the "..." button itself (icon button + its gap) —
-    // only charged against the budget once something has actually moved
-    // into it, since it isn't rendered at all otherwise.
-    const OVERFLOW_BUTTON_WIDTH = 38;
+    // Fallback only, in case the overflow button's own hidden measurement
+    // element (below) isn't mounted yet on the very first pass.
+    const OVERFLOW_BUTTON_FALLBACK_WIDTH = 38;
 
     const recompute = () => {
       const available = container.clientWidth;
@@ -2080,6 +2080,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       measure.querySelectorAll<HTMLElement>('[data-group-key]').forEach((el) => {
         widths.set(el.dataset.groupKey as string, el.getBoundingClientRect().width);
       });
+      // Measured from a real (hidden) copy of the "..." button, in the toolbar's own
+      // CSS, rather than guessed — only charged against the budget once something
+      // has actually moved into it, since it isn't rendered at all otherwise.
+      const overflowButtonWidth = toolbarOverflowMeasureRef.current?.scrollWidth ?? OVERFLOW_BUTTON_FALLBACK_WIDTH;
       let remaining = total;
       const next = new Set<string>();
       for (const key of movableGroupKeys.split(',').filter(Boolean)) {
@@ -2089,7 +2093,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         remaining -= w;
         next.add(key);
       }
-      if (next.size > 0) remaining += OVERFLOW_BUTTON_WIDTH;
+      if (next.size > 0) remaining += overflowButtonWidth;
       setOverflowGroupKeys((prev) => (setsEqual(prev, next) ? prev : next));
     };
 
@@ -2097,6 +2101,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     const ro = new ResizeObserver(recompute);
     ro.observe(container);
     ro.observe(measure);
+    if (toolbarOverflowMeasureRef.current) ro.observe(toolbarOverflowMeasureRef.current);
     return () => ro.disconnect();
   });
 
@@ -2590,23 +2595,27 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
       {contextMenuEl}
 
-      {/* Hidden clone, rendering every movable section inline with no
-          wrapping — its natural (unclipped) width is what the effect above
-          compares against the container's available width to decide what,
-          if anything, needs to move into the "..." menu. Needs its own
-          Toolbar ancestor: Toolbar.Group/Toggle read that context and throw
-          without one. Not needed (and not rendered) when overflow is off. */}
+      {/* Hidden clone, rendering every movable section inline with no wrapping — its
+          natural (unclipped) width is what the effect above compares against the
+          container's available width to decide what, if anything, needs to move into
+          the "..." menu. The same className as the real toolbar, so it picks up the
+          same padding/gap and isn't measured against Mantine's un-themed defaults;
+          main-movable sections get the same leading divider the real toolbar gives
+          them, and end-movable ones get none, for the same reason. Needs its own
+          Toolbar ancestor: Toolbar.Group/Toggle read that context and throw without
+          one. Not needed (and not rendered) when overflow is off. */}
       {overflowEnabled && (
         <MantineToolbar
           aria-hidden="true"
           ref={toolbarMeasureRef}
+          className={bordered ? 'likhari-toolbar' : 'likhari-toolbar likhari-toolbar--plain'}
           withBorder={bordered}
           variant={variant}
           color="var(--editor-accent)"
           style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', top: 0, left: 0, flexWrap: 'nowrap', width: 'max-content' }}
         >
           {withDividers(startSections)}
-          {movableSections.map((section) => (
+          {mainMovable.map((section) => (
             <Fragment key={section.key}>
               <MantineToolbar.Divider />
               <span data-group-key={section.key} style={{ display: 'inline-flex' }}>
@@ -2614,6 +2623,32 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </span>
             </Fragment>
           ))}
+          {endMovable.map((section) => (
+            <span key={section.key} data-group-key={section.key} style={{ display: 'inline-flex' }}>
+              {section.node}
+            </span>
+          ))}
+        </MantineToolbar>
+      )}
+
+      {/* A real (hidden) copy of just the "..." button, in the same CSS, so its width
+          can be measured rather than guessed — see the effect above. */}
+      {overflowEnabled && (
+        <MantineToolbar
+          aria-hidden="true"
+          ref={toolbarOverflowMeasureRef}
+          className={bordered ? 'likhari-toolbar' : 'likhari-toolbar likhari-toolbar--plain'}
+          withBorder={bordered}
+          variant={variant}
+          color="var(--editor-accent)"
+          style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none', top: 0, left: 0, width: 'max-content' }}
+        >
+          <MantineToolbar.Divider />
+          {/* Not strings.toolbar.moreFormatting — the real "..." trigger (and an unrelated,
+              always-present formatting-overflow button) already use that name, and giving
+              this hidden measurement-only button the same one makes it ambiguous for
+              anything (tests included) querying by accessible name/role. */}
+          <ToolbarButton icon={IconDots} title="Toolbar overflow measurement" />
         </MantineToolbar>
       )}
 
