@@ -234,4 +234,55 @@ describe('joinSelectedLines', () => {
     expect(paragraphPlain(editor)).toEqual(['alpha beta gamma']);
     expect(offset).toBe(2);
   });
+
+  it('trims the unselected tail correctly for a backward selection too', () => {
+    const editor = makeEditor();
+    setParagraphs(editor, ['alpha', 'defghi', 'gamma']);
+    // Backward: anchor after 'def' in the second paragraph, focus at the start of 'alpha'.
+    // The forward-equivalent selection is 'alpha' through 'def', leaving 'ghi' and 'gamma' alone.
+    editor.update(
+      () => {
+        const texts = $getRoot().getAllTextNodes();
+        const selection = $createRangeSelection();
+        selection.anchor.set(texts[1]!.getKey(), 3, 'text');
+        selection.focus.set(texts[0]!.getKey(), 0, 'text');
+        $setSelection(selection);
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    expect(paragraphPlain(editor)).toEqual(['alpha def', 'ghi', 'gamma']);
+  });
+
+  it('trims both the start and end paragraphs when a backward selection only partly covers each', () => {
+    const editor = makeEditor();
+    setParagraphs(editor, ['abcdef', 'beta', 'uvwxyz']);
+    // Backward: anchor after 'uvw' in the third paragraph, focus after 'abc' in the first.
+    editor.update(
+      () => {
+        const texts = $getRoot().getAllTextNodes();
+        const selection = $createRangeSelection();
+        selection.anchor.set(texts[2]!.getKey(), 3, 'text');
+        selection.focus.set(texts[0]!.getKey(), 3, 'text');
+        $setSelection(selection);
+        $joinSelectedLines();
+      },
+      { discrete: true },
+    );
+    // 'abc' (unselected prefix) stays with the merged paragraph — same as a forward selection
+    // starting mid-paragraph always has — but 'xyz' (the unselected tail) splits off on its own.
+    expect(paragraphPlain(editor)).toEqual(['abcdef beta uvw', 'xyz']);
+  });
+
+  it('leaves no stray empty paragraph behind when the selection ends right at a trailing soft break', () => {
+    const editor = makeEditor();
+    // A paragraph with a dangling trailing break and nothing after it (as if the user had
+    // pressed Shift+Enter at the very end and not typed anything on the new line yet).
+    setParagraphs(editor, ['alpha', 'beta\n']);
+    expect(selectAllAndJoin(editor)).toBe(true);
+    expect(paragraphPlain(editor)).toEqual(['alpha beta']);
+    // Exactly one paragraph — no empty one left behind from the dangling break.
+    const paragraphCount = editor.getEditorState().read(() => $getRoot().getChildrenSize());
+    expect(paragraphCount).toBe(1);
+  });
 });

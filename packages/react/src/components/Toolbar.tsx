@@ -501,9 +501,10 @@ function ShortcutHint({ keys }: { keys: string }) {
 interface EditorContextMenu {
   x: number;
   y: number;
-  /** Set for plain text, where joining lines applies; `canJoin` is false when the selection is one line. */
+  /** Set when the selection actually spans more than one line (a soft break, a literal
+   * newline, or more than one paragraph) and so can be joined — not merely whenever the
+   * pointer is on plain text, which would offer Join Lines on a single word or line too. */
   text?: boolean;
-  canJoin?: boolean;
   link?: string;
   table?: { rows: number; columns: number };
   poetry?: boolean;
@@ -1349,8 +1350,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             if (atPoint && $selectionIsWithinWord(atPoint)) word = atPoint;
           }
           if (!cell && !couplet && config.joinLines) {
-            menu.text = true;
-            menu.canJoin = $canJoinLines();
+            menu.text = $canJoinLines();
           }
         },
         { discrete: true },
@@ -1869,9 +1869,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   };
 
   // Keyboard shortcuts mirroring the right-click menu: Ctrl/Cmd+Alt+J joins the
-  // selected lines (plain Ctrl+J is already the browser's bookmarks-manager
-  // shortcut), and Ctrl/Cmd+Alt+I/D/A act on the misspelled word at the caret the
-  // way the menu's Ignore / Add to dictionary / Add to auto-correct items do.
+  // selected lines, and Ctrl/Cmd+Alt+I/D/A act on the misspelled word at the caret
+  // the way the menu's Ignore / Add to dictionary / Add to auto-correct items do.
   // Matched on event.code (the physical key), not event.key, so they still fire
   // while typing in Urdu or another non-Latin layout, where event.key would be
   // whatever character that layout produces rather than "j"/"i"/"d"/"a".
@@ -1926,8 +1925,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       {config.language.spellCheck && (
         <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
       )}
-      {config.joinLines && (
-        <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} disabled={!state.canJoinLines} onClick={joinLines} />
+      {config.joinLines && state.canJoinLines && (
+        <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} onClick={joinLines} />
       )}
     </MantineToolbar.Group>
   );
@@ -2264,7 +2263,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 leftSection={<IconArrowsJoin size={ICON_SIZE} stroke={ICON_STROKE} />}
                 rightSection={<ShortcutHint keys="Ctrl+Alt+J" />}
                 aria-keyshortcuts="Control+Alt+J"
-                disabled={!contextMenu.canJoin}
                 onClick={runMenuAction(() => {
                   $joinSelectedLines();
                 })}

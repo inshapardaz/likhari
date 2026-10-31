@@ -331,10 +331,10 @@ test.describe('thesaurus', () => {
 });
 
 test.describe('join lines', () => {
-  test('is disabled for a single line and joins a selection of several into one paragraph', async ({ editor, page }) => {
+  test('is absent for a single line and joins a selection of several into one paragraph', async ({ editor, page }) => {
     await editor.open();
     await editor.type('first');
-    await expect(editor.button('Join lines')).toBeDisabled();
+    await expect(editor.button('Join lines')).toHaveCount(0);
     await page.keyboard.press('Enter');
     await editor.type('second');
     await editor.selectAll();

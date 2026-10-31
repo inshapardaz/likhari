@@ -52,8 +52,9 @@ test.describe('what the menu shows', () => {
     await page.waitForTimeout(250);
 
     await expect(page.getByText('Spelling suggestions')).toHaveCount(0);
-    for (const name of ['Ignore', 'Add to dictionary', 'Add to auto-correct', 'Synonyms']) await expect(item(page, name)).toHaveCount(0);
-    for (const name of ['Join lines', 'Select all', 'Cut', 'Copy', 'Paste']) await expect(item(page, name)).toBeVisible();
+    // Join lines isn't here either: a single line, with nothing to join, regardless of selection width.
+    for (const name of ['Ignore', 'Add to dictionary', 'Add to auto-correct', 'Synonyms', 'Join lines']) await expect(item(page, name)).toHaveCount(0);
+    for (const name of ['Select all', 'Cut', 'Copy', 'Paste']) await expect(item(page, name)).toBeVisible();
   });
 
   test('also when the misspelled word is in a table cell: no table entries', async ({ editor, page }) => {
@@ -72,14 +73,36 @@ test.describe('what the menu shows', () => {
     await expect(item(page, 'Select all')).toHaveCount(0);
   });
 
-  test('a correctly spelled word gets Synonyms, Join lines, the clipboard row and Select all', async ({ editor, page }) => {
+  test('a correctly spelled word gets Synonyms, the clipboard row and Select all, but not Join lines on a single line', async ({ editor, page }) => {
     await editor.open();
     await editor.type('a big dog');
     await openMenuOnWord(editor, 'a big dog', 22);
 
-    for (const name of ['Synonyms', 'Join lines', 'Cut', 'Copy', 'Paste', 'Select all']) await expect(item(page, name)).toBeVisible();
-    for (const name of ['Ignore', 'Add to dictionary', 'Add to auto-correct']) await expect(item(page, name)).toHaveCount(0);
+    for (const name of ['Synonyms', 'Cut', 'Copy', 'Paste', 'Select all']) await expect(item(page, name)).toBeVisible();
+    for (const name of ['Ignore', 'Add to dictionary', 'Add to auto-correct', 'Join lines']) await expect(item(page, name)).toHaveCount(0);
     await expect(page.getByText('Spelling suggestions')).toHaveCount(0);
+  });
+
+  test('Join lines appears, and works, only once the selection actually spans more than one line', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('alpha');
+    await page.keyboard.press('Shift+Enter'); // a soft break, not a new paragraph
+    await editor.type('beta');
+
+    // A caret, or a selection within just one of the two lines: nothing to join yet.
+    await editor.content.getByText('alpha').click({ button: 'right', position: { x: 8, y: 8 } });
+    await expect(menu(page)).toBeVisible();
+    await expect(item(page, 'Join lines')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    // Select across the soft break: Join lines shows up, and merges the two lines.
+    await editor.selectAll();
+    await editor.content.click({ button: 'right', position: { x: 8, y: 8 } });
+    await expect(menu(page)).toBeVisible();
+    await expect(item(page, 'Join lines')).toBeVisible();
+    await item(page, 'Join lines').click();
+
+    await expect(editor.content).toHaveText('alpha beta');
   });
 
   test('where nothing applies it is just the clipboard row and Select all', async ({ editor, page }) => {
@@ -296,13 +319,19 @@ test.describe('context menu stays on screen', () => {
   }
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    await page.setViewportSize({ width: 1280, height: 330 });
-    await editor.open();
-    await editor.type('a big wrold');
-    await openMenuOnWord(editor, 'a big wrold');
+    // 280px is a narrow, measured sweet spot for this menu (~157px tall) and this demo
+    // page's own chrome: short enough to force a scroll (300px is already roomy enough not
+    // to), but not so short the editor's own content area disappears (260px already does).
+    await page.setViewportSize({ width: 1280, height: 280 });
+    await editor.open({ preset: 'poetry', locale: 'ur' });
+    await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
+    await editor.type('شعر');
+    await editor.content.locator('.likhari-poetry').click({ button: 'right' });
+    await expect(menu(page)).toBeVisible();
+    await page.waitForTimeout(250);
 
     expect((await rectOf(menu(page))).scrollable).toBe(true);
-    await item(page, 'Paste').click(); // scrolls it into view first
+    await item(page, 'چسپاں کریں').click(); // 'Paste', localized — scrolls it into view first
     await expect(menu(page)).toHaveCount(0);
   });
 

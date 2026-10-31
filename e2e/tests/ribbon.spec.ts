@@ -70,6 +70,11 @@ test.describe('tabs and their commands', () => {
 
   test('Tools holds the language tools, but not find and replace', async ({ editor, page }) => {
     await openRibbon(editor);
+    // Join lines only shows once the selection actually spans more than one line.
+    await editor.type('first');
+    await page.keyboard.press('Enter');
+    await editor.type('second');
+    await editor.selectAll();
     await tab(page, 'Tools').click();
 
     for (const name of ['Auto-correct', 'Correct whole document', 'Spell-checker', 'Join lines']) {
@@ -99,6 +104,11 @@ test.describe('tabs and their commands', () => {
     await tab(page, 'Insert').click();
     await cmd(page, 'Insert horizontal rule').click();
     await expect(editor.content.locator('hr')).toHaveCount(1);
+
+    // Join lines only shows once the selection actually spans more than one line.
+    await page.keyboard.press('Enter');
+    await editor.type('second line');
+    await editor.selectAll();
 
     await tab(page, 'Tools').click();
     await expect(cmd(page, 'Join lines')).toBeVisible();
@@ -273,6 +283,11 @@ test.describe('only tabs with something in them are shown', () => {
 
   test('a tab offers only the commands that are enabled', async ({ editor, page }) => {
     await openRibbon(editor, { preset: 'standard' });
+    // Join lines only shows once the selection actually spans more than one line.
+    await editor.type('first');
+    await page.keyboard.press('Enter');
+    await editor.type('second');
+    await editor.selectAll();
     await tab(page, 'Tools').click();
 
     await expect(cmd(page, 'Join lines')).toBeVisible();
