@@ -38,6 +38,7 @@ import { SpellcheckPanel } from './components/SpellcheckPanel';
 import { SpellHighlightPlugin } from './spellcheck/SpellHighlightPlugin';
 import { AutocompletePlugin } from './autocomplete/AutocompletePlugin';
 import { wordNetThesaurusStore, type ThesaurusStore } from './thesaurus/thesaurusStores';
+import { freeDictionaryApiStore, type DictionaryStore } from './dictionary/dictionaryStores';
 import { dictionaryCompletionStore, type CompletionStore } from './autocomplete/completionStores';
 import { loadUserWords, localStorageUserWordStore, type UserWordStore } from './spellcheck/userWords';
 import type { SpellLanguage } from './spellcheck/spellDictionaries';
@@ -70,6 +71,8 @@ export interface EditorInitialContent {
 const DEFAULT_AUTOCORRECT_STORES: AutoCorrectStore[] = [localStorageAutoCorrectStore()];
 /** Used when the host passes no thesaurus stores: English synonyms from WordNet, loaded on first use. */
 const DEFAULT_THESAURUS_STORES: ThesaurusStore[] = [wordNetThesaurusStore()];
+/** Used when the host passes no dictionary-lookup stores: English definitions from the free dictionaryapi.dev service. */
+const DEFAULT_DICTIONARY_LOOKUP_STORES: DictionaryStore[] = [freeDictionaryApiStore()];
 /** Used when the host passes no completion stores: the dictionary's words and the user's added words. */
 const DEFAULT_COMPLETION_STORES: CompletionStore[] = [dictionaryCompletionStore()];
 /** Used when the host passes no dictionary stores: added words are kept in this browser. */
@@ -87,6 +90,13 @@ export interface EditorRootProps {
   completionStores?: CompletionStore[];
   /** Where synonyms come from, merged in order. Defaults to English WordNet. Pass a stable array. */
   thesaurusStores?: ThesaurusStore[];
+  /**
+   * Dictionaries the right-click "Look up" popup can query — the user picks
+   * which one, and changing the choice re-queries the current word (it does
+   * not merge several like `thesaurusStores`). Defaults to the free
+   * dictionaryapi.dev English dictionary. Pass a stable array.
+   */
+  dictionaryLookupStores?: DictionaryStore[];
   /** The language autocomplete works in: 'auto' follows each block's direction (English for LTR, Urdu for RTL). */
   autoCompleteLanguage?: SpellLanguage | 'auto';
   /** Which dictionary spellcheck (underlining, right-click suggestions and "add to dictionary") uses: 'auto' (default) follows each block's/word's own direction (English for LTR, Urdu for RTL). */
@@ -267,6 +277,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     dictionaryStores,
     completionStores,
     thesaurusStores,
+    dictionaryLookupStores,
     autoCompleteLanguage = 'auto',
     spellCheckLanguage = 'auto',
     urduNormalization,
@@ -656,6 +667,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
             helpUrl={helpUrl}
             dictionaryStores={wordStores}
             thesaurusStores={thesaurusStores ?? DEFAULT_THESAURUS_STORES}
+            dictionaryLookupStores={dictionaryLookupStores ?? DEFAULT_DICTIONARY_LOOKUP_STORES}
             onAddAutoCorrect={config.language.autocorrect ? openAutoCorrectFor : undefined}
             onSave={handleSave}
             findOpen={openPanel === 'find'}

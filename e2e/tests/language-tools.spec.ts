@@ -217,11 +217,19 @@ test.describe('Urdu punctuation and characters', () => {
 
   test('a straight double quote becomes a closing curly quote and a hyphen a full stop', async ({ editor }) => {
     await editor.open({ locale: 'ur' });
+    // The Urdu/Shahmukhi pair is reversed from Latin text (opens with ”, closes with “),
+    // since this is a right-to-left block.
     await editor.type('کہا"', 25);
-    await expect(editor.content).toHaveText('کہا”');
+    await expect(editor.content).toHaveText('کہا“');
 
     await editor.type('ٹھیک-', 25);
-    await expect(editor.content).toHaveText('کہا”ٹھیک۔');
+    await expect(editor.content).toHaveText('کہا“ٹھیک۔');
+  });
+
+  test('a straight double quote opens with ” in a right-to-left block', async ({ editor }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.type('کہا "ٹھیک', 25);
+    await expect(editor.content).toHaveText('کہا ”ٹھیک');
   });
 
   test('Arabic heh is normalised to Urdu heh when the word is finished', async ({ editor }) => {

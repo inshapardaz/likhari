@@ -1459,3 +1459,27 @@
   margin-inline: 4px;
   background: var(--mantine-color-default-border);
 }
+
+/* Dictionary-lookup popup (right-click "Look up"). */
+.likhari-dictionary-word {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.likhari-dictionary-meaning {
+  margin-top: 12px;
+  min-height: 1.5em;
+}
+
+.likhari-dictionary-meaning ul {
+  margin: 0;
+  padding-inline-start: 1.2em;
+}
+
+.likhari-dictionary-meaning li + li {
+  margin-top: 4px;
+}
+
+.likhari-dictionary-status {
+  opacity: 0.8;
+}

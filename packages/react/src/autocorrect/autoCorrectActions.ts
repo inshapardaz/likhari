@@ -123,6 +123,7 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
   const anchor = selection.anchor;
   const node = anchor.getNode();
   if (!$isTextNode(node)) return false;
+  const rtl = node.getTopLevelElement()?.getDirection() === 'rtl';
 
   const before = node.getTextContent().slice(0, anchor.offset);
   const rule = rules.find((r) => before.endsWith(r.incorrect) && (!r.completeWord || !WORD_CHAR.test(before.charAt(before.length - r.incorrect.length - 1) || ' ')));
@@ -132,7 +133,7 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
   }
 
   const start = before.length - rule.incorrect.length;
-  const replacement = rule.resolve ? rule.resolve(before.slice(0, start)) : rule.correct;
+  const replacement = rule.resolve ? rule.resolve(before.slice(0, start), rtl) : rule.correct;
   autoCorrectDebugLog('$correctPunctuationBeforeCaret: applying rule', JSON.stringify(rule.incorrect), '->', JSON.stringify(replacement));
   $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, replacement);
   const after = $getSelection();
@@ -151,12 +152,13 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
 export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
   let applied = 0;
   for (const group of $textGroups()) {
+    const rtl = group[0].getParentOrThrow().getDirection() === 'rtl';
     const text = group.map((node) => node.getTextContent()).join('');
     const candidates: { start: number; end: number; correct: string }[] = [];
     for (const rule of rules) {
       let index = text.indexOf(rule.incorrect);
       while (index !== -1) {
-        const correct = rule.resolve ? rule.resolve(text.slice(0, index)) : rule.correct;
+        const correct = rule.resolve ? rule.resolve(text.slice(0, index), rtl) : rule.correct;
         candidates.push({ start: index, end: index + rule.incorrect.length, correct });
         index = text.indexOf(rule.incorrect, index + 1);
       }

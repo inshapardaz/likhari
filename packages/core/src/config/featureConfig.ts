@@ -42,6 +42,8 @@ export interface EditorFeatureConfig {
   language?: {
     spellCheck?: boolean;
     thesaurus?: boolean;
+    /** Right-click "Look up" popup: a word's meaning, with a dictionary picker. */
+    dictionary?: boolean;
     autocomplete?: boolean;
     autocorrect?: boolean;
     textCleanup?: boolean;
@@ -94,6 +96,7 @@ export const FULL_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   language: {
     spellCheck: true,
     thesaurus: true,
+    dictionary: true,
     autocomplete: true,
     autocorrect: true,
     textCleanup: true,
@@ -230,6 +233,7 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   language: {
     spellCheck: false,
     thesaurus: false,
+    dictionary: false,
     autocomplete: false,
     autocorrect: false,
     textCleanup: false,

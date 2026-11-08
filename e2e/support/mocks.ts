@@ -23,6 +23,11 @@ const NAWISHTA_AUTOCORRECT = JSON.stringify([
   { incorrectText: 'کتا', correctText: 'کتّا', completeWord: true },
 ]);
 
+/** A fixture for the dictionaryapi.dev shape, so a dictionary lookup never depends on the real service. */
+const DICTIONARY_LOOKUP = JSON.stringify([
+  { word: 'hello', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A greeting.' }] }] },
+]);
+
 /** Host that tests use for image URLs; answered here so no real image is fetched. */
 export const IMAGE_URL = 'https://images.example.test/photo.png';
 
@@ -59,6 +64,10 @@ export async function mockNetwork(context: BrowserContext, appOrigin: string): P
       if (url.hostname === 'api.nawishta.co.uk') {
         note(request);
         return text(route, NAWISHTA_AUTOCORRECT, 'application/json; charset=utf-8');
+      }
+      if (url.hostname === 'api.dictionaryapi.dev') {
+        note(request);
+        return text(route, DICTIONARY_LOOKUP, 'application/json; charset=utf-8');
       }
       if (url.hostname === 'cdn.jsdelivr.net') {
         note(request);
