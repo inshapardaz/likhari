@@ -4,6 +4,8 @@ import type { SpellLanguage } from '../spellcheck/spellDictionaries';
 export interface AutoCorrectEntry {
   from: string;
   to: string;
+  /** Whole word only (default), or applied even inside a longer word. */
+  wholeWord?: boolean;
 }
 
 /**
@@ -32,7 +34,8 @@ function isEntry(value: unknown): value is AutoCorrectEntry {
     value !== null &&
     typeof (value as AutoCorrectEntry).from === 'string' &&
     typeof (value as AutoCorrectEntry).to === 'string' &&
-    (value as AutoCorrectEntry).from !== ''
+    (value as AutoCorrectEntry).from !== '' &&
+    ((value as AutoCorrectEntry).wholeWord === undefined || typeof (value as AutoCorrectEntry).wholeWord === 'boolean')
   );
 }
 
@@ -58,11 +61,11 @@ export function localStorageAutoCorrectStore(options: { key?: string } = {}): Au
     async load(language) {
       return readAll()
         .filter((e) => e.language === language)
-        .map(({ from, to }) => ({ from, to }));
+        .map(({ from, to, wholeWord }) => ({ from, to, wholeWord }));
     },
     async append(language, entry) {
       const all = readAll().filter((e) => !(e.language === language && e.from === entry.from));
-      all.push({ language, from: entry.from, to: entry.to });
+      all.push({ language, from: entry.from, to: entry.to, wholeWord: entry.wholeWord });
       try {
         localStorage.setItem(key, JSON.stringify(all));
       } catch {
@@ -90,13 +93,13 @@ export function apiAutoCorrectStore(options: {
       const response = await doFetch(`${options.url}?language=${encodeURIComponent(language)}`, { headers: options.headers });
       if (!response.ok) throw new Error(`Auto-correct API failed: ${response.status}`);
       const data: unknown = await response.json();
-      return Array.isArray(data) ? data.filter(isEntry).map(({ from, to }) => ({ from, to })) : [];
+      return Array.isArray(data) ? data.filter(isEntry).map(({ from, to, wholeWord }) => ({ from, to, wholeWord })) : [];
     },
     async append(language, entry) {
       const response = await doFetch(options.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...options.headers },
-        body: JSON.stringify({ language, from: entry.from, to: entry.to }),
+        body: JSON.stringify({ language, from: entry.from, to: entry.to, wholeWord: entry.wholeWord }),
       });
       if (!response.ok) throw new Error(`Auto-correct API rejected the entry: ${response.status}`);
     },
@@ -122,19 +125,84 @@ export function fileAutoCorrectStore(options: { id?: string; url: string; fetch?
     id: options.id ?? 'file',
     readOnly: true,
     async load(language) {
-      return (await all()).filter((e) => e.language === language).map(({ from, to }) => ({ from, to }));
+      return (await all())
+        .filter((e) => e.language === language)
+        .map(({ from, to, wholeWord }) => ({ from, to, wholeWord }));
     },
   };
 }
 
-/** Corrections for one language, merged across stores. Failing stores are skipped. */
-export async function loadAutoCorrections(stores: AutoCorrectStore[], language: SpellLanguage): Promise<Map<string, string>> {
-  const table = new Map<string, string>();
+/**
+ * The bundled Urdu auto-correct corpus from
+ * https://api.nawishta.co.uk/tools/ur/spellchecker/autocorrect, which serves a
+ * fixed Urdu list regardless of the `language` requested — so this store only
+ * answers for `'ur'`. Read-only: it has no documented endpoint for adding
+ * entries, so pair it with a writable store (e.g. `localStorageAutoCorrectStore`)
+ * for corrections added through the editor.
+ */
+export function nawishtaAutoCorrectStore(options: { url?: string; fetch?: typeof fetch } = {}): AutoCorrectStore {
+  const url = options.url ?? 'https://api.nawishta.co.uk/tools/ur/spellchecker/autocorrect';
+  const doFetch = options.fetch ?? fetch;
+  let cached: Promise<AutoCorrectEntry[]> | null = null;
+
+  interface NawishtaEntry {
+    incorrectText: string;
+    correctText: string;
+    completeWord: boolean;
+  }
+  function isNawishtaEntry(value: unknown): value is NawishtaEntry {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      typeof (value as NawishtaEntry).incorrectText === 'string' &&
+      typeof (value as NawishtaEntry).correctText === 'string' &&
+      (value as NawishtaEntry).incorrectText !== ''
+    );
+  }
+
+  const load = () => {
+    cached ??= doFetch(url).then(async (response) => {
+      if (!response.ok) throw new Error(`Nawishta auto-correct API failed: ${response.status}`);
+      const data: unknown = await response.json();
+      return Array.isArray(data)
+        ? data
+            .filter(isNawishtaEntry)
+            .map(({ incorrectText, correctText, completeWord }) => ({ from: incorrectText, to: correctText, wholeWord: completeWord }))
+        : [];
+    });
+    return cached;
+  };
+
+  return {
+    id: 'nawishta',
+    readOnly: true,
+    async load(language) {
+      return language === 'ur' ? load() : [];
+    },
+  };
+}
+
+/** Every correction for one language, merged across stores (the first listed wins a clash). Failing stores are skipped. */
+export async function loadAutoCorrectEntries(stores: AutoCorrectStore[], language: SpellLanguage): Promise<AutoCorrectEntry[]> {
+  const seen = new Set<string>();
+  const merged: AutoCorrectEntry[] = [];
   const results = await Promise.allSettled(stores.map((store) => store.load(language)));
   results.forEach((result) => {
     if (result.status !== 'fulfilled') return;
-    for (const entry of result.value) if (!table.has(entry.from)) table.set(entry.from, entry.to);
+    for (const entry of result.value) {
+      if (seen.has(entry.from)) continue;
+      seen.add(entry.from);
+      merged.push(entry);
+    }
   });
+  return merged;
+}
+
+/** The whole-word corrections for one language, merged across stores, as a from-to table. */
+export async function loadAutoCorrections(stores: AutoCorrectStore[], language: SpellLanguage): Promise<Map<string, string>> {
+  const entries = await loadAutoCorrectEntries(stores, language);
+  const table = new Map<string, string>();
+  for (const entry of entries) if (entry.wholeWord !== false) table.set(entry.from, entry.to);
   return table;
 }
 

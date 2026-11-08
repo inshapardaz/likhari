@@ -9,6 +9,14 @@ export interface PunctuationRule {
   correct: string;
   /** When true, the match must be a whole word (not part of a longer one). */
   completeWord: boolean;
+  /**
+   * When set, chooses the replacement from the text immediately before the
+   * match instead of using the fixed `correct` form. Used for the straight
+   * double quote, which opens or closes depending on what comes before it —
+   * macOS's native text substitution already does this, so without it the
+   * same editor behaves differently depending on OS.
+   */
+  resolve?: (before: string) => string;
 }
 
 export const URDU_PUNCTUATION_RULES: PunctuationRule[] = [
@@ -57,11 +65,25 @@ export interface PunctuationOptions {
   spacing?: boolean;
 }
 
+/**
+ * A double quote opens (“) when it starts a quotation — at the start of the
+ * text, or after whitespace, an opening bracket, a dash, or another opening
+ * quote — and otherwise closes (”), the same heuristic macOS's native
+ * substitution uses.
+ */
+const OPENING_QUOTE_CONTEXT = /[\s([{—–-“‘]$/u;
+
+function resolveDoubleQuote(before: string): string {
+  return before === '' || OPENING_QUOTE_CONTEXT.test(before) ? '“' : '”';
+}
+
 /** The rules in use for the options, longest match first, so `۔"` wins over `"`. */
 export function activePunctuationRules(options: PunctuationOptions = {}): PunctuationRule[] {
   if (options.enabled === false) return [];
   const rules = URDU_PUNCTUATION_RULES.filter((rule) => rule.incorrect !== rule.correct);
-  if (options.straightDoubleQuote !== false) rules.push({ incorrect: '"', correct: '”', completeWord: false });
+  if (options.straightDoubleQuote !== false) {
+    rules.push({ incorrect: '"', correct: '”', completeWord: false, resolve: resolveDoubleQuote });
+  }
   return rules.sort((a, b) => b.incorrect.length - a.incorrect.length);
 }
 

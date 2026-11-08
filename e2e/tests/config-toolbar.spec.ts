@@ -7,7 +7,7 @@ test.describe('presets', () => {
   test('minimal: only save, undo/redo and drafts, no formatting chrome', async ({ editor }) => {
     await editor.open({ preset: 'minimal' });
 
-    expect(await labels(editor)).toEqual(['Save', 'Undo', 'Redo', 'Drafts']);
+    expect(await labels(editor)).toEqual(['Save', 'Undo', 'Redo', 'Drafts', 'Toolbar settings']);
     await expect(editor.toolbar.getByRole('combobox')).toHaveCount(0);
   });
 

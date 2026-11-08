@@ -37,10 +37,11 @@ export function AutoCorrectPanel({
   const [language, setLanguage] = useState<SpellLanguage>(initialLanguage);
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState('');
+  const [wholeWord, setWholeWord] = useState(true);
   const [status, setStatus] = useState<'idle' | 'saved' | 'nowhere' | 'failed'>('idle');
 
   const save = async () => {
-    const entry = { from: from.trim(), to: to.trim() };
+    const entry = { from: from.trim(), to: to.trim(), wholeWord };
     if (entry.from === '' || entry.to === '' || entry.from === entry.to) return;
     try {
       const written = await appendAutoCorrection(stores, language, entry);
@@ -88,6 +89,10 @@ export function AutoCorrectPanel({
       <label className="likhari-autocorrect-field">
         {t.to}
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder={t.toPlaceholder} />
+      </label>
+      <label className="likhari-autocorrect-field likhari-autocorrect-checkbox">
+        <input type="checkbox" checked={wholeWord} onChange={(e) => setWholeWord(e.target.checked)} />
+        {t.wholeWord}
       </label>
       <div className="likhari-autocorrect-actions">
         <button type="button" onClick={save} disabled={from.trim() === '' || to.trim() === ''}>

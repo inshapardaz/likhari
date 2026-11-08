@@ -71,4 +71,30 @@ describe('$cleanUpText', () => {
     editor.update(() => (changed = $cleanUpText()), { discrete: true });
     expect(changed).toBe(0);
   });
+
+  it('collapses runs of blank paragraphs to a single one', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const root = $getRoot().clear();
+        root.append(
+          $createParagraphNode().append($createTextNode('one')),
+          $createParagraphNode(),
+          $createParagraphNode(),
+          $createParagraphNode(),
+          $createParagraphNode().append($createTextNode('two')),
+          $createParagraphNode(),
+        );
+      },
+      { discrete: true },
+    );
+    let changed = 0;
+    editor.update(() => (changed = $cleanUpText()), { discrete: true });
+    expect(changed).toBe(2);
+    editor.getEditorState().read(() => {
+      const paragraphs = $getRoot().getChildren();
+      expect(paragraphs).toHaveLength(4);
+      expect(paragraphs.map((p) => p.getTextContent())).toEqual(['one', '', 'two', '']);
+    });
+  });
 });

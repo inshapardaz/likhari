@@ -20,8 +20,8 @@ import {
   $spacePunctuationDocument,
 } from './autoCorrectActions';
 import { $cleanUpText } from '../cleanup/textCleanupActions';
-import { activePunctuationRules, type PunctuationOptions } from './punctuationRules';
-import { loadAutoCorrections, type AutoCorrectStore } from './autoCorrectStores';
+import { activePunctuationRules, type PunctuationOptions, type PunctuationRule } from './punctuationRules';
+import { loadAutoCorrectEntries, type AutoCorrectEntry, type AutoCorrectStore } from './autoCorrectStores';
 import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
 import type { SpellLanguage } from '../spellcheck/spellDictionaries';
 
@@ -32,6 +32,21 @@ export const CORRECT_DOCUMENT_COMMAND: LexicalCommand<void> = createCommand('COR
 const BOUNDARY_KEYS = new Set([' ', '.', ',', ';', ':', '!', '?', '،', '؛', '؟', '۔']);
 const LANGUAGES: SpellLanguage[] = ['en', 'ur', 'pa-shahmukhi'];
 const RTL_LANGUAGES: SpellLanguage[] = ['ur', 'pa-shahmukhi'];
+
+/** The whole-word entries (the default) as a from-to table. */
+function wholeWordTable(entries: AutoCorrectEntry[]): Map<string, string> {
+  const table = new Map<string, string>();
+  for (const entry of entries) if (entry.wholeWord !== false) table.set(entry.from, entry.to);
+  return table;
+}
+
+/** Entries marked "not whole word only", as substring-matching rules, longest first. */
+function substringAutoCorrectRules(entries: AutoCorrectEntry[]): PunctuationRule[] {
+  return entries
+    .filter((entry) => entry.wholeWord === false)
+    .map((entry) => ({ incorrect: entry.from, correct: entry.to, completeWord: false }))
+    .sort((a, b) => b.incorrect.length - a.incorrect.length);
+}
 
 /**
  * Corrects typed words as the user finishes them, the way the reference editor
@@ -65,22 +80,28 @@ export function AutoCorrectPlugin({
   normalizeOptions.current = urduNormalization;
   const punctuationRules = useRef(activePunctuationRules(punctuation));
   punctuationRules.current = activePunctuationRules(punctuation);
+  const combinedRules = () =>
+    [...punctuationRules.current, ...substringRules.current].sort((a, b) => b.incorrect.length - a.incorrect.length);
   const normalizeRtl = (text: string) => normalizeUrdu(text, normalizeOptions.current);
   const tables = useRef(new Map<SpellLanguage, Map<string, string>>());
   const rtlTable = useRef(new Map<string, string>());
+  // Corrections marked "not whole word only" apply even inside a longer word, so they
+  // run through the same substring-matching machinery as the punctuation rules.
+  const substringRules = useRef<PunctuationRule[]>([]);
 
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrections(stores, language)] as const)).then((loaded) => {
+    Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrectEntries(stores, language)] as const)).then((loaded) => {
       if (!active) return;
-      tables.current = new Map(loaded);
+      tables.current = new Map(loaded.map(([language, entries]) => [language, wholeWordTable(entries)]));
       // Urdu and Shahmukhi share right-to-left blocks, so both apply there; Urdu wins a clash.
       const combined = new Map<string, string>();
       for (const language of RTL_LANGUAGES) {
         for (const [from, to] of tables.current.get(language) ?? []) if (!combined.has(from)) combined.set(from, to);
       }
       rtlTable.current = combined;
+      substringRules.current = loaded.flatMap(([, entries]) => substringAutoCorrectRules(entries));
     });
     return () => {
       active = false;
@@ -97,7 +118,7 @@ export function AutoCorrectPlugin({
             $preservingSelection(() => {
               $cleanUpText();
               if (punctuation?.spacing) $spacePunctuationDocument();
-              $correctPunctuationDocument(punctuationRules.current);
+              $correctPunctuationDocument(combinedRules());
               $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
             });
           },
@@ -124,7 +145,7 @@ export function AutoCorrectPlugin({
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
             // Punctuation can end in any character (e.g. the letter ه), so every key is checked.
-            $correctPunctuationBeforeCaret(punctuationRules.current);
+            $correctPunctuationBeforeCaret(combinedRules());
             if (!boundary) return;
             const block = selection.anchor.getNode().getTopLevelElement();
             const rtl = block?.getDirection() === 'rtl';
