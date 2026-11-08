@@ -17,6 +17,12 @@ const WORDNET: Record<string, string> = {
 /** A 1x1 transparent PNG, served for the fake image host below. */
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 
+/** A tiny fixture for nawishta's auto-correct API, so tests never depend on the real corpus. */
+const NAWISHTA_AUTOCORRECT = JSON.stringify([
+  { incorrectText: 'بچہ', correctText: 'بچّہ', completeWord: true },
+  { incorrectText: 'کتا', correctText: 'کتّا', completeWord: true },
+]);
+
 /** Host that tests use for image URLs; answered here so no real image is fetched. */
 export const IMAGE_URL = 'https://images.example.test/photo.png';
 
@@ -49,6 +55,10 @@ export async function mockNetwork(context: BrowserContext, appOrigin: string): P
       if (url.hostname === 'images.example.test') {
         note(request);
         return route.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } });
+      }
+      if (url.hostname === 'api.nawishta.co.uk') {
+        note(request);
+        return text(route, NAWISHTA_AUTOCORRECT, 'application/json; charset=utf-8');
       }
       if (url.hostname === 'cdn.jsdelivr.net') {
         note(request);
