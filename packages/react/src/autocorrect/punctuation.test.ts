@@ -43,7 +43,7 @@ describe('$correctPunctuationBeforeCaret', () => {
     expect(textOf(editor)).toBe('ہے۔');
   });
 
-  it('replaces a straight double quote with ”', () => {
+  it('opens a straight double quote at the start of the text', () => {
     const editor = editorWith('"', 1);
     editor.update(
       () => {
@@ -52,7 +52,31 @@ describe('$correctPunctuationBeforeCaret', () => {
       },
       { discrete: true },
     );
-    expect(textOf(editor)).toBe('”');
+    expect(textOf(editor)).toBe('“');
+  });
+
+  it('closes a straight double quote right after a word', () => {
+    const editor = editorWith('hi"', 3);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(3, 3);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('hi”');
+  });
+
+  it('opens a straight double quote after whitespace', () => {
+    const editor = editorWith('hi "', 4);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(4, 4);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('hi “');
   });
 });
 
@@ -67,7 +91,7 @@ describe('$correctPunctuationDocument', () => {
       { discrete: true },
     );
     expect(count).toBeGreaterThan(0);
-    expect(textOf(editor)).toBe('ہے۔ وہ ”ٹھیک” ہے۔“');
+    expect(textOf(editor)).toBe('ہے۔ وہ “ٹھیک” ہے۔“');
   });
 });
 

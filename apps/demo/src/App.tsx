@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
-import { EditorRoot, registerSpellDictionary, type DraftRestoreMode, type EditorRef, type NavigationGuardMode, setEnglishDictionaryBaseUrl } from '@inshapardaz/likhari-react';
+import {
+  EditorRoot,
+  localStorageAutoCorrectStore,
+  nawishtaAutoCorrectStore,
+  registerSpellDictionary,
+  type AutoCorrectStore,
+  type DraftRestoreMode,
+  type EditorRef,
+  type NavigationGuardMode,
+  setEnglishDictionaryBaseUrl,
+} from '@inshapardaz/likhari-react';
 import { resolveFeatureConfig, type EditorFeatureConfig, type FeatureConfigPresetName } from '@inshapardaz/likhari-core';
 
 // The English dictionary is copied into public/dictionaries/en at build time (see package.json).
@@ -20,6 +30,11 @@ registerSpellDictionary('ur', async () => {
 });
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
+// The Urdu corrections come live from nawishta's bundled corpus; new entries
+// added through the editor (any language) are kept in local storage, since
+// nawishta's auto-correct endpoint is read-only.
+const AUTOCORRECT_STORES: AutoCorrectStore[] = [nawishtaAutoCorrectStore(), localStorageAutoCorrectStore()];
 
 type Locale = 'en' | 'ur' | 'pa-shahmukhi';
 
@@ -531,6 +546,7 @@ export function App() {
               autosave={autosave}
               restoreDraft={restoreDraft}
               navigationGuard={navigationGuard}
+              autoCorrectStores={AUTOCORRECT_STORES}
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}

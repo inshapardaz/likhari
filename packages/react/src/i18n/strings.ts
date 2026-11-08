@@ -76,6 +76,8 @@ export interface Strings {
     clearFormatting: string;
     outdent: string;
     indent: string;
+    /** Opens/closes the toolbar settings panel (show/hide individual toolbar items). */
+    settings: string;
     /** The ribbon layout (`toolbarStyle.layout: 'ribbon'`): its tab strip and tabs. */
     ribbon: {
       /** aria-label on the tab strip. */
@@ -110,6 +112,21 @@ export interface Strings {
       justify: string;
       left: string;
       right: string;
+    };
+  };
+  /** The toolbar settings panel (the gear button): show/hide individual toolbar buttons and dropdowns. Grouped the way they appear in the toolbar; group labels are below. */
+  toolbarSettings: {
+    title: string;
+    close: string;
+    groups: {
+      formatting: string;
+      alignment: string;
+      font: string;
+      insert: string;
+      tools: string;
+      zoom: string;
+      utilities: string;
+      history: string;
     };
   };
   /** The popup `EditorRef.confirmDiscard()` shows when the user is about to leave with unsaved changes (lexical-editor-spec.md §6.4). */
@@ -223,6 +240,7 @@ export interface Strings {
     failed: string;
     close: string;
     correctDocument: string;
+    wholeWord: string;
   },
   contextMenu: {
     cut: string;
@@ -388,6 +406,7 @@ const en: Strings = {
     clearFormatting: 'Clear formatting',
     outdent: 'Outdent',
     indent: 'Indent',
+    settings: 'Toolbar settings',
     ribbon: {
       tabsLabel: 'Ribbon tabs',
       quickAccess: 'Quick access',
@@ -416,6 +435,20 @@ const en: Strings = {
       justify: 'Justify',
       left: 'Align left',
       right: 'Align right',
+    },
+  },
+  toolbarSettings: {
+    title: 'Toolbar settings',
+    close: 'Close',
+    groups: {
+      formatting: 'Formatting',
+      alignment: 'Alignment & indent',
+      font: 'Font',
+      insert: 'Insert',
+      tools: 'Tools',
+      zoom: 'Zoom',
+      utilities: 'Drafts, search & help',
+      history: 'Save, undo & redo',
     },
   },
   leaveDialog: {
@@ -522,6 +555,7 @@ const en: Strings = {
     failed: 'Could not save the correction',
     close: 'Close',
     correctDocument: 'Correct whole document',
+    wholeWord: 'Whole word only',
   },
   contextMenu: {
     cut: 'Cut',
@@ -688,6 +722,7 @@ const ur: Strings = {
     clearFormatting: 'فارمیٹنگ ختم کریں',
     outdent: 'حاشیہ کم کریں',
     indent: 'حاشیہ بڑھائیں',
+    settings: 'ٹول بار کی ترتیبات',
     ribbon: {
       tabsLabel: 'ربن کے ٹیب',
       quickAccess: 'فوری رسائی',
@@ -716,6 +751,20 @@ const ur: Strings = {
       justify: 'دو طرفہ سیدھ',
       left: 'بائیں سیدھ',
       right: 'دائیں سیدھ',
+    },
+  },
+  toolbarSettings: {
+    title: 'ٹول بار کی ترتیبات',
+    close: 'بند کریں',
+    groups: {
+      formatting: 'فارمیٹنگ',
+      alignment: 'سیدھ اور حاشیہ',
+      font: 'فونٹ',
+      insert: 'داخل کریں',
+      tools: 'آلات',
+      zoom: 'زوم',
+      utilities: 'ڈرافٹس، تلاش اور مدد',
+      history: 'محفوظ کریں، واپس اور آگے',
     },
   },
   leaveDialog: {
@@ -822,6 +871,7 @@ const ur: Strings = {
     failed: 'تصحیح محفوظ نہیں ہو سکی',
     close: 'بند کریں',
     correctDocument: 'تمام متن کی تصحیح کریں',
+    wholeWord: 'صرف پورا لفظ',
   },
   contextMenu: {
     cut: 'کاٹیں',
@@ -988,6 +1038,7 @@ const paShahmukhi: Strings = {
     clearFormatting: 'فارمیٹنگ ہٹاؤ',
     outdent: 'حاشیہ گھٹاؤ',
     indent: 'حاشیہ ودھاؤ',
+    settings: 'ٹول بار دیاں ترتیباں',
     ribbon: {
       tabsLabel: 'ربن دے ٹیب',
       quickAccess: 'جھٹ رسائی',
@@ -1016,6 +1067,20 @@ const paShahmukhi: Strings = {
       justify: 'دوویں پاسے سیدھ',
       left: 'بائیں سیدھ',
       right: 'سجے سیدھ',
+    },
+  },
+  toolbarSettings: {
+    title: 'ٹول بار دیاں ترتیباں',
+    close: 'بند کرو',
+    groups: {
+      formatting: 'فارمیٹنگ',
+      alignment: 'سیدھ تے حاشیہ',
+      font: 'فونٹ',
+      insert: 'داخل کرو',
+      tools: 'اوزار',
+      zoom: 'زوم',
+      utilities: 'ڈرافٹس، تلاش تے مدد',
+      history: 'سانبھو، واپس تے اگے',
     },
   },
   leaveDialog: {
@@ -1122,6 +1187,7 @@ const paShahmukhi: Strings = {
     failed: 'درستی سانبھی نئیں جا سکی',
     close: 'بند کرو',
     correctDocument: 'پورے متن دی درستی کرو',
+    wholeWord: 'صرف پورا لفظ',
   },
   contextMenu: {
     cut: 'کٹو',

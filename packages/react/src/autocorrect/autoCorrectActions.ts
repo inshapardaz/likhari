@@ -122,10 +122,11 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
   if (!rule) return false;
 
   const start = before.length - rule.incorrect.length;
-  $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, rule.correct);
+  const replacement = rule.resolve ? rule.resolve(before.slice(0, start)) : rule.correct;
+  $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, replacement);
   const after = $getSelection();
   if ($isRangeSelection(after)) {
-    const caret = start + rule.correct.length;
+    const caret = start + replacement.length;
     after.anchor.set(node.getKey(), caret, 'text');
     after.focus.set(node.getKey(), caret, 'text');
   }
@@ -144,7 +145,8 @@ export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
     for (const rule of rules) {
       let index = text.indexOf(rule.incorrect);
       while (index !== -1) {
-        candidates.push({ start: index, end: index + rule.incorrect.length, correct: rule.correct });
+        const correct = rule.resolve ? rule.resolve(text.slice(0, index)) : rule.correct;
+        candidates.push({ start: index, end: index + rule.incorrect.length, correct });
         index = text.indexOf(rule.incorrect, index + 1);
       }
     }

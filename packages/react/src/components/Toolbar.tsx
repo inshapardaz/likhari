@@ -1,5 +1,5 @@
 import { Fragment, forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
-import { Menu, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
+import { Menu, Popover, Select, Toolbar as MantineToolbar, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type SelectProps } from '@mantine/core';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -95,6 +95,8 @@ import {
 import { $createLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { LinkDialog } from './LinkDialog';
 import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
+import { ToolbarSettingsPanel } from './ToolbarSettingsPanel';
+import { useToolbarItemVisibility, type ToolbarVisibilityGroup, type ToolbarVisibilityItem } from '../toolbar/toolbarVisibility';
 import { normalizeLinkUrl } from '../utils/linkUrl';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, ZOOM_LEVELS_PERCENT, type FontMode, type FontOption } from '../fonts';
@@ -145,6 +147,7 @@ import {
   IconPilcrow,
   IconQuote,
   IconSeparatorHorizontal,
+  IconSettings,
   IconSparkles,
   IconStrikethrough,
   IconSubscript,
@@ -900,6 +903,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const strings = useStrings(locale);
   const portalTarget = usePortalTarget();
   const [draftsOpen, setDraftsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { isHidden, toggle: toggleHidden } = useToolbarItemVisibility();
   const rtl = direction === 'rtl';
   const ALIGN_ICONS = rtl ? ALIGN_ICONS_RTL : ALIGN_ICONS_LTR;
 
@@ -1521,9 +1526,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     (config.tables && state.inTable) ||
     (config.poetry.enabled && state.inPoetry);
 
-  const moreItems: ActionItem[] = [];
+  const allMoreItems: ActionItem[] = [];
   if (fmt.superscript) {
-    moreItems.push({
+    allMoreItems.push({
       key: 'superscript',
       icon: IconSuperscript,
       label: strings.toolbar.superscript,
@@ -1532,7 +1537,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     });
   }
   if (fmt.subscript) {
-    moreItems.push({
+    allMoreItems.push({
       key: 'subscript',
       icon: IconSubscript,
       label: strings.toolbar.subscript,
@@ -1541,19 +1546,21 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     });
   }
   if (fmt.caseTransforms) {
-    moreItems.push(
+    allMoreItems.push(
       { key: 'upper', icon: IconLetterCaseUpper, label: strings.toolbar.uppercase, onClick: () => applyCaseTransform('upper') },
       { key: 'lower', icon: IconLetterCaseLower, label: strings.toolbar.lowercase, onClick: () => applyCaseTransform('lower') },
       { key: 'capitalize', icon: IconLetterCase, label: strings.toolbar.capitalize, onClick: () => applyCaseTransform('capitalize') },
     );
   }
   if (fmt.clearFormatting) {
-    moreItems.push({ key: 'clear', icon: IconClearFormatting, label: strings.toolbar.clearFormatting, onClick: clearFormatting });
+    allMoreItems.push({ key: 'clear', icon: IconClearFormatting, label: strings.toolbar.clearFormatting, onClick: clearFormatting });
   }
+  // The user can hide any of these individually from the toolbar settings panel.
+  const moreItems = allMoreItems.filter((item) => !isHidden(item.key));
 
   // UI spec §5: indent/outdent arrows are direction-relative and swap in RTL
   // (outdent moves content toward the start edge, which is the right in RTL).
-  const indentItems: ActionItem[] = config.indent
+  const allIndentItems: ActionItem[] = config.indent
     ? [
         {
           key: 'outdent',
@@ -1569,6 +1576,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         },
       ]
     : [];
+  const indentItems = allIndentItems.filter((item) => !isHidden(item.key));
 
   // Grouped for the dropdown when options declare groups (Latin / Urdu).
   const fontData: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = (() => {
@@ -1618,9 +1626,14 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const formattingValue: FormattingValue = state.listType ?? state.blockType;
   const AlignIcon = ALIGN_ICONS[state.elementFormat] ?? IconAlignLeft;
 
-  const formatSection = (showFormattingGroup || fmt.bold || fmt.italic || fmt.underline || fmt.strikethrough || moreItems.length > 0) && (
+  const showParagraphStyle = showFormattingGroup && !isHidden('paragraphStyle');
+  const showBold = fmt.bold && !isHidden('bold');
+  const showItalic = fmt.italic && !isHidden('italic');
+  const showUnderline = fmt.underline && !isHidden('underline');
+  const showStrikethrough = fmt.strikethrough && !isHidden('strikethrough');
+  const formatSection = (showParagraphStyle || showBold || showItalic || showUnderline || showStrikethrough || moreItems.length > 0) && (
     <Fragment key="format">
-      {showFormattingGroup && (
+      {showParagraphStyle && (
         <MantineToolbar.Group>
           <ToolbarSelect
             icon={IconPilcrow}
@@ -1635,16 +1648,16 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           />
         </MantineToolbar.Group>
       )}
-      {(fmt.bold || fmt.italic || fmt.underline || fmt.strikethrough || moreItems.length > 0) && (
+      {(showBold || showItalic || showUnderline || showStrikethrough || moreItems.length > 0) && (
     <MantineToolbar.Group className="likhari-toolbar-cluster">
-      {fmt.bold && <ToolbarButton icon={IconBold} title={strings.toolbar.bold} active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
-      {fmt.italic && (
+      {showBold && <ToolbarButton icon={IconBold} title={strings.toolbar.bold} active={state.activeFormats.has('bold')} onClick={() => formatText('bold')} />}
+      {showItalic && (
         <ToolbarButton icon={IconItalic} title={strings.toolbar.italic} active={state.activeFormats.has('italic')} onClick={() => formatText('italic')} />
       )}
-      {fmt.underline && (
+      {showUnderline && (
         <ToolbarButton icon={IconUnderline} title={strings.toolbar.underline} active={state.activeFormats.has('underline')} onClick={() => formatText('underline')} />
       )}
-      {fmt.strikethrough && (
+      {showStrikethrough && (
         <ToolbarButton
           icon={IconStrikethrough}
           title={strings.toolbar.strikethrough}
@@ -1668,9 +1681,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </Fragment>
   );
 
-  const alignSection = (showAlignGroup || indentItems.length > 0) && (
+  const showAlignSelect = showAlignGroup && !isHidden('alignment');
+  const alignSection = (showAlignSelect || indentItems.length > 0) && (
     <Fragment key="align">
-      {showAlignGroup && (
+      {showAlignSelect && (
         <MantineToolbar.Group>
           <ToolbarSelect
             icon={AlignIcon}
@@ -1694,9 +1708,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </Fragment>
   );
 
-  const fontSection = (config.font.family || (config.font.size && !uniform)) && (
+  const showFontFamily = config.font.family && !isHidden('fontFamily');
+  const showFontSize = config.font.size && !uniform && !isHidden('fontSize');
+  const fontSection = (showFontFamily || showFontSize) && (
     <MantineToolbar.Group key="font">
-      {config.font.family && (
+      {showFontFamily && (
         <ToolbarSelect
           icon={IconTypography}
           label={strings.toolbar.fontFamily}
@@ -1719,7 +1735,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           }
         />
       )}
-      {config.font.size && !uniform && (
+      {showFontSize && (
         <ToolbarSelect
           icon={IconTextSize}
           label={strings.toolbar.fontSize}
@@ -1739,6 +1755,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const insertButtons = (contextual: boolean) => (
     <>
       {config.links &&
+        !isHidden('link') &&
         (contextual && state.isLink ? (
           <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
             <Menu.Target>
@@ -1759,17 +1776,17 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         ) : (
           <ToolbarButton icon={IconLink} title={strings.toolbar.insertLink} onClick={openLinkDialog} />
         ))}
-      {(config.images.linked || config.images.embedded) && (
+      {(config.images.linked || config.images.embedded) && !isHidden('image') && (
         <ToolbarButton icon={IconPhoto} title={strings.toolbar.insertImage} onClick={openImageDialog} />
       )}
-      {config.blocks.horizontalRule && (
+      {config.blocks.horizontalRule && !isHidden('horizontalRule') && (
         <ToolbarButton
           icon={IconSeparatorHorizontal}
           title={strings.toolbar.insertHorizontalRule}
           onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
         />
       )}
-      {config.tables && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
+      {config.tables && !isHidden('table') && <ToolbarButton icon={IconTable} title={strings.toolbar.insertTable} onClick={openTableDialog} />}
       {contextual && config.tables && state.inTable && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={240} onOpen={snapshotSelection}>
           <Menu.Target>
@@ -1788,15 +1805,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           </Menu.Dropdown>
         </Menu>
       )}
-      {config.columns && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
-      {config.footnotes && (
+      {config.columns && !isHidden('columns') && <ToolbarButton icon={IconColumns} title={strings.toolbar.insertColumns} onClick={openLayoutDialog} />}
+      {config.footnotes && !isHidden('footnote') && (
         <ToolbarButton
           icon={IconNumber1Small}
           title={strings.toolbar.insertFootnote}
           onClick={() => editor.dispatchCommand(INSERT_FOOTNOTE_COMMAND, undefined)}
         />
       )}
-      {config.blocks.pageBreak && (
+      {config.blocks.pageBreak && !isHidden('pageBreak') && (
         <ToolbarButton
           icon={IconPageBreak}
           title={strings.toolbar.insertPageBreak}
@@ -1805,7 +1822,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       )}
       {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
           outside an Urdu/Punjabi editing context, not just when the feature is off. */}
-      {config.poetry.enabled && locale !== 'en' && (
+      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && (
         <ToolbarButton
           icon={IconFeather}
           title={strings.toolbar.insertPoetryCouplet}
@@ -1913,20 +1930,20 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const hasToolsGroup = config.language.autocorrect || config.language.textCleanup || config.language.spellCheck || config.joinLines;
   const toolsSection = (
     <MantineToolbar.Group key="tools" className="likhari-toolbar-cluster">
-      {config.language.autocorrect && (
+      {config.language.autocorrect && !isHidden('autocorrect') && (
         <ToolbarButton icon={IconWand} title={strings.toolbar.autocorrect} active={autoCorrectOpen} onClick={onToggleAutoCorrect} />
       )}
-      {config.language.textCleanup && (
+      {config.language.textCleanup && !isHidden('textCleanup') && (
         <ToolbarButton
           icon={IconSparkles}
           title={strings.autoCorrect.correctDocument}
           onClick={() => editor.dispatchCommand(CORRECT_DOCUMENT_COMMAND, undefined)}
         />
       )}
-      {config.language.spellCheck && (
+      {config.language.spellCheck && !isHidden('spellCheck') && (
         <ToolbarButton icon={IconAbc} title={strings.toolbar.spellChecker} active={spellOpen} onClick={onToggleSpell} />
       )}
-      {config.joinLines && state.canJoinLines && (
+      {config.joinLines && state.canJoinLines && !isHidden('joinLines') && (
         <ToolbarButton icon={IconArrowsJoin} title={strings.toolbar.joinLines} onClick={joinLines} />
       )}
     </MantineToolbar.Group>
@@ -1934,11 +1951,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   // Uniform mode's zoom: [-] 100% [+], stepping through the preset levels; the
   // percentage resets to 100%. Always laid out left-to-right, like a number.
-  const showZoom = uniform && config.font.size;
+  const showZoom = uniform && config.font.size && !isHidden('zoom');
   const zoomOutTo = [...ZOOM_LEVELS_PERCENT].reverse().find((level) => level < zoom);
   const zoomInTo = ZOOM_LEVELS_PERCENT.find((level) => level > zoom);
 
-  const hasEndUtilities = Boolean(drafts || config.findReplace || helpUrl !== false);
   const zoomGroup = showZoom && (
     <MantineToolbar.Group
       key="zoom"
@@ -1971,11 +1987,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Group>
   );
 
-  const draftsButton = drafts && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />;
-  const findButton = config.findReplace && (
+  const draftsButton = drafts && !isHidden('drafts') && <ToolbarButton icon={IconHistory} title={strings.toolbar.drafts} onClick={() => setDraftsOpen(true)} />;
+  const findButton = config.findReplace && !isHidden('find') && (
     <ToolbarButton icon={IconSearch} title={strings.findReplace.toggle} active={findOpen} onClick={onToggleFind} />
   );
-  const helpButton = helpUrl !== false && (
+  const helpButton = helpUrl !== false && !isHidden('help') && (
     <MantineToolbar.Toggle
       component="a"
       href={helpUrl ?? DEFAULT_HELP_URL}
@@ -1988,16 +2004,98 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     </MantineToolbar.Toggle>
   );
 
-  // Drafts, search and help: the far-end group (see `endMovable` below).
-  const utilitiesGroup = hasEndUtilities && (
+  // Every item the settings panel can show/hide, grouped the way it appears in the
+  // toolbar. Built from what the host's EditorFeatureConfig makes available — a
+  // feature the host turned off is never offered here, since this panel only lets
+  // the user declutter what the host already enabled.
+  const settingsGroup = (id: string, label: string, items: (ToolbarVisibilityItem | false | undefined)[]): ToolbarVisibilityGroup | null => {
+    const present = items.filter((item): item is ToolbarVisibilityItem => Boolean(item));
+    return present.length > 0 ? { id, label, items: present } : null;
+  };
+  const t = strings.toolbar;
+  const settingsGroups: ToolbarVisibilityGroup[] = [
+    settingsGroup('formatting', strings.toolbarSettings.groups.formatting, [
+      showFormattingGroup && { id: 'paragraphStyle', label: t.formattingLabel },
+      fmt.bold && { id: 'bold', label: t.bold },
+      fmt.italic && { id: 'italic', label: t.italic },
+      fmt.underline && { id: 'underline', label: t.underline },
+      fmt.strikethrough && { id: 'strikethrough', label: t.strikethrough },
+      ...allMoreItems.map((item) => ({ id: item.key, label: item.label })),
+    ]),
+    settingsGroup('alignment', strings.toolbarSettings.groups.alignment, [
+      showAlignGroup && { id: 'alignment', label: t.alignment },
+      ...allIndentItems.map((item) => ({ id: item.key, label: item.label })),
+    ]),
+    settingsGroup('font', strings.toolbarSettings.groups.font, [
+      config.font.family && { id: 'fontFamily', label: t.fontFamily },
+      config.font.size && !uniform && { id: 'fontSize', label: t.fontSize },
+    ]),
+    settingsGroup('insert', strings.toolbarSettings.groups.insert, [
+      config.links && { id: 'link', label: t.insertLink },
+      (config.images.linked || config.images.embedded) && { id: 'image', label: t.insertImage },
+      config.blocks.horizontalRule && { id: 'horizontalRule', label: t.insertHorizontalRule },
+      config.tables && { id: 'table', label: t.insertTable },
+      config.columns && { id: 'columns', label: t.insertColumns },
+      config.footnotes && { id: 'footnote', label: t.insertFootnote },
+      config.blocks.pageBreak && { id: 'pageBreak', label: t.insertPageBreak },
+      config.poetry.enabled && locale !== 'en' && { id: 'poetry', label: t.insertPoetryCouplet },
+    ]),
+    settingsGroup('tools', strings.toolbarSettings.groups.tools, [
+      config.language.autocorrect && { id: 'autocorrect', label: t.autocorrect },
+      config.language.textCleanup && { id: 'textCleanup', label: strings.autoCorrect.correctDocument },
+      config.language.spellCheck && { id: 'spellCheck', label: t.spellChecker },
+      config.joinLines && { id: 'joinLines', label: t.joinLines },
+    ]),
+    settingsGroup('zoom', strings.toolbarSettings.groups.zoom, [uniform && config.font.size && { id: 'zoom', label: t.zoom }]),
+    settingsGroup('utilities', strings.toolbarSettings.groups.utilities, [
+      drafts && { id: 'drafts', label: t.drafts },
+      config.findReplace && { id: 'find', label: strings.findReplace.toggle },
+      helpUrl !== false && { id: 'help', label: t.help },
+    ]),
+    settingsGroup('history', strings.toolbarSettings.groups.history, [
+      showSave && { id: 'save', label: t.save },
+      config.history && { id: 'undo', label: t.undo },
+      config.history && { id: 'redo', label: t.redo },
+    ]),
+  ].filter((g): g is ToolbarVisibilityGroup => g !== null);
+
+  const settingsButton = (
+    <Popover
+      opened={settingsOpen}
+      onChange={setSettingsOpen}
+      position="bottom-end"
+      withinPortal
+      portalProps={{ target: portalTarget }}
+      shadow="sm"
+      width={280}
+    >
+      <Popover.Target>
+        <ToolbarButton icon={IconSettings} title={strings.toolbar.settings} active={settingsOpen} onClick={() => setSettingsOpen((v) => !v)} />
+      </Popover.Target>
+      <Popover.Dropdown p={0}>
+        <ToolbarSettingsPanel
+          strings={strings}
+          dir={direction}
+          groups={settingsGroups}
+          isHidden={isHidden}
+          onToggle={toggleHidden}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </Popover.Dropdown>
+    </Popover>
+  );
+
+  // Drafts, search, help and the settings gear: the far-end group (see `endMovable` below).
+  const utilitiesGroup = (
     <MantineToolbar.Group key="end" className="likhari-toolbar-cluster">
       {draftsButton}
       {findButton}
       {helpButton}
+      {settingsButton}
     </MantineToolbar.Group>
   );
 
-  const saveGroup = showSave && (
+  const saveGroup = showSave && !isHidden('save') && (
 
     <MantineToolbar.Group key="save" className="likhari-toolbar-cluster">
       <ToolbarButton
@@ -2010,21 +2108,27 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       />
     </MantineToolbar.Group>
   );
-  const historyGroup = config.history && (
+  const showUndo = !isHidden('undo');
+  const showRedo = !isHidden('redo');
+  const historyGroup = config.history && (showUndo || showRedo) && (
 
     <MantineToolbar.Group key="history" className="likhari-toolbar-cluster">
-      <ToolbarButton
-        icon={IconArrowBackUp}
-        title={strings.toolbar.undo}
-        disabled={!state.canUndo}
-        onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-      />
-      <ToolbarButton
-        icon={IconArrowForwardUp}
-        title={strings.toolbar.redo}
-        disabled={!state.canRedo}
-        onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-      />
+      {showUndo && (
+        <ToolbarButton
+          icon={IconArrowBackUp}
+          title={strings.toolbar.undo}
+          disabled={!state.canUndo}
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        />
+      )}
+      {showRedo && (
+        <ToolbarButton
+          icon={IconArrowForwardUp}
+          title={strings.toolbar.redo}
+          disabled={!state.canRedo}
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        />
+      )}
     </MantineToolbar.Group>
   );
 
