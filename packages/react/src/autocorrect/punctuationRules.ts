@@ -90,6 +90,11 @@ export function activePunctuationRules(options: PunctuationOptions = {}): Punctu
   const rules = URDU_PUNCTUATION_RULES.filter((rule) => rule.incorrect !== rule.correct);
   if (options.straightDoubleQuote !== false) {
     rules.push({ incorrect: '"', correct: '”', completeWord: false, resolve: resolveDoubleQuote });
+    // Re-checks a curly quote already in the text (e.g. pasted, or typed before the block's
+    // direction was known) and swaps it if it is the wrong one for its position — most often
+    // an opening “ at the start of a right-to-left sentence, which should be ”.
+    rules.push({ incorrect: '“', correct: '”', completeWord: false, resolve: resolveDoubleQuote });
+    rules.push({ incorrect: '”', correct: '“', completeWord: false, resolve: resolveDoubleQuote });
   }
   return rules.sort((a, b) => b.incorrect.length - a.incorrect.length);
 }

@@ -232,6 +232,15 @@ test.describe('Urdu punctuation and characters', () => {
     await expect(editor.content).toHaveText('کہا ”ٹھیک');
   });
 
+  test('"Correct whole document" fixes a wrongly-directed curly quote already in right-to-left text', async ({ editor, page }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.paste('“سلام”');
+    await expect(editor.content).toHaveText('“سلام”');
+
+    await page.getByRole('button', { name: 'تمام متن کی تصحیح کریں' }).click(); // 'Correct whole document', localized
+    await expect(editor.content).toHaveText('”سلام“');
+  });
+
   test('Arabic heh is normalised to Urdu heh when the word is finished', async ({ editor }) => {
     await editor.open({ locale: 'ur' });
     await editor.type('کتابه ', 25);

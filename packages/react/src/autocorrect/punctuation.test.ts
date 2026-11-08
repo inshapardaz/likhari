@@ -137,6 +137,41 @@ describe('$correctPunctuationDocument', () => {
     // resolve-based one — only the two quotes resolved from a bare `"` flip with direction.
     expect(textOf(editor)).toBe('ہے۔ وہ ”ٹھیک“ ہے۔“');
   });
+
+  it('fixes an opening “ at the start of a right-to-left sentence to ”', () => {
+    const editor = editorWith('“سلام”', 0, true);
+    editor.update(
+      () => {
+        $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('”سلام“');
+  });
+
+  it('leaves an already-correct quote pair alone in either direction', () => {
+    const ltr = editorWith('“hi”', 0);
+    let ltrCount = -1;
+    ltr.update(
+      () => {
+        ltrCount = $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(ltrCount).toBe(0);
+    expect(textOf(ltr)).toBe('“hi”');
+
+    const rtl = editorWith('”سلام“', 0, true);
+    let rtlCount = -1;
+    rtl.update(
+      () => {
+        rtlCount = $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(rtlCount).toBe(0);
+    expect(textOf(rtl)).toBe('”سلام“');
+  });
 });
 
 describe('$preservingSelection', () => {
