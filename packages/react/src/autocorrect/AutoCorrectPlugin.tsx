@@ -24,6 +24,7 @@ import { activePunctuationRules, type PunctuationOptions, type PunctuationRule }
 import { loadAutoCorrectEntries, type AutoCorrectEntry, type AutoCorrectStore } from './autoCorrectStores';
 import { normalizeUrdu, type UrduNormalizationOptions } from '../normalization/urduNormalize';
 import type { SpellLanguage } from '../spellcheck/spellDictionaries';
+import { autoCorrectDebugLog } from './autoCorrectDebug';
 
 /** Keys that end a word: a space or punctuation, in Latin and Arabic-script forms. */
 /** Corrects every word in the document, e.g. after pasting or loading content. */
@@ -92,8 +93,10 @@ export function AutoCorrectPlugin({
   useEffect(() => {
     if (!enabled) return;
     let active = true;
+    autoCorrectDebugLog('loading entries from', stores.length, 'store(s):', stores.map((s) => s.id));
     Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrectEntries(stores, language)] as const)).then((loaded) => {
       if (!active) return;
+      for (const [language, entries] of loaded) autoCorrectDebugLog('loaded', entries.length, 'entries for', language);
       tables.current = new Map(loaded.map(([language, entries]) => [language, wholeWordTable(entries)]));
       // Urdu and Shahmukhi share right-to-left blocks, so both apply there; Urdu wins a clash.
       const combined = new Map<string, string>();
@@ -102,7 +105,12 @@ export function AutoCorrectPlugin({
       }
       rtlTable.current = combined;
       substringRules.current = loaded.flatMap(([, entries]) => substringAutoCorrectRules(entries));
-    });
+      autoCorrectDebugLog(
+        'tables ready: en whole-word:', tables.current.get('en')?.size ?? 0,
+        'rtl whole-word:', rtlTable.current.size,
+        'substring rules:', substringRules.current.length,
+      );
+    }).catch((error) => autoCorrectDebugLog('failed to load entries:', error));
     return () => {
       active = false;
     };
@@ -113,6 +121,7 @@ export function AutoCorrectPlugin({
     return editor.registerCommand(
       CORRECT_DOCUMENT_COMMAND,
       () => {
+        autoCorrectDebugLog('CORRECT_DOCUMENT_COMMAND dispatched');
         editor.update(
           () => {
             $preservingSelection(() => {
@@ -144,6 +153,7 @@ export function AutoCorrectPlugin({
           () => {
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
+            autoCorrectDebugLog('keydown', JSON.stringify(event.key), 'boundary:', boundary);
             // Punctuation can end in any character (e.g. the letter ه), so every key is checked.
             $correctPunctuationBeforeCaret(combinedRules());
             if (!boundary) return;
@@ -151,6 +161,7 @@ export function AutoCorrectPlugin({
             const rtl = block?.getDirection() === 'rtl';
             const table = tableFor(rtl);
             if (table) $correctWordBeforeCaret(table, rtl ? normalizeRtl : undefined);
+            else autoCorrectDebugLog('keydown: no table for direction', rtl ? 'rtl' : 'ltr');
           },
           { discrete: true },
         );

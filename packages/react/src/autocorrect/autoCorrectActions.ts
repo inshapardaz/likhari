@@ -10,6 +10,7 @@ import {
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
 import { spacePunctuationText, type PunctuationRule } from './punctuationRules';
+import { autoCorrectDebugLog } from './autoCorrectDebug';
 
 /** The part of a word that counts as word characters at its end. */
 const WORD_END = /[\p{L}\p{M}'’]+$/u;
@@ -37,7 +38,11 @@ export function $correctWordBeforeCaret(table: Map<string, string>, normalize?: 
   const word = WORD_END.exec(body)?.[0];
   if (!word) return false;
   const replacement = correctionFor(word, table, normalize);
-  if (replacement === undefined || replacement === word) return false;
+  if (replacement === undefined || replacement === word) {
+    autoCorrectDebugLog('$correctWordBeforeCaret: no correction for word', JSON.stringify(word), 'tableSize:', table.size);
+    return false;
+  }
+  autoCorrectDebugLog('$correctWordBeforeCaret: correcting', JSON.stringify(word), '->', JSON.stringify(replacement));
 
   const start = body.length - word.length;
   $replaceMatch(
@@ -86,6 +91,7 @@ export function $correctDocument(
       .filter((item) => item.replacement !== undefined && item.replacement !== item.span.word);
     // Right to left, so earlier positions stay valid as each word is replaced.
     for (const { span, replacement } of spans.reverse()) {
+      autoCorrectDebugLog('$correctDocument: correcting', JSON.stringify(span.word), '->', JSON.stringify(replacement));
       const start = $locate(group, span.start, false);
       const end = $locate(group, span.end, true);
       $replaceMatch(
@@ -95,6 +101,7 @@ export function $correctDocument(
       corrected += 1;
     }
   }
+  autoCorrectDebugLog('$correctDocument: corrected', corrected, 'word(s)');
   return corrected;
 }
 
@@ -119,10 +126,14 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
 
   const before = node.getTextContent().slice(0, anchor.offset);
   const rule = rules.find((r) => before.endsWith(r.incorrect) && (!r.completeWord || !WORD_CHAR.test(before.charAt(before.length - r.incorrect.length - 1) || ' ')));
-  if (!rule) return false;
+  if (!rule) {
+    autoCorrectDebugLog('$correctPunctuationBeforeCaret: no rule matched, ruleCount:', rules.length, 'before:', JSON.stringify(before.slice(-20)));
+    return false;
+  }
 
   const start = before.length - rule.incorrect.length;
   const replacement = rule.resolve ? rule.resolve(before.slice(0, start)) : rule.correct;
+  autoCorrectDebugLog('$correctPunctuationBeforeCaret: applying rule', JSON.stringify(rule.incorrect), '->', JSON.stringify(replacement));
   $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, replacement);
   const after = $getSelection();
   if ($isRangeSelection(after)) {
@@ -158,12 +169,14 @@ export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
     }
     // Right to left, so earlier positions stay valid as each match is replaced.
     for (const c of kept.sort((a, b) => b.start - a.start)) {
+      autoCorrectDebugLog('$correctPunctuationDocument: applying', JSON.stringify(text.slice(c.start, c.end)), '->', JSON.stringify(c.correct));
       const start = $locate(group, c.start, false);
       const end = $locate(group, c.end, true);
       $replaceMatch({ anchorKey: start.key, anchorOffset: start.offset, focusKey: end.key, focusOffset: end.offset }, c.correct);
       applied += 1;
     }
   }
+  autoCorrectDebugLog('$correctPunctuationDocument: applied', applied, 'rule(s)');
   return applied;
 }
 
@@ -227,7 +240,11 @@ export function $correctWordEndingAtCaret(table: Map<string, string>, normalize?
   const word = WORD_END.exec(before)?.[0];
   if (!word) return false;
   const replacement = correctionFor(word, table, normalize);
-  if (replacement === undefined || replacement === word) return false;
+  if (replacement === undefined || replacement === word) {
+    autoCorrectDebugLog('$correctWordEndingAtCaret: no correction for word', JSON.stringify(word));
+    return false;
+  }
+  autoCorrectDebugLog('$correctWordEndingAtCaret: correcting', JSON.stringify(word), '->', JSON.stringify(replacement));
 
   const start = before.length - word.length;
   $replaceMatch({ anchorKey: node.getKey(), anchorOffset: start, focusKey: node.getKey(), focusOffset: before.length }, replacement);
