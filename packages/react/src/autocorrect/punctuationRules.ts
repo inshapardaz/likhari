@@ -11,12 +11,14 @@ export interface PunctuationRule {
   completeWord: boolean;
   /**
    * When set, chooses the replacement from the text immediately before the
-   * match instead of using the fixed `correct` form. Used for the straight
-   * double quote, which opens or closes depending on what comes before it —
-   * macOS's native text substitution already does this, so without it the
-   * same editor behaves differently depending on OS.
+   * match (and whether the block is right-to-left) instead of using the
+   * fixed `correct` form. Used for the straight double quote, which opens
+   * or closes depending on what comes before it — macOS's native text
+   * substitution already does this, so without it the same editor behaves
+   * differently depending on OS — and, in a right-to-left block, which of
+   * “ / ” is the opening mark is the reverse of the Latin convention.
    */
-  resolve?: (before: string) => string;
+  resolve?: (before: string, rtl: boolean) => string;
 }
 
 export const URDU_PUNCTUATION_RULES: PunctuationRule[] = [
@@ -66,15 +68,20 @@ export interface PunctuationOptions {
 }
 
 /**
- * A double quote opens (“) when it starts a quotation — at the start of the
+ * A double quote opens when it starts a quotation — at the start of the
  * text, or after whitespace, an opening bracket, a dash, or another opening
- * quote — and otherwise closes (”), the same heuristic macOS's native
- * substitution uses.
+ * quote — and otherwise closes, the same heuristic macOS's native
+ * substitution uses. Which mark (“ or ”) is the opening one depends on
+ * direction: Urdu/Shahmukhi typesetting uses the pair in the opposite
+ * order from Latin text, opening with ” and closing with “.
  */
-const OPENING_QUOTE_CONTEXT = /[\s([{—–-“‘]$/u;
+const LTR_OPENING_QUOTE_CONTEXT = /[\s([{—–-“‘]$/u;
+const RTL_OPENING_QUOTE_CONTEXT = /[\s([{—–-”’]$/u;
 
-function resolveDoubleQuote(before: string): string {
-  return before === '' || OPENING_QUOTE_CONTEXT.test(before) ? '“' : '”';
+function resolveDoubleQuote(before: string, rtl: boolean): string {
+  const context = rtl ? RTL_OPENING_QUOTE_CONTEXT : LTR_OPENING_QUOTE_CONTEXT;
+  const opens = before === '' || context.test(before);
+  return rtl ? (opens ? '”' : '“') : opens ? '“' : '”';
 }
 
 /** The rules in use for the options, longest match first, so `۔"` wins over `"`. */
@@ -83,6 +90,11 @@ export function activePunctuationRules(options: PunctuationOptions = {}): Punctu
   const rules = URDU_PUNCTUATION_RULES.filter((rule) => rule.incorrect !== rule.correct);
   if (options.straightDoubleQuote !== false) {
     rules.push({ incorrect: '"', correct: '”', completeWord: false, resolve: resolveDoubleQuote });
+    // Re-checks a curly quote already in the text (e.g. pasted, or typed before the block's
+    // direction was known) and swaps it if it is the wrong one for its position — most often
+    // an opening “ at the start of a right-to-left sentence, which should be ”.
+    rules.push({ incorrect: '“', correct: '”', completeWord: false, resolve: resolveDoubleQuote });
+    rules.push({ incorrect: '”', correct: '“', completeWord: false, resolve: resolveDoubleQuote });
   }
   return rules.sort((a, b) => b.incorrect.length - a.incorrect.length);
 }

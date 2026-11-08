@@ -251,6 +251,7 @@ export interface Strings {
     ignore: string;
     addToDictionary: string;
     addToAutoCorrect: string;
+    lookUp: string;
     spelling: string;
     noSuggestions: string;
   },
@@ -261,6 +262,13 @@ export interface Strings {
     synonyms: string;
     loading: string;
     none: string;
+  },
+  dictionaryLookup: {
+    title: string;
+    dictionaryLabel: string;
+    loading: string;
+    none: string;
+    close: string;
   },
   link: {
     menuLabel: string;
@@ -566,6 +574,7 @@ const en: Strings = {
     ignore: 'Ignore',
     addToDictionary: 'Add to dictionary',
     addToAutoCorrect: 'Add to auto-correct',
+    lookUp: 'Look up',
     spelling: 'Spelling suggestions',
     noSuggestions: 'No suggestions',
   },
@@ -576,6 +585,13 @@ const en: Strings = {
     synonyms: 'Synonyms',
     loading: 'Loading synonyms…',
     none: 'No synonyms',
+  },
+  dictionaryLookup: {
+    title: 'Dictionary',
+    dictionaryLabel: 'Dictionary',
+    loading: 'Looking up…',
+    none: 'No definition found',
+    close: 'Close',
   },
   link: {
     menuLabel: 'Link',
@@ -882,6 +898,7 @@ const ur: Strings = {
     ignore: 'نظرانداز کریں',
     addToDictionary: 'لغت میں شامل کریں',
     addToAutoCorrect: 'خودکار تصحیح میں شامل کریں',
+    lookUp: 'لغت میں دیکھیں',
     spelling: 'ہجے کی تجاویز',
     noSuggestions: 'کوئی تجویز نہیں',
   },
@@ -892,6 +909,13 @@ const ur: Strings = {
     synonyms: 'مترادفات',
     loading: 'مترادفات لوڈ ہو رہے ہیں…',
     none: 'کوئی مترادف نہیں',
+  },
+  dictionaryLookup: {
+    title: 'لغت',
+    dictionaryLabel: 'لغت',
+    loading: 'تلاش ہو رہی ہے…',
+    none: 'کوئی معنی نہیں ملا',
+    close: 'بند کریں',
   },
   link: {
     menuLabel: 'لنک',
@@ -1198,6 +1222,7 @@ const paShahmukhi: Strings = {
     ignore: 'نظر انداز کرو',
     addToDictionary: 'شبدکوش وچ پاؤ',
     addToAutoCorrect: 'خودکار درستی وچ پاؤ',
+    lookUp: 'شبدکوش وچ ڈیکھو',
     spelling: 'ہجے دیاں تجویزاں',
     noSuggestions: 'کوئی تجویز نئیں',
   },
@@ -1208,6 +1233,13 @@ const paShahmukhi: Strings = {
     synonyms: 'ہم معنی لفظ',
     loading: 'ہم معنی لبھ رہے نیں…',
     none: 'کوئی ہم معنی نئیں',
+  },
+  dictionaryLookup: {
+    title: 'شبدکوش',
+    dictionaryLabel: 'شبدکوش',
+    loading: 'لبھ رہے نیں…',
+    none: 'کوئی معنی نئیں لبھا',
+    close: 'بند کرو',
   },
   link: {
     menuLabel: 'لنک',

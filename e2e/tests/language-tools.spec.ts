@@ -217,11 +217,28 @@ test.describe('Urdu punctuation and characters', () => {
 
   test('a straight double quote becomes a closing curly quote and a hyphen a full stop', async ({ editor }) => {
     await editor.open({ locale: 'ur' });
+    // The Urdu/Shahmukhi pair is reversed from Latin text (opens with ”, closes with “),
+    // since this is a right-to-left block.
     await editor.type('کہا"', 25);
-    await expect(editor.content).toHaveText('کہا”');
+    await expect(editor.content).toHaveText('کہا“');
 
     await editor.type('ٹھیک-', 25);
-    await expect(editor.content).toHaveText('کہا”ٹھیک۔');
+    await expect(editor.content).toHaveText('کہا“ٹھیک۔');
+  });
+
+  test('a straight double quote opens with ” in a right-to-left block', async ({ editor }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.type('کہا "ٹھیک', 25);
+    await expect(editor.content).toHaveText('کہا ”ٹھیک');
+  });
+
+  test('"Correct whole document" fixes a wrongly-directed curly quote already in right-to-left text', async ({ editor, page }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.paste('“سلام”');
+    await expect(editor.content).toHaveText('“سلام”');
+
+    await page.getByRole('button', { name: 'تمام متن کی تصحیح کریں' }).click(); // 'Correct whole document', localized
+    await expect(editor.content).toHaveText('”سلام“');
   });
 
   test('Arabic heh is normalised to Urdu heh when the word is finished', async ({ editor }) => {

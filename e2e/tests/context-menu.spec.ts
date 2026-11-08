@@ -209,6 +209,31 @@ test.describe('submenus', () => {
   });
 });
 
+test.describe('dictionary lookup', () => {
+  test('"Look up" opens a popup with the word and its meaning', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('hello world');
+    await openMenuOnWord(editor, 'hello world', 8);
+
+    await item(page, 'Look up').click();
+    const dialog = page.getByRole('dialog', { name: 'Dictionary' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('hello', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('noun: A greeting.')).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test('is not offered for a misspelled word', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('a wrold here');
+    await openMenuOnWord(editor, 'a wrold here', 30);
+
+    await expect(item(page, 'Look up')).toHaveCount(0);
+  });
+});
+
 test.describe('the cut, copy and paste row', () => {
   test('is one row of three icon buttons, with no text label', async ({ editor, page }) => {
     await editor.open();

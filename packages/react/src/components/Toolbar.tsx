@@ -43,6 +43,8 @@ import { $canJoinLines, $joinSelectedLines } from '../join/joinLinesActions';
 import { $replaceMatch, type FindMatch } from '../find/findReplaceActions';
 import { getSpeller, type SpellLanguage } from '../spellcheck/spellDictionaries';
 import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStores';
+import type { DictionaryStore } from '../dictionary/dictionaryStores';
+import { DictionaryDialog } from './DictionaryDialog';
 import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
 import { $selectionIsWithinWord, $wordAtDomPoint, $wordAtSelection, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
@@ -114,6 +116,7 @@ import {
   IconArrowForwardUp,
   IconArrowsJoin,
   IconBold,
+  IconBooks,
   IconClearFormatting,
   IconDeviceFloppy,
   IconBook,
@@ -514,6 +517,8 @@ interface EditorContextMenu {
   spelling?: { word: string; language: SpellLanguage; suggestions: string[]; match: FindMatch };
   /** Synonyms of the word under the pointer; `items` is undefined while they load. */
   thesaurus?: { language: SpellLanguage; word: string; match: FindMatch; items?: string[] };
+  /** The word under the pointer, offered for the dictionary-lookup popup. */
+  dictionary?: { language: SpellLanguage; word: string };
 }
 
 /** Where a command list is shown: as items in a dropdown menu (`submenu` is the same without its heading, the parent item names it), as icon buttons on the ribbon, or as an unlabelled row of icon buttons inline in the right-click menu (`icons`). */
@@ -845,6 +850,8 @@ export interface ToolbarProps {
   thesaurusStores?: ThesaurusStore[];
   /** Where words added to the dictionary are saved. */
   dictionaryStores?: UserWordStore[];
+  /** Dictionaries the right-click "Look up" popup can query; the user picks which one. */
+  dictionaryLookupStores?: DictionaryStore[];
   /** Opens the auto-correct panel with the word filled in. */
   onAddAutoCorrect?: (word: string, language: SpellLanguage) => void;
   /** Whether the find-and-replace widget is open, and how to toggle it (owned by EditorRoot). */
@@ -893,7 +900,7 @@ export interface ToolbarProps {
  * format this editor reads and writes, including the poetry container syntax. */
 export const DEFAULT_HELP_URL = 'https://github.com/inshapardaz/likhari/blob/main/docs/markdown-dialect.md';
 
-export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', spellCheckLanguage = 'auto', drafts, helpUrl }: ToolbarProps) {
+export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurusStores = [], dictionaryLookupStores = [], onAddAutoCorrect, onSave, isDirty, showSave, findOpen = false, onToggleFind, spellOpen = false, onToggleSpell, autoCorrectOpen = false, onToggleAutoCorrect, fontOptions = DEFAULT_FONT_OPTIONS, fontMode = 'selective', uniformFontFamily, zoom = 100, onUniformFontFamilyChange, onZoomChange, direction = 'ltr', locale = 'en', spellCheckLanguage = 'auto', drafts, helpUrl }: ToolbarProps) {
   const bordered = toolbarStyle?.bordered ?? true;
   const variant = toolbarStyle?.variant ?? 'light';
   const overflowEnabled = toolbarStyle?.overflow ?? true;
@@ -1222,6 +1229,12 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkNeedsText, setLinkNeedsText] = useState(false);
+  const [dictionaryDialogOpen, setDictionaryDialogOpen] = useState(false);
+  const [dictionaryQuery, setDictionaryQuery] = useState<{ word: string; language: SpellLanguage } | null>(null);
+  const openDictionaryDialog = (query: { word: string; language: SpellLanguage }) => {
+    setDictionaryQuery(query);
+    setDictionaryDialogOpen(true);
+  };
 
   const openLinkDialog = useCallback(() => {
     // Snapshot first: the dialog's focus trap makes Lexical drop the selection.
@@ -1312,7 +1325,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const anchor = config.links ? (target?.closest?.('a') ?? null) : null;
       const cell = config.tables ? (target?.closest?.('td, th') ?? null) : null;
       const couplet = config.poetry.enabled ? (target?.closest?.('.likhari-poetry') ?? null) : null;
-      const point = config.language.spellCheck || config.language.thesaurus ? textPointAt(event.clientX, event.clientY) : null;
+      const point = config.language.spellCheck || config.language.thesaurus || config.language.dictionary ? textPointAt(event.clientX, event.clientY) : null;
       const menu: EditorContextMenu = { x: event.clientX, y: event.clientY };
       let word = null as WordAtPoint | null;
 
@@ -1366,6 +1379,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       if (word && config.language.thesaurus) {
         menu.thesaurus = { language, word: word.word, match: word.match };
       }
+      if (word && config.language.dictionary && dictionaryLookupStores.length > 0) {
+        menu.dictionary = { language, word: word.word };
+      }
       if (word && config.language.spellCheck) {
         const speller = getSpeller(language);
         if (speller) {
@@ -1375,9 +1391,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           }
         }
       }
-      // A misspelled word's menu is its spelling fixes and the clipboard, nothing else: no synonyms to look up either.
+      // A misspelled word's menu is its spelling fixes and the clipboard, nothing else: no synonyms or dictionary lookup either.
       if (menu.spelling) {
         menu.thesaurus = undefined;
+        menu.dictionary = undefined;
         menu.link = undefined;
         menu.table = undefined;
         menu.poetry = undefined;
@@ -1399,7 +1416,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       previous?.removeEventListener('contextmenu', onContextMenu);
       root?.addEventListener('contextmenu', onContextMenu);
     });
-  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, config.joinLines, thesaurusStores, spellCheckLanguage]);
+  }, [editor, config.links, config.tables, config.poetry.enabled, config.language.spellCheck, config.language.thesaurus, config.language.dictionary, config.joinLines, thesaurusStores, dictionaryLookupStores, spellCheckLanguage]);
 
   // Cut and copy put the selected text on the clipboard as plain text.
   const copyOrCut = (cut: boolean) => async () => {
@@ -2326,6 +2343,17 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 </Menu.Sub.Dropdown>
               </Menu.Sub>
             )}
+            {contextMenu?.dictionary && (
+              <Menu.Item
+                leftSection={<IconBooks size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => {
+                  openDictionaryDialog(contextMenu.dictionary!);
+                  setContextMenu(null);
+                }}
+              >
+                {strings.contextMenu.lookUp}
+              </Menu.Item>
+            )}
             {contextMenu?.link !== undefined && (
               <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
                 <Menu.Sub.Target>
@@ -2380,6 +2408,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               </Menu.Item>
             )}
             {((contextMenu?.thesaurus && contextMenu.thesaurus.items?.length !== 0) ||
+              contextMenu?.dictionary ||
               contextMenu?.link !== undefined ||
               contextMenu?.table ||
               contextMenu?.poetry ||
@@ -2428,6 +2457,15 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         />
       )}
       {drafts && <DraftsDialog opened={draftsOpen} locale={locale} onClose={() => setDraftsOpen(false)} {...drafts} />}
+      {dictionaryLookupStores.length > 0 && (
+        <DictionaryDialog
+          opened={dictionaryDialogOpen}
+          word={dictionaryQuery?.word ?? ''}
+          language={dictionaryQuery?.language ?? 'en'}
+          stores={dictionaryLookupStores}
+          onClose={() => setDictionaryDialogOpen(false)}
+        />
+      )}
     </>
   );
 

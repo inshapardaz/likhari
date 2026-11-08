@@ -4,14 +4,21 @@ import { $getSelection, $isRangeSelection } from 'lexical';
 import { $correctPunctuationBeforeCaret, $correctPunctuationDocument, $preservingSelection } from './autoCorrectActions';
 import { activePunctuationRules, spacePunctuationText } from './punctuationRules';
 
-function editorWith(text: string, caret: number) {
+function editorWith(text: string, caret: number, rtl = false) {
   const editor = createEditor({
     namespace: 'punctuation-test',
     onError: (e) => {
       throw e;
     },
   });
-  editor.update(() => $getRoot().clear().append($createParagraphNode().append($createTextNode(text))), { discrete: true });
+  editor.update(
+    () => {
+      const paragraph = $createParagraphNode();
+      if (rtl) paragraph.setDirection('rtl');
+      $getRoot().clear().append(paragraph.append($createTextNode(text)));
+    },
+    { discrete: true },
+  );
   return editor;
 }
 
@@ -78,6 +85,30 @@ describe('$correctPunctuationBeforeCaret', () => {
     );
     expect(textOf(editor)).toBe('hi “');
   });
+
+  it('opens with ” (not “) at the start of a right-to-left block — the Urdu/Shahmukhi pair is reversed from Latin', () => {
+    const editor = editorWith('"', 1, true);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(1, 1);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('”');
+  });
+
+  it('closes with “ (not ”) right after a word in a right-to-left block', () => {
+    const editor = editorWith('ہے"', 3, true);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(3, 3);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('ہے“');
+  });
 });
 
 describe('$correctPunctuationDocument', () => {
@@ -92,6 +123,54 @@ describe('$correctPunctuationDocument', () => {
     );
     expect(count).toBeGreaterThan(0);
     expect(textOf(editor)).toBe('ہے۔ وہ “ٹھیک” ہے۔“');
+  });
+
+  it('uses the reversed ”/“ pair for a right-to-left block', () => {
+    const editor = editorWith('ہے. وہ "ٹھیک" ہے۔"', 0, true);
+    editor.update(
+      () => {
+        $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    // The trailing "۔\"" is matched by a fixed (direction-agnostic) bundled rule, not the
+    // resolve-based one — only the two quotes resolved from a bare `"` flip with direction.
+    expect(textOf(editor)).toBe('ہے۔ وہ ”ٹھیک“ ہے۔“');
+  });
+
+  it('fixes an opening “ at the start of a right-to-left sentence to ”', () => {
+    const editor = editorWith('“سلام”', 0, true);
+    editor.update(
+      () => {
+        $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('”سلام“');
+  });
+
+  it('leaves an already-correct quote pair alone in either direction', () => {
+    const ltr = editorWith('“hi”', 0);
+    let ltrCount = -1;
+    ltr.update(
+      () => {
+        ltrCount = $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(ltrCount).toBe(0);
+    expect(textOf(ltr)).toBe('“hi”');
+
+    const rtl = editorWith('”سلام“', 0, true);
+    let rtlCount = -1;
+    rtl.update(
+      () => {
+        rtlCount = $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(rtlCount).toBe(0);
+    expect(textOf(rtl)).toBe('”سلام“');
   });
 });
 
