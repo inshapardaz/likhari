@@ -89,28 +89,33 @@ export function AutoCorrectPlugin({
   // Corrections marked "not whole word only" apply even inside a longer word, so they
   // run through the same substring-matching machinery as the punctuation rules.
   const substringRules = useRef<PunctuationRule[]>([]);
+  // The whole-document command awaits this, so it never runs against empty tables
+  // because a store (e.g. a remote one) hasn't finished its first load yet.
+  const loaded = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (!enabled) return;
     let active = true;
     autoCorrectDebugLog('loading entries from', stores.length, 'store(s):', stores.map((s) => s.id));
-    Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrectEntries(stores, language)] as const)).then((loaded) => {
-      if (!active) return;
-      for (const [language, entries] of loaded) autoCorrectDebugLog('loaded', entries.length, 'entries for', language);
-      tables.current = new Map(loaded.map(([language, entries]) => [language, wholeWordTable(entries)]));
-      // Urdu and Shahmukhi share right-to-left blocks, so both apply there; Urdu wins a clash.
-      const combined = new Map<string, string>();
-      for (const language of RTL_LANGUAGES) {
-        for (const [from, to] of tables.current.get(language) ?? []) if (!combined.has(from)) combined.set(from, to);
-      }
-      rtlTable.current = combined;
-      substringRules.current = loaded.flatMap(([, entries]) => substringAutoCorrectRules(entries));
-      autoCorrectDebugLog(
-        'tables ready: en whole-word:', tables.current.get('en')?.size ?? 0,
-        'rtl whole-word:', rtlTable.current.size,
-        'substring rules:', substringRules.current.length,
-      );
-    }).catch((error) => autoCorrectDebugLog('failed to load entries:', error));
+    loaded.current = Promise.all(LANGUAGES.map(async (language) => [language, await loadAutoCorrectEntries(stores, language)] as const))
+      .then((loadedEntries) => {
+        if (!active) return;
+        for (const [language, entries] of loadedEntries) autoCorrectDebugLog('loaded', entries.length, 'entries for', language);
+        tables.current = new Map(loadedEntries.map(([language, entries]) => [language, wholeWordTable(entries)]));
+        // Urdu and Shahmukhi share right-to-left blocks, so both apply there; Urdu wins a clash.
+        const combined = new Map<string, string>();
+        for (const language of RTL_LANGUAGES) {
+          for (const [from, to] of tables.current.get(language) ?? []) if (!combined.has(from)) combined.set(from, to);
+        }
+        rtlTable.current = combined;
+        substringRules.current = loadedEntries.flatMap(([, entries]) => substringAutoCorrectRules(entries));
+        autoCorrectDebugLog(
+          'tables ready: en whole-word:', tables.current.get('en')?.size ?? 0,
+          'rtl whole-word:', rtlTable.current.size,
+          'substring rules:', substringRules.current.length,
+        );
+      })
+      .catch((error) => autoCorrectDebugLog('failed to load entries:', error));
     return () => {
       active = false;
     };
@@ -121,18 +126,21 @@ export function AutoCorrectPlugin({
     return editor.registerCommand(
       CORRECT_DOCUMENT_COMMAND,
       () => {
-        autoCorrectDebugLog('CORRECT_DOCUMENT_COMMAND dispatched');
-        editor.update(
-          () => {
-            $preservingSelection(() => {
-              $cleanUpText();
-              if (punctuation?.spacing) $spacePunctuationDocument();
-              $correctPunctuationDocument(combinedRules());
-              $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
-            });
-          },
-          { discrete: true },
-        );
+        autoCorrectDebugLog('CORRECT_DOCUMENT_COMMAND dispatched, awaiting store load');
+        loaded.current.then(() => {
+          autoCorrectDebugLog('CORRECT_DOCUMENT_COMMAND running');
+          editor.update(
+            () => {
+              $preservingSelection(() => {
+                $cleanUpText();
+                if (punctuation?.spacing) $spacePunctuationDocument();
+                $correctPunctuationDocument(combinedRules());
+                $correctDocument(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
+              });
+            },
+            { discrete: true },
+          );
+        });
         return true;
       },
       COMMAND_PRIORITY_EDITOR,
