@@ -580,11 +580,13 @@
   opacity: 0.6;
 }
 
-/* PoetryCoupletInserter.tsx's hover zones — portaled to a fixed position
-   straddling the active couplet's top and bottom borders. Hovering one
-   reveals a line across the border with a "+" button on it to insert a
-   couplet above/below (the poetry menu's own actions, one hover away). */
-.likhari-poetry-insert-zone {
+/* Hover affordances on structural blocks' edges — PoetryCoupletInserter.tsx
+   (couplet top/bottom) and TableEdgeControls.tsx (row/column borders and
+   delete handles). Each is portaled to a fixed position straddling an edge;
+   resting over it reveals a line along the edge and a round button on it.
+   `--vertical` runs the line top-to-bottom (a column border); `--handle` is
+   a delete handle sitting just outside the block, which has no line. */
+.likhari-edge-zone {
   position: fixed;
   display: flex;
   align-items: center;
@@ -592,7 +594,7 @@
   z-index: 20;
 }
 
-.likhari-poetry-insert-zone::before {
+.likhari-edge-zone::before {
   content: '';
   position: absolute;
   left: 0;
@@ -606,7 +608,22 @@
   transition: opacity 0.1s ease;
 }
 
-.likhari-poetry-insert-button {
+.likhari-edge-zone--vertical::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  height: auto;
+  width: 2px;
+  margin-top: 0;
+  margin-left: -1px;
+}
+
+.likhari-edge-zone--handle::before {
+  display: none;
+}
+
+.likhari-edge-button {
   position: relative;
   display: flex;
   align-items: center;
@@ -626,13 +643,17 @@
     transform 0.1s ease;
 }
 
-.likhari-poetry-insert-zone:hover::before,
-.likhari-poetry-insert-zone:focus-within::before {
+.likhari-edge-button--danger {
+  background: var(--editor-danger);
+}
+
+.likhari-edge-zone:hover::before,
+.likhari-edge-zone:focus-within::before {
   opacity: 0.6;
 }
 
-.likhari-poetry-insert-zone:hover .likhari-poetry-insert-button,
-.likhari-poetry-insert-zone:focus-within .likhari-poetry-insert-button {
+.likhari-edge-zone:hover .likhari-edge-button,
+.likhari-edge-zone:focus-within .likhari-edge-button {
   opacity: 1;
   transform: scale(1);
 }

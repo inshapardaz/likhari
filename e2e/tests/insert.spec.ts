@@ -229,6 +229,34 @@ test.describe('tables', () => {
     await expect(editor.content.locator('th')).toHaveCount(0);
   });
 
+  test('hovering a row or column border shows buttons to insert or delete it', async ({ editor, page }) => {
+    await editor.open();
+    await insertTable(editor, 2, 2);
+    // The dialog's overlay fades out over the table; let it go before clicking there.
+    await expect(page.getByRole('dialog', { name: 'Insert table' })).toBeHidden();
+    const rows = editor.content.locator('tr');
+    const cellsInFirstRow = editor.content.locator('tr').first().locator('th, td');
+
+    const insertRow = page.getByRole('button', { name: 'Insert row after' });
+    await insertRow.hover({ force: true });
+    await expect(insertRow).toBeVisible();
+    await insertRow.click({ force: true });
+    await expect(rows).toHaveCount(3);
+
+    await page.getByRole('button', { name: 'Insert column before' }).click({ force: true });
+    await expect(cellsInFirstRow).toHaveCount(3);
+
+    await page.getByRole('button', { name: 'Delete column' }).click({ force: true });
+    await expect(cellsInFirstRow).toHaveCount(2);
+
+    await page.getByRole('button', { name: 'Delete row' }).click({ force: true });
+    await expect(rows).toHaveCount(2);
+
+    // Focus stayed in the editor throughout.
+    await editor.type('Z');
+    expect(await editor.output('Get plain text')).toContain('Z');
+  });
+
   test('typing and Tab move through cells, and the table exports to Markdown', async ({ editor, page }) => {
     await editor.open();
     await insertTable(editor, 2, 2);

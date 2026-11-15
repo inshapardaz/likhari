@@ -87,12 +87,12 @@ export function PoetryCoupletInserter() {
     return (
       <div
         key={position}
-        className={`likhari-poetry-insert-zone likhari-poetry-insert-zone--${position}`}
+        className="likhari-edge-zone"
         style={{ position: 'fixed', top: edge - ZONE_HEIGHT_PX / 2, left: box.left, width: box.width, height: ZONE_HEIGHT_PX }}
       >
         <button
           type="button"
-          className="likhari-poetry-insert-button"
+          className="likhari-edge-button"
           title={label}
           aria-label={label}
           // Keep the caret where it is: the insert is relative to the caret's
