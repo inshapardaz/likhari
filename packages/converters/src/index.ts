@@ -6,3 +6,4 @@ export { markdownConverter } from './markdown';
 export { htmlConverter } from './html';
 export { mergePages, mergePagesToState, type MergePagesOptions, type PageInput } from './merge';
 export { convertContent, convertContentToState, type ConvertContentOptions } from './convert';
+export { detectContentFormat, hasSemanticHtml, isLexicalJson, isHtmlSource, isMarkdown, type DetectedFormat } from './detect';

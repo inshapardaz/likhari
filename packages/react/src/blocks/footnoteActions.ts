@@ -7,7 +7,7 @@ let counter = 0;
 /** Short, collision-resistant within a single document: a monotonic counter
  * is enough here (ids never need to be stable/meaningful across documents),
  * and avoids a hard dependency on crypto.randomUUID being available. */
-function newFootnoteId(): string {
+export function newFootnoteId(): string {
   counter += 1;
   return `${Date.now().toString(36)}${counter.toString(36)}`;
 }

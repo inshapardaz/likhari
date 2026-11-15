@@ -22,6 +22,7 @@ import { Toolbar, type ToolbarStyle } from './components/Toolbar';
 import { readFontSettings, writeFontSettings } from './persistence/fontStorage';
 import { clampZoom, injectUrduWebFontsCss, type FontMode, type FontOption } from './fonts';
 import { LinkPastePlugin } from './plugins/LinkPastePlugin';
+import { RichPastePlugin } from './plugins/RichPastePlugin';
 import { PageBreakPlugin } from './plugins/PageBreakPlugin';
 import { LayoutPlugin } from './plugins/LayoutPlugin';
 import { FootnotePlugin } from './plugins/FootnotePlugin';
@@ -752,6 +753,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {(config.lists.bullet || config.lists.numbered || config.lists.check) && <ListPlugin />}
           {config.lists.check && <CheckListPlugin />}
           {config.links && <LinkPlugin />}
+          <RichPastePlugin />
           {config.links && <LinkPastePlugin />}
           {config.blocks.pageBreak && <PageBreakPlugin />}
           {config.language.spellCheck && <SpellHighlightPlugin language={spellCheckLanguage} />}

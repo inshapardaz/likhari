@@ -208,6 +208,18 @@ is folded into the baseline, so it does not set the unsaved-changes flag, enable
 button, call `onChange` or write a draft. Load server content with `setContent` (or
 `initialContent` when you have it at mount).
 
+**Pasting.** Text pasted into the editor (Ctrl+V, or Paste in the right-click menu) is
+imported through these converters when it is written in one of them: Markdown (a heading,
+list, quote, table, fence, link, image, `**bold**`, `` `code` `` or an extended-dialect
+directive), HTML source (opens with a known tag and closes one) or Lexical JSON (a `root`
+node). So Markdown copied from another editor arrives as headings and lists rather than as
+`#` and `-` characters, and footnotes in it join the document's footnote list. Prose, bare
+URLs and anything that fails to parse are inserted as text as before. A copy that carries
+real HTML (a web page, a word processor) is still imported by Lexical's own HTML paste;
+the coloured `<span>` wrapper a code editor adds does not count as such HTML, so Markdown
+copied from VS Code is detected. Like a native rich-text paste, the first pasted block joins
+the paragraph the caret is in; paste into an empty paragraph to keep it as its own block.
+
 **HTML.** Export writes semantic HTML: paragraphs, headings, quotes, lists (including
 nested and checklists), links, tables, images (`<figure>`/`<figcaption>`), rules and page
 breaks, with `dir`, `text-align` and `padding-inline-start` for direction, alignment and

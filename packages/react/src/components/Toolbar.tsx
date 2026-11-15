@@ -100,6 +100,7 @@ import { DraftsDialog, type DraftsToolbarOptions } from './DraftsDialog';
 import { ToolbarSettingsPanel } from './ToolbarSettingsPanel';
 import { useToolbarItemVisibility, type ToolbarVisibilityGroup, type ToolbarVisibilityItem } from '../toolbar/toolbarVisibility';
 import { normalizeLinkUrl } from '../utils/linkUrl';
+import { $pasteTextAsRichContent } from '../utils/richPaste';
 import type { ResolvedEditorFeatureConfig } from '@inshapardaz/likhari-core';
 import { CANVAS_FONT_DEFAULTS, DEFAULT_FONT_OPTIONS, FONT_SIZES_PX, ZOOM_LEVELS_PERCENT, type FontMode, type FontOption } from '../fonts';
 import { setStyleProperty } from '../utils/style';
@@ -1435,7 +1436,8 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
     editor.focus();
   };
 
-  // Paste reads plain text from the clipboard (the browser may ask for permission).
+  // Paste reads plain text from the clipboard (the browser may ask for permission). Text that is
+  // Markdown, HTML source or Lexical JSON is imported as rich content, the way Ctrl+V does it.
   const paste = async () => {
     restoreSelection();
     let text: string;
@@ -1448,6 +1450,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       () => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection)) return;
+        if ($pasteTextAsRichContent(editor, text, selection)) return;
         text.split(/\r?\n/).forEach((line, index) => {
           if (index > 0) selection.insertParagraph();
           selection.insertText(line);
