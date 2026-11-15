@@ -39,6 +39,9 @@ export interface EditorFeatureConfig {
   findReplace?: boolean;
   /** Joins the selected lines into one paragraph, from the toolbar and the right-click menu. */
   joinLines?: boolean;
+  /** A grip beside the hovered block for dragging it elsewhere in the document; inside a
+   * poetry block, grips for the couplet and for the single line under the mouse. */
+  dragBlocks?: boolean;
   language?: {
     spellCheck?: boolean;
     thesaurus?: boolean;
@@ -93,6 +96,7 @@ export const FULL_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   poetry: { enabled: true, defaultLayout: 'single' },
   findReplace: true,
   joinLines: true,
+  dragBlocks: true,
   language: {
     spellCheck: true,
     thesaurus: true,
@@ -122,6 +126,7 @@ export const MINIMAL_FEATURE_CONFIG: EditorFeatureConfig = {
   poetry: { enabled: false },
   findReplace: false,
   joinLines: false,
+  dragBlocks: false,
   language: {},
   formats: { plainText: true, lexicalJson: true },
 };
@@ -153,6 +158,7 @@ export const STANDARD_FEATURE_CONFIG: EditorFeatureConfig = {
   poetry: { enabled: false },
   findReplace: true,
   joinLines: true,
+  dragBlocks: true,
   language: {},
   formats: { markdown: true, plainText: true, lexicalJson: true },
 };
@@ -230,6 +236,7 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   poetry: { enabled: false, defaultLayout: 'single' },
   findReplace: false,
   joinLines: false,
+  dragBlocks: false,
   language: {
     spellCheck: false,
     thesaurus: false,

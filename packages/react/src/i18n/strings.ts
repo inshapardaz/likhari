@@ -204,6 +204,11 @@ export interface Strings {
     deleteCouplet: string;
     deletePoetry: string;
   };
+  dragHandle: {
+    block: string;
+    couplet: string;
+    line: string;
+  };
   findReplace: {
     toggle: string;
     find: string;
@@ -526,6 +531,11 @@ const en: Strings = {
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
     deletePoetry: 'Delete poetry',
+  },
+  dragHandle: {
+    block: 'Drag to move',
+    couplet: 'Drag to move this couplet',
+    line: 'Drag onto another line to swap them',
   },
   findReplace: {
     toggle: 'Find and replace',
@@ -851,6 +861,11 @@ const ur: Strings = {
     deleteCouplet: 'شعر حذف کریں',
     deletePoetry: 'پوری شاعری حذف کریں',
   },
+  dragHandle: {
+    block: 'منتقل کرنے کے لیے گھسیٹیں',
+    couplet: 'یہ شعر منتقل کرنے کے لیے گھسیٹیں',
+    line: 'دوسرے مصرعے سے بدلنے کے لیے اس پر گھسیٹیں',
+  },
   findReplace: {
     toggle: 'تلاش اور تبدیلی',
     find: 'تلاش کریں',
@@ -1174,6 +1189,11 @@ const paShahmukhi: Strings = {
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
     deletePoetry: 'ساری شاعری مٹاؤ',
+  },
+  dragHandle: {
+    block: 'ہلاون لئی گھسیٹو',
+    couplet: 'ایہ شعر ہلاون لئی گھسیٹو',
+    line: 'دوجے مصرعے نال بدلن لئی ایس اُتے گھسیٹو',
   },
   findReplace: {
     toggle: 'لبھو تے بدلو',

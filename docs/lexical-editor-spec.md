@@ -294,6 +294,7 @@ interface EditorFeatureConfig {
   poetry?: { enabled?: boolean; defaultLayout?: 'single' | 'two-column' };
   findReplace?: boolean;
   joinLines?: boolean; // combine the selected lines into one paragraph
+  dragBlocks?: boolean; // drag grip beside each block; in poetry, per couplet and per line
   language?: {
     spellCheck?: boolean; thesaurus?: boolean; autocomplete?: boolean;
     autocorrect?: boolean; textCleanup?: boolean;

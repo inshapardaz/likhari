@@ -645,3 +645,103 @@ export function $completeSingleCoupletBlock(node: PoetryBlockNode): void {
   if (node.getLayout() === 'two-column') return;
   if (node.getChildrenSize() % 2 === 1) node.append($createParagraphNode());
 }
+
+/** The couplet a node (a misra paragraph, or anything inside one) belongs
+ * to, with its block and index — or null outside a couplet. */
+export function $getCoupletContaining(node: LexicalNode): { block: PoetryBlockNode; couplet: Couplet; index: number } | null {
+  const block = $findMatchingParent(node, $isPoetryBlockNode);
+  if (!block) return null;
+  const couplets = $getCouplets(block);
+  const position = $findCoupletPosition(couplets, node);
+  return position ? { block, couplet: couplets[position.coupletIndex], index: position.coupletIndex } : null;
+}
+
+/** Pulls a couplet's two misras out of whatever currently holds them (and
+ * drops a two-column row wrapper left behind). Returns whether that row was
+ * a centered one, so the couplet can be rebuilt the same way elsewhere. */
+function $detachCouplet(couplet: Couplet): boolean {
+  const row = $findCoupletRow(couplet);
+  const centered = row ? $isCoupletRowCentered(row) : false;
+  couplet[0].remove();
+  couplet[1].remove();
+  row?.remove();
+  return centered;
+}
+
+/** The node(s) that hold a (detached) couplet in `layout`: the two misras
+ * themselves, or one two-column row around them. */
+function $wrapCouplet(layout: PoetryLayout, [a, b]: Couplet, centered: boolean): LexicalNode[] {
+  if (layout !== 'two-column') return [a, b];
+  const row = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');
+  if (centered) row.append($createLayoutItemNode().append(a, b));
+  else row.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
+  return [row];
+}
+
+function $insertNodesRelativeTo(anchor: LexicalNode, nodes: LexicalNode[], position: 'before' | 'after'): void {
+  let previous: LexicalNode | null = null;
+  for (const node of nodes) {
+    if (previous) previous.insertAfter(node);
+    else if (position === 'before') anchor.insertBefore(node);
+    else anchor.insertAfter(node);
+    previous = node;
+  }
+}
+
+/** Where a dragged couplet lands: next to another couplet (in its block,
+ * whatever that block's layout), or next to a top-level block as a new
+ * poetry block of its own. */
+export type CoupletDropTarget =
+  | { kind: 'couplet'; couplet: Couplet; position: 'before' | 'after' }
+  | { kind: 'block'; block: LexicalNode; position: 'before' | 'after' };
+
+/**
+ * Moves a couplet — the drag-and-drop counterpart to the insert/delete
+ * couplet actions. Dropped next to another couplet it joins that block,
+ * rebuilt for that block's layout (its two misra paragraphs move as they
+ * are, so text, formatting and undo history survive). Dropped next to an
+ * ordinary block it becomes a new poetry block with the source block's
+ * layout and settings. A source block left with no couplets is removed.
+ */
+export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boolean {
+  const source = $findMatchingParent(couplet[0], $isPoetryBlockNode);
+  if (!source) return false;
+
+  if (target.kind === 'couplet') {
+    if (target.couplet[0].is(couplet[0])) return false;
+    const targetBlock = $findMatchingParent(target.couplet[0], $isPoetryBlockNode);
+    if (!targetBlock) return false;
+    const layout = targetBlock.getLayout();
+    const anchor = layout === 'two-column' ? $findCoupletRow(target.couplet) : target.position === 'before' ? target.couplet[0] : target.couplet[1];
+    if (!anchor) return false;
+    const centered = $detachCouplet(couplet);
+    $insertNodesRelativeTo(anchor, $wrapCouplet(layout, couplet, centered), target.position);
+  } else {
+    if (target.block.is(source) && $getCouplets(source).length <= 1) return false;
+    const centered = $detachCouplet(couplet);
+    const block = $createPoetryBlockNode(source.getLayout(), source.getWidth(), source.getSpacing(), source.getGutter(), source.getStagger(), source.getCenterWidth());
+    block.append(...$wrapCouplet(source.getLayout(), couplet, centered));
+    $insertNodesRelativeTo(target.block, [block], target.position);
+    $ensureTrailingParagraph(block);
+  }
+
+  if (source.isAttached() && source.getChildrenSize() === 0) source.remove();
+  couplet[0].selectStart();
+  return true;
+}
+
+/**
+ * Exchanges two misras' positions — the drag-and-drop action for a single
+ * line. A swap (rather than a move) is the one line operation that keeps
+ * every couplet intact in every layout: no couplet gains or loses a line,
+ * so nothing after it re-pairs. Works across couplets and across blocks.
+ */
+export function $swapMisras(a: ParagraphNode, b: ParagraphNode): boolean {
+  if (a.is(b)) return false;
+  const marker = $createParagraphNode();
+  a.replace(marker);
+  b.replace(a);
+  marker.replace(b);
+  a.selectStart();
+  return true;
+}

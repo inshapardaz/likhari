@@ -18,7 +18,10 @@ import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
 import {
   $completeSingleCoupletBlock,
   $convertSelectionToPoetry,
+  $getCoupletContaining,
   $getCoupletFromSelection,
+  $moveCouplet,
+  $swapMisras,
   $deletePoetryBlock,
   $deletePoetryCouplet,
   $deletePoetryOnBackspace,
@@ -1135,5 +1138,131 @@ describe('$getCoupletFromSelection', () => {
       $insertCoupletRelativeToSelection('after'); // caret moves into the new second couplet
       expect(coupletIndex()).toBe(1);
     });
+  });
+});
+
+/** A block with couplets ['a1','a2'], ['b1','b2'], ['c1','c2'] after a 'hello' paragraph. */
+function buildThreeCoupletBlock(editor: LexicalEditor, layout: 'single' | 'two-column' = 'single'): void {
+  withCaretInParagraph(editor, () => {
+    $insertPoetryCouplet(layout);
+    const block = getBlock();
+    $getMisraParagraphs(block)[0].append($createTextNode('a1'));
+    $getMisraParagraphs(block)[1].append($createTextNode('a2'));
+    for (const [x, y] of [['b1', 'b2'], ['c1', 'c2']]) {
+      const lines = $getMisraParagraphs(block);
+      lines[lines.length - 1].selectEnd();
+      $exitPoetryOnEnter();
+      const misras = $getMisraParagraphs(block);
+      misras[misras.length - 2].append($createTextNode(x));
+      misras[misras.length - 1].append($createTextNode(y));
+    }
+  });
+}
+
+const misraByText = (text: string) => $getMisraParagraphs(getBlock()).find((p) => p.getTextContent() === text)!;
+
+describe('$moveCouplet', () => {
+  it('moves a couplet before or after another in the same single-column block', () => {
+    const editor = makeEditor();
+    buildThreeCoupletBlock(editor);
+    editor.update(
+      () => {
+        const c = $getCoupletContaining(misraByText('c1'))!;
+        const a = $getCoupletContaining(misraByText('a1'))!;
+        expect($moveCouplet(c.couplet, { kind: 'couplet', couplet: a.couplet, position: 'before' })).toBe(true);
+      },
+      { discrete: true },
+    );
+    expect(misraTexts(editor)).toEqual(['c1', 'c2', 'a1', 'a2', 'b1', 'b2']);
+    editor.update(
+      () => {
+        const c = $getCoupletContaining(misraByText('c1'))!;
+        const b = $getCoupletContaining(misraByText('b1'))!;
+        expect($moveCouplet(c.couplet, { kind: 'couplet', couplet: b.couplet, position: 'after' })).toBe(true);
+        expect($getCoupletFromSelection()?.[0].getTextContent()).toBe('c1');
+      },
+      { discrete: true },
+    );
+    expect(misraTexts(editor)).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']);
+  });
+
+  it('rebuilds the couplet for a two-column block, and removes a source block left empty', () => {
+    const editor = makeEditor();
+    buildThreeCoupletBlock(editor, 'two-column');
+    editor.update(
+      () => {
+        // Split the last couplet out as its own (two-column) block after the 'hello' paragraph...
+        const c = $getCoupletContaining(misraByText('c1'))!;
+        const hello = $getRoot().getFirstChild()!;
+        expect($moveCouplet(c.couplet, { kind: 'block', block: hello, position: 'after' })).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const blocks = $getRoot().getChildren().filter($isPoetryBlockNode);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0].getLayout()).toBe('two-column');
+      expect($getCouplets(blocks[0]).map(([a, b]) => [a.getTextContent(), b.getTextContent()])).toEqual([['c1', 'c2']]);
+      expect($getCouplets(blocks[1])).toHaveLength(2);
+      expect(blocks[0].getNextSibling()?.is(blocks[1])).toBe(true);
+    });
+    editor.update(
+      () => {
+        // ...then move both remaining couplets into it; the emptied source block goes away.
+        const [first, second] = $getRoot().getChildren().filter($isPoetryBlockNode);
+        const target = $getCouplets(first)[0];
+        for (const couplet of $getCouplets(second)) {
+          expect($moveCouplet(couplet, { kind: 'couplet', couplet: target, position: 'before' })).toBe(true);
+        }
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const blocks = $getRoot().getChildren().filter($isPoetryBlockNode);
+      expect(blocks).toHaveLength(1);
+      expect($getCouplets(blocks[0]).map(([a, b]) => [a.getTextContent(), b.getTextContent()])).toEqual([
+        ['a1', 'a2'],
+        ['b1', 'b2'],
+        ['c1', 'c2'],
+      ]);
+      expect(blocks[0].getChildren().every((row) => row.getType() === 'layout-container')).toBe(true);
+    });
+  });
+
+  it('refuses to move a couplet onto itself, or a lone couplet beside its own block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => {
+      $insertPoetryCouplet('single');
+      const block = getBlock();
+      const couplet = $getCouplets(block)[0];
+      expect($moveCouplet(couplet, { kind: 'couplet', couplet, position: 'after' })).toBe(false);
+      expect($moveCouplet(couplet, { kind: 'block', block, position: 'after' })).toBe(false);
+      expect($getRoot().getChildren().filter($isPoetryBlockNode)).toHaveLength(1);
+    });
+  });
+});
+
+describe('$swapMisras', () => {
+  it('exchanges two lines within and across couplets, keeping every couplet two lines long', () => {
+    const editor = makeEditor();
+    buildThreeCoupletBlock(editor);
+    editor.update(() => expect($swapMisras(misraByText('a1'), misraByText('a2'))).toBe(true), { discrete: true });
+    expect(misraTexts(editor)).toEqual(['a2', 'a1', 'b1', 'b2', 'c1', 'c2']);
+    editor.update(() => expect($swapMisras(misraByText('a1'), misraByText('c2'))).toBe(true), { discrete: true });
+    expect(misraTexts(editor)).toEqual(['a2', 'c2', 'b1', 'b2', 'c1', 'a1']);
+    editor.getEditorState().read(() => expect($getCouplets(getBlock())).toHaveLength(3));
+  });
+
+  it('works in a two-column block and is a no-op on the same line', () => {
+    const editor = makeEditor();
+    buildThreeCoupletBlock(editor, 'two-column');
+    editor.update(
+      () => {
+        expect($swapMisras(misraByText('b1'), misraByText('b1'))).toBe(false);
+        expect($swapMisras(misraByText('a2'), misraByText('b1'))).toBe(true);
+      },
+      { discrete: true },
+    );
+    expect(misraTexts(editor)).toEqual(['a1', 'b1', 'a2', 'b2', 'c1', 'c2']);
   });
 });

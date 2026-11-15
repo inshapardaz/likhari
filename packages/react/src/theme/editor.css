@@ -658,6 +658,67 @@
   transform: scale(1);
 }
 
+/* DraggableBlockPlugin.tsx — a grip beside the hovered block (two, inside a
+   poetry block: couplet and line), portaled into the scrolling canvas so it
+   moves with the content; and the drop indicator, a line between blocks or
+   couplets, or a box over the misra a dragged line would swap with. */
+.likhari-drag-grip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--editor-ink);
+  opacity: 0.4;
+  cursor: grab;
+  z-index: 15;
+  user-select: none;
+  transition:
+    opacity 0.1s ease,
+    background 0.1s ease;
+}
+
+.likhari-drag-grip:hover {
+  opacity: 1;
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.likhari-drag-grip:active {
+  cursor: grabbing;
+}
+
+/* While a grip drag is in flight, none of the hover overlays may sit between
+   the pointer and the editor, or the drop lands on them instead. */
+.likhari-dragging .likhari-edge-zone,
+.likhari-dragging .likhari-poetry-resize-handle {
+  pointer-events: none;
+}
+
+.likhari-drag-target-line {
+  position: absolute;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: var(--editor-accent);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.likhari-drag-target-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--editor-accent);
+  border-radius: 4px;
+  background: var(--editor-accent-soft);
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 15;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;
