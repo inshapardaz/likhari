@@ -580,6 +580,145 @@
   opacity: 0.6;
 }
 
+/* Hover affordances on structural blocks' edges — PoetryCoupletInserter.tsx
+   (couplet top/bottom) and TableEdgeControls.tsx (row/column borders and
+   delete handles). Each is portaled to a fixed position straddling an edge;
+   resting over it reveals a line along the edge and a round button on it.
+   `--vertical` runs the line top-to-bottom (a column border); `--handle` is
+   a delete handle sitting just outside the block, which has no line. */
+.likhari-edge-zone {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.likhari-edge-zone::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--editor-accent);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.likhari-edge-zone--vertical::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  height: auto;
+  width: 2px;
+  margin-top: 0;
+  margin-left: -1px;
+}
+
+.likhari-edge-zone--handle::before {
+  display: none;
+}
+
+.likhari-edge-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--editor-accent);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.1s ease,
+    transform 0.1s ease;
+}
+
+.likhari-edge-button--danger {
+  background: var(--editor-danger);
+}
+
+.likhari-edge-zone:hover::before,
+.likhari-edge-zone:focus-within::before {
+  opacity: 0.6;
+}
+
+.likhari-edge-zone:hover .likhari-edge-button,
+.likhari-edge-zone:focus-within .likhari-edge-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* DraggableBlockPlugin.tsx — a grip beside the hovered block (two, inside a
+   poetry block: couplet and line), portaled into the scrolling canvas so it
+   moves with the content; and the drop indicator, a line between blocks or
+   couplets, or a box over the misra a dragged line would swap with. */
+.likhari-drag-grip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--editor-ink);
+  opacity: 0.4;
+  cursor: grab;
+  z-index: 15;
+  user-select: none;
+  transition:
+    opacity 0.1s ease,
+    background 0.1s ease;
+}
+
+.likhari-drag-grip:hover {
+  opacity: 1;
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.likhari-drag-grip:active {
+  cursor: grabbing;
+}
+
+/* While a grip drag is in flight, none of the hover overlays may sit between
+   the pointer and the editor, or the drop lands on them instead. */
+.likhari-dragging .likhari-edge-zone,
+.likhari-dragging .likhari-poetry-resize-handle {
+  pointer-events: none;
+}
+
+.likhari-drag-target-line {
+  position: absolute;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: var(--editor-accent);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.likhari-drag-target-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--editor-accent);
+  border-radius: 4px;
+  background: var(--editor-accent-soft);
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 15;
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;

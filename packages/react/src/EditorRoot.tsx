@@ -28,6 +28,9 @@ import { LayoutPlugin } from './plugins/LayoutPlugin';
 import { FootnotePlugin } from './plugins/FootnotePlugin';
 import { PoetryPlugin } from './plugins/PoetryPlugin';
 import { PoetryResizer } from './blocks/PoetryResizer';
+import { PoetryCoupletInserter } from './blocks/PoetryCoupletInserter';
+import { TableEdgeControls } from './table/TableEdgeControls';
+import { DraggableBlockPlugin } from './plugins/DraggableBlockPlugin';
 import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { FindReplaceBar } from './components/FindReplaceBar';
 import { AutoCorrectPanel } from './components/AutoCorrectPanel';
@@ -772,7 +775,10 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
           {config.footnotes && <FootnotePlugin />}
           {config.poetry.enabled && <PoetryPlugin />}
           {config.poetry.enabled && <PoetryResizer />}
+          {config.poetry.enabled && <PoetryCoupletInserter />}
           {config.tables && <TablePlugin hasCellMerge hasTabHandler />}
+          {config.tables && <TableEdgeControls />}
+          {config.dragBlocks && <DraggableBlockPlugin />}
           {config.blocks.horizontalRule && <HorizontalRulePlugin />}
           <EditorInstancePlugin instanceRef={editorInstanceRef} />
           {/* Selection-only updates (clicking, refocusing after a toolbar

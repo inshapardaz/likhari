@@ -180,6 +180,7 @@ One plugin per feature area, each independently registerable, matching the shape
 | `PoetryPlugin` | poetry insert menu, per-couplet layout toggle UI | `config.poetry.*` |
 | `FindReplacePlugin` | search overlay, match navigation | `config.findReplace` |
 | — (`Toolbar`'s own handler, no separate plugin) | Join lines: toolbar button and right-click menu item | `config.joinLines` |
+| `DraggableBlockPlugin` | Drag grip beside the hovered block to move it; inside a poetry block, a grip to move the couplet (into any poetry block, or out as a new one) and a grip to swap the line with another | `config.dragBlocks` |
 | `LanguageServicesPlugin` | spawns/manages workers, decorator marks for spellcheck | `config.language.*` |
 | `AutosavePlugin` | localStorage draft read/write, restore-draft prompt | always on if `documentId` present |
 | `NavigationGuardPlugin` | dirty tracking, `beforeunload`, exposes `hasUnsavedChanges()` | always on |
