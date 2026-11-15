@@ -580,6 +580,63 @@
   opacity: 0.6;
 }
 
+/* PoetryCoupletInserter.tsx's hover zones — portaled to a fixed position
+   straddling the active couplet's top and bottom borders. Hovering one
+   reveals a line across the border with a "+" button on it to insert a
+   couplet above/below (the poetry menu's own actions, one hover away). */
+.likhari-poetry-insert-zone {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.likhari-poetry-insert-zone::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--editor-accent);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.likhari-poetry-insert-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--editor-accent);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.1s ease,
+    transform 0.1s ease;
+}
+
+.likhari-poetry-insert-zone:hover::before,
+.likhari-poetry-insert-zone:focus-within::before {
+  opacity: 0.6;
+}
+
+.likhari-poetry-insert-zone:hover .likhari-poetry-insert-button,
+.likhari-poetry-insert-zone:focus-within .likhari-poetry-insert-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .likhari-table {
   border-collapse: collapse;
   margin: 1em 0;

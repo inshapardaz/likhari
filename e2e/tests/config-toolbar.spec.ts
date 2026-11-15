@@ -208,4 +208,39 @@ test.describe('poetry', () => {
     await editor.button('شاعری کے اختیارات').click();
     await expect(page.getByRole('menuitem')).not.toHaveCount(0);
   });
+
+  test('converts selected lines into a single-column block, trimming them and dropping blank lines', async ({ editor, page }) => {
+    await editor.open({ preset: 'poetry', locale: 'ur' });
+    await editor.type('  پہلا مصرع  ');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await editor.type('دوسرا مصرع');
+    await editor.selectAll();
+    await editor.button('شعر شامل کریں').click();
+
+    const html = await editor.html();
+    expect(html).toContain('data-likhari-poetry-layout="single"');
+    // The block is always followed by an (empty) editable paragraph, hence trimEnd.
+    expect((await editor.output('Get plain text')).trimEnd()).toBe('پہلا مصرع\nدوسرا مصرع');
+    expect(await editor.content.locator('.likhari-poetry .likhari-paragraph').count()).toBe(2);
+  });
+
+  test('hovering a couplet border shows a button that inserts a couplet above or below', async ({ editor, page }) => {
+    await editor.open({ preset: 'poetry', locale: 'ur' });
+    await editor.button('شعر شامل کریں').click();
+    await editor.type('شعر');
+
+    const below = page.getByRole('button', { name: 'نیچے شعر شامل کریں' });
+    await expect(below).toHaveCount(1);
+    await below.hover({ force: true });
+    await expect(below).toBeVisible();
+    await below.click({ force: true });
+    await expect(editor.content.locator('.likhari-poetry .likhari-paragraph')).toHaveCount(4);
+
+    await page.getByRole('button', { name: 'اوپر شعر شامل کریں' }).click({ force: true });
+    await expect(editor.content.locator('.likhari-poetry .likhari-paragraph')).toHaveCount(6);
+    // Clicking the buttons didn't take focus out of the editor.
+    await editor.type('نیا');
+    expect(await editor.output('Get plain text')).toContain('نیا');
+  });
 });

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  $createLineBreakNode,
   $createParagraphNode,
+  $createRangeSelection,
   $createTextNode,
   $getRoot,
   $getSelection,
   $isRangeSelection,
+  $setSelection,
   createEditor,
   type ElementNode,
   type LexicalEditor,
@@ -14,6 +17,8 @@ import { LayoutContainerNode, LayoutItemNode } from './LayoutNode';
 import { $isPoetryBlockNode, PoetryBlockNode } from './PoetryNode';
 import {
   $completeSingleCoupletBlock,
+  $convertSelectionToPoetry,
+  $getCoupletFromSelection,
   $deletePoetryBlock,
   $deletePoetryCouplet,
   $deletePoetryOnBackspace,
@@ -1000,5 +1005,135 @@ describe('PoetryBlockNode.importJSON (issue #29)', () => {
       },
       { discrete: true },
     );
+  });
+});
+
+/** Selects from the start of the first text node to the end of the last. */
+function $selectAcross(first: TextNode, last: TextNode): void {
+  const selection = $createRangeSelection();
+  selection.anchor.set(first.getKey(), 0, 'text');
+  selection.focus.set(last.getKey(), last.getTextContentSize(), 'text');
+  $setSelection(selection);
+}
+
+describe('$convertSelectionToPoetry', () => {
+  it('turns the selected paragraphs into one single-column block, trimming lines and dropping blank ones', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const root = $getRoot();
+        const before = $createParagraphNode().append($createTextNode('intro'));
+        const first = $createTextNode('  line one  ');
+        const p1 = $createParagraphNode().append(first);
+        const blank = $createParagraphNode().append($createTextNode('   '));
+        const empty = $createParagraphNode();
+        const last = $createTextNode('line two');
+        const p2 = $createParagraphNode().append(last);
+        const after = $createParagraphNode().append($createTextNode('outro'));
+        root.append(before, p1, blank, empty, p2, after);
+        $selectAcross(first, last);
+        expect($convertSelectionToPoetry()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const children = $getRoot().getChildren();
+      expect(children.map((c) => c.getType())).toEqual(['paragraph', 'poetry-couplet', 'paragraph']);
+      const block = getBlock();
+      expect(block.getLayout()).toBe('single');
+      expect($getCouplets(block)).toHaveLength(1);
+      // The caret lands at the start of the new block's first misra.
+      const selection = $getSelection();
+      expect($isRangeSelection(selection) && selection.isCollapsed()).toBe(true);
+      expect($getCoupletFromSelection()?.[0].getTextContent()).toBe('line one');
+    });
+    expect(misraTexts(editor)).toEqual(['line one', 'line two']);
+  });
+
+  it('splits a paragraph on its hard line breaks, keeps inline formatting, and pairs a dangling line with an empty partner', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('alpha ');
+        const bold = $createTextNode('beta').toggleFormat('bold');
+        const last = $createTextNode('gamma');
+        $getRoot().append(
+          $createParagraphNode().append(first, $createLineBreakNode(), bold, $createLineBreakNode(), $createLineBreakNode(), last),
+        );
+        $selectAcross(first, last);
+        expect($convertSelectionToPoetry()).toBe(true);
+      },
+      { discrete: true },
+    );
+
+    expect(misraTexts(editor)).toEqual(['alpha', 'beta', 'gamma', '']);
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      const beta = $getMisraParagraphs(block)[1].getFirstChild() as TextNode;
+      expect(beta.hasFormat('bold')).toBe(true);
+      expect(block.getNextSibling()?.getType()).toBe('paragraph');
+    });
+  });
+
+  it('is the behaviour of $insertPoetryCouplet when text is selected outside a block', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('one');
+        const last = $createTextNode('two');
+        $getRoot().append($createParagraphNode().append(first), $createParagraphNode().append(last));
+        $selectAcross(first, last);
+        expect($insertPoetryCouplet('two-column')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      // Conversion is always single-column, whatever the toolbar's default layout.
+      expect(getBlock().getLayout()).toBe('single');
+    });
+    expect(misraTexts(editor)).toEqual(['one', 'two']);
+  });
+
+  it('changes nothing for a collapsed selection, a selection inside a block, or whitespace-only text', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => expect($convertSelectionToPoetry()).toBe(false));
+    editor.update(
+      () => {
+        const only = $createTextNode('   ');
+        $getRoot().clear().append($createParagraphNode().append(only));
+        $selectAcross(only, only);
+        expect($convertSelectionToPoetry()).toBe(false);
+        expect($getRoot().getChildrenSize()).toBe(1);
+      },
+      { discrete: true },
+    );
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        const misra = $getMisraParagraphs(getBlock())[0];
+        const text = $createTextNode('inside');
+        misra.append(text);
+        $selectAcross(text, text);
+        expect($convertSelectionToPoetry()).toBe(false);
+      },
+      { discrete: true },
+    );
+  });
+});
+
+describe('$getCoupletFromSelection', () => {
+  it('returns the caret couplet in either layout and null outside a block', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => {
+      expect($getCoupletFromSelection()).toBeNull();
+      // Couplet tuples are built afresh per call, so compare by misra key.
+      const coupletIndex = () => $getCouplets(getBlock()).findIndex(([a]) => a.getKey() === $getCoupletFromSelection()?.[0].getKey());
+      $insertPoetryCouplet('two-column');
+      expect(coupletIndex()).toBe(0);
+      $insertCoupletRelativeToSelection('after'); // caret moves into the new second couplet
+      expect(coupletIndex()).toBe(1);
+    });
   });
 });
