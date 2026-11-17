@@ -21,5 +21,5 @@ export { localStorageUserWordStore, apiUserWordStore, ignoreWord, addUserWord, o
 export type { UserWordStore } from './spellcheck/userWords';
 export { dictionaryCompletionStore, apiCompletionStore } from './autocomplete/completionStores';
 export type { CompletionStore } from './autocomplete/completionStores';
-export { freeDictionaryApiStore, apiDictionaryStore } from './dictionary/dictionaryStores';
+export { freeDictionaryApiStore, apiDictionaryStore, nawishtaDictionaryStore, listNawishtaDictionaryStores } from './dictionary/dictionaryStores';
 export type { DictionaryStore, DictionaryEntry } from './dictionary/dictionaryStores';

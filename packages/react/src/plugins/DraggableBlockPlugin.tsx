@@ -130,6 +130,14 @@ export function DraggableBlockPlugin() {
   const hoverRef = useRef<Hover | null>(null);
   hoverRef.current = hover;
 
+  /** Ends a drag whichever way it ended: forgets it, hides the indicator and
+   * gives the hover overlays their pointer events back. */
+  const finishDrag = (anchor: HTMLElement) => {
+    dragRef.current = null;
+    setIndicator(null);
+    anchor.closest('.likhari-root')?.classList.remove(DRAGGING_CLASS);
+  };
+
   useEffect(() => {
     return editor.registerRootListener((root) => {
       setCanvas((root?.closest('.likhari-canvas') as HTMLElement | null) ?? null);
@@ -272,9 +280,12 @@ export function DraggableBlockPlugin() {
         (event) => {
           if (!dragRef.current || eventFiles(event)[0]) return false;
           const target = targetFor(event);
-          setIndicator(null);
+          // Finish here, not only in the grip's own dragend: a successful drop
+          // re-renders (and unmounts) the grips before the browser fires
+          // dragend on the one being dragged, so that handler never runs and
+          // the overlays would stay inert until the page is reloaded.
+          finishDrag(canvas);
           setHover(null);
-          dragRef.current = null;
           if (!target) return false;
           event.preventDefault();
           return target.apply();
@@ -299,11 +310,7 @@ export function DraggableBlockPlugin() {
     // their pointer events off for the duration so they can't swallow it.
     canvas.closest('.likhari-root')?.classList.add(DRAGGING_CLASS);
   };
-  const endDrag = () => {
-    dragRef.current = null;
-    setIndicator(null);
-    canvas.closest('.likhari-root')?.classList.remove(DRAGGING_CLASS);
-  };
+  const endDrag = () => finishDrag(canvas);
 
   const gripStyle = (rect: Rect, offset: number): CSSProperties => ({
     top: rect.top,

@@ -63,3 +63,25 @@ export function $selectionIsWithinWord(word: WordAtPoint): boolean {
   const withinSpan = (key: string, offset: number) => key === anchorKey && offset >= anchorOffset && offset <= focusOffset;
   return withinSpan(selection.anchor.key, selection.anchor.offset) && withinSpan(selection.focus.key, selection.focus.offset);
 }
+
+/** The one word the selection covers, if that is what it is: a non-collapsed selection
+ * within a single text node whose text is one word, give or take surrounding whitespace
+ * (a double-click on Windows selects the trailing space too). Null for a caret, or for
+ * a selection spanning several words or nodes. Must run inside an editor read or update. */
+export function $wordFromSelection(): WordAtPoint | null {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || selection.isCollapsed()) return null;
+  if (selection.anchor.key !== selection.focus.key) return null;
+  const node = selection.anchor.getNode();
+  if (!$isTextNode(node)) return null;
+  const start = Math.min(selection.anchor.offset, selection.focus.offset);
+  const end = Math.max(selection.anchor.offset, selection.focus.offset);
+  const selected = node.getTextContent().slice(start, end);
+  const spans = wordsIn(selected);
+  if (spans.length !== 1 || selected.trim() !== spans[0].word) return null;
+  return {
+    word: spans[0].word,
+    direction: node.getParentOrThrow().getDirection() === 'rtl' ? 'rtl' : 'ltr',
+    match: { anchorKey: node.getKey(), anchorOffset: start + spans[0].start, focusKey: node.getKey(), focusOffset: start + spans[0].end },
+  };
+}

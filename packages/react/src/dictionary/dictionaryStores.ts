@@ -94,3 +94,82 @@ export function apiDictionaryStore(options: {
     },
   };
 }
+
+interface NawishtaArticle {
+  headword?: unknown;
+  senses?: { meanings?: { definition?: unknown }[] }[];
+}
+
+/** Normalises a headword for comparing against the looked-up word: surrounding
+ * and repeated whitespace, and the Urdu/Arabic diacritics dictionaries add
+ * to headwords but writers rarely type. */
+function normalizeHeadword(text: string): string {
+  return text
+    .normalize('NFC')
+    .replace(/[ً-ْٰ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * One dictionary from nawishta's library, https://api.nawishta.co.uk — its
+ * `GET /dictionaries/{id}/articles?query=…` is a substring search over
+ * headwords, so this takes the page and keeps only the article(s) whose
+ * headword is the word itself. Every dictionary there is Urdu (or Punjabi
+ * Shahmukhi), so English lookups are answered with null straight away.
+ */
+export function nawishtaDictionaryStore(options: {
+  dictionaryId: number;
+  label: string;
+  id?: string;
+  baseUrl?: string;
+  fetch?: typeof fetch;
+}): DictionaryStore {
+  const base = (options.baseUrl ?? 'https://api.nawishta.co.uk').replace(/\/$/, '');
+  const doFetch = options.fetch ?? fetch;
+  return {
+    id: options.id ?? `nawishta-${options.dictionaryId}`,
+    label: options.label,
+    async lookup(word, language) {
+      if (language === 'en') return null;
+      const url = `${base}/dictionaries/${options.dictionaryId}/articles?query=${encodeURIComponent(word)}&pageSize=200`;
+      const response = await doFetch(url);
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`Nawishta dictionary API failed: ${response.status}`);
+      const data: unknown = await response.json();
+      const articles = (data as { data?: unknown })?.data;
+      if (!Array.isArray(articles)) return null;
+      const wanted = normalizeHeadword(word);
+      const meanings: string[] = [];
+      let headword: string | null = null;
+      for (const article of articles as NawishtaArticle[]) {
+        if (typeof article.headword !== 'string' || normalizeHeadword(article.headword) !== wanted) continue;
+        headword ??= article.headword.trim();
+        for (const sense of article.senses ?? []) {
+          for (const meaning of sense.meanings ?? []) {
+            if (typeof meaning.definition === 'string' && meaning.definition.trim()) meanings.push(meaning.definition.trim());
+          }
+        }
+      }
+      return meanings.length > 0 ? { word: headword ?? word, meanings } : null;
+    },
+  };
+}
+
+/**
+ * Every dictionary nawishta's library lists (`GET /dictionaries`), as lookup
+ * stores named after them — for a host that wants whatever the library
+ * offers rather than a fixed set of ids. Rejects when the list can't be read.
+ */
+export async function listNawishtaDictionaryStores(options: { baseUrl?: string; fetch?: typeof fetch } = {}): Promise<DictionaryStore[]> {
+  const base = (options.baseUrl ?? 'https://api.nawishta.co.uk').replace(/\/$/, '');
+  const doFetch = options.fetch ?? fetch;
+  const response = await doFetch(`${base}/dictionaries?pageSize=100`);
+  if (!response.ok) throw new Error(`Nawishta dictionary API failed: ${response.status}`);
+  const data: unknown = await response.json();
+  const list = (data as { data?: unknown })?.data;
+  if (!Array.isArray(list)) return [];
+  return (list as { id?: unknown; name?: unknown }[])
+    .filter((d): d is { id: number; name: string } => typeof d.id === 'number' && typeof d.name === 'string')
+    .map((d) => nawishtaDictionaryStore({ dictionaryId: d.id, label: d.name, baseUrl: base, fetch: options.fetch }));
+}

@@ -3,10 +3,13 @@ import { ColorInput, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
 import {
   EditorRoot,
+  freeDictionaryApiStore,
+  listNawishtaDictionaryStores,
   localStorageAutoCorrectStore,
   nawishtaAutoCorrectStore,
   registerSpellDictionary,
   type AutoCorrectStore,
+  type DictionaryStore,
   type DraftRestoreMode,
   type EditorRef,
   type NavigationGuardMode,
@@ -35,6 +38,26 @@ const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 // added through the editor (any language) are kept in local storage, since
 // nawishta's auto-correct endpoint is read-only.
 const AUTOCORRECT_STORES: AutoCorrectStore[] = [nawishtaAutoCorrectStore(), localStorageAutoCorrectStore()];
+
+// "Look up" dictionaries: English from dictionaryapi.dev, Urdu from whatever
+// nawishta's library lists (fetched once; the English one stands alone until
+// then, or if the library can't be reached).
+const ENGLISH_DICTIONARY: DictionaryStore[] = [freeDictionaryApiStore()];
+function useLookupDictionaries(): DictionaryStore[] {
+  const [stores, setStores] = useState<DictionaryStore[]>(ENGLISH_DICTIONARY);
+  useEffect(() => {
+    let cancelled = false;
+    listNawishtaDictionaryStores()
+      .then((nawishta) => {
+        if (!cancelled) setStores([...ENGLISH_DICTIONARY, ...nawishta]);
+      })
+      .catch((error: unknown) => console.warn('Nawishta dictionaries unavailable', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return stores;
+}
 
 type Locale = 'en' | 'ur' | 'pa-shahmukhi';
 
@@ -236,6 +259,7 @@ function OutputPopup({ title, content, dark, onClose }: { title: string; content
 
 export function App() {
   const editorRef = useRef<EditorRef>(null);
+  const lookupDictionaries = useLookupDictionaries();
   const [savedPrefs] = useState(loadPrefs);
   const [preset, setPreset] = useState<FeatureConfigPresetName>(savedPrefs.preset ?? 'standard');
   const [config, setConfig] = useState<EditorFeatureConfig>(() => toEditorFeatureConfig(resolveFeatureConfig(undefined, savedPrefs.preset ?? 'standard')));
@@ -547,6 +571,7 @@ export function App() {
               restoreDraft={restoreDraft}
               navigationGuard={navigationGuard}
               autoCorrectStores={AUTOCORRECT_STORES}
+              dictionaryLookupStores={lookupDictionaries}
               featureConfig={config}
               colorScheme={colorScheme}
               accentColor={accentColor}
