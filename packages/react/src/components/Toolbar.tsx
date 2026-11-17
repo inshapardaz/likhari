@@ -46,7 +46,7 @@ import { lookupSynonyms, type ThesaurusStore } from '../thesaurus/thesaurusStore
 import type { DictionaryStore } from '../dictionary/dictionaryStores';
 import { DictionaryDialog } from './DictionaryDialog';
 import { addUserWord, ignoreWord, type UserWordStore } from '../spellcheck/userWords';
-import { $selectionIsWithinWord, $wordAtDomPoint, $wordAtSelection, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
+import { $selectionIsWithinWord, $wordAtDomPoint, $wordFromSelection, $wordAtSelection, textPointAt, type WordAtPoint } from '../spellcheck/spellingMenu';
 import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { ImageDialog, type ImageDialogValue } from '../image/ImageDialog';
 import { $createImageNode } from '../image/ImageNode';
@@ -1320,9 +1320,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
 
   useEffect(() => {
     const onContextMenu = async (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      // An image opens its own menu (ImageComponent.tsx), so this one stays closed.
+      if (target?.closest?.('.likhari-image-figure')) return;
       event.preventDefault();
       snapshotSelectionRef.current();
-      const target = event.target as HTMLElement | null;
       const anchor = config.links ? (target?.closest?.('a') ?? null) : null;
       const cell = config.tables ? (target?.closest?.('td, th') ?? null) : null;
       const couplet = config.poetry.enabled ? (target?.closest?.('.likhari-poetry') ?? null) : null;
@@ -1362,11 +1364,13 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               if (!$getPoetryBlockFromSelection()) block.selectStart();
             }
           }
-          if (point) {
+          // A selected word (double-clicked, or dragged over, even with its trailing space) is
+          // the word, wherever the pointer is. Otherwise the word under the pointer, unless the
+          // selection reaches beyond it (several words, a whole line, several lines): then the
+          // user is after something else entirely, not the word that merely sits under the pointer.
+          word = $wordFromSelection();
+          if (!word && point) {
             const atPoint = $wordAtDomPoint(point.node, point.offset);
-            // A selection that reaches beyond this one word (several words, a whole line, several
-            // lines) means the user is after something else entirely: no spelling fixes or
-            // synonyms for a word that's merely under the pointer, not what's actually selected.
             if (atPoint && $selectionIsWithinWord(atPoint)) word = atPoint;
           }
           if (!cell && !couplet && config.joinLines) {
@@ -1392,10 +1396,9 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           }
         }
       }
-      // A misspelled word's menu is its spelling fixes and the clipboard, nothing else: no synonyms or dictionary lookup either.
+      // A misspelled word's menu is its spelling fixes, a dictionary lookup and the clipboard, nothing else: no synonyms.
       if (menu.spelling) {
         menu.thesaurus = undefined;
-        menu.dictionary = undefined;
         menu.link = undefined;
         menu.table = undefined;
         menu.poetry = undefined;
@@ -2236,6 +2239,19 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
   const hiddenMovable = [...mainMovable, ...endMovable].filter((section) => !isVisible(section));
 
   // The right-click menu and the dialogs are the same in both layouts.
+  // "Look up" is offered for the word whether it is spelled right or not, so it sits in both branches below.
+  const lookUpItem = contextMenu?.dictionary ? (
+    <Menu.Item
+      leftSection={<IconBooks size={ICON_SIZE} stroke={ICON_STROKE} />}
+      onClick={() => {
+        openDictionaryDialog(contextMenu.dictionary!);
+        setContextMenu(null);
+      }}
+    >
+      {strings.contextMenu.lookUp}
+    </Menu.Item>
+  ) : null;
+
   const contextMenuEl = (
     <Menu
       opened={contextMenu !== null}
@@ -2319,6 +2335,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 {strings.contextMenu.addToAutoCorrect}
               </Menu.Item>
             )}
+            {lookUpItem}
             <Menu.Divider />
           </>
         ) : (
@@ -2346,17 +2363,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 </Menu.Sub.Dropdown>
               </Menu.Sub>
             )}
-            {contextMenu?.dictionary && (
-              <Menu.Item
-                leftSection={<IconBooks size={ICON_SIZE} stroke={ICON_STROKE} />}
-                onClick={() => {
-                  openDictionaryDialog(contextMenu.dictionary!);
-                  setContextMenu(null);
-                }}
-              >
-                {strings.contextMenu.lookUp}
-              </Menu.Item>
-            )}
+            {lookUpItem}
             {contextMenu?.link !== undefined && (
               <Menu.Sub {...CONTEXT_SUBMENU_PROPS}>
                 <Menu.Sub.Target>

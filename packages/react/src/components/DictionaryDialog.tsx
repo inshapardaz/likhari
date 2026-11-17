@@ -24,29 +24,43 @@ export function DictionaryDialog({ opened, word, language, stores, onClose }: Di
   const strings = useUiStrings();
   const portalTarget = usePortalTarget();
   const [storeId, setStoreId] = useState(stores[0]?.id ?? '');
+  /** Set once the user picks a dictionary: then only that one is queried. Until
+   * then a word the first dictionary has nothing for falls through to the next
+   * (an Urdu word with an English dictionary listed first, say). */
+  const [chosen, setChosen] = useState(false);
   const [entry, setEntry] = useState<DictionaryEntry | null | undefined>(undefined);
+
+  // Each word starts afresh: the picker's choice is for this word, not the next.
+  useEffect(() => {
+    if (opened) setChosen(false);
+  }, [opened, word]);
 
   useEffect(() => {
     if (!opened) return;
-    const store = stores.find((s) => s.id === storeId) ?? stores[0];
-    if (!store) {
+    const preferred = stores.find((s) => s.id === storeId) ?? stores[0];
+    if (!preferred) {
       setEntry(null);
       return;
     }
+    const candidates = chosen ? [preferred] : [preferred, ...stores.filter((s) => s !== preferred)];
     let active = true;
     setEntry(undefined);
-    store
-      .lookup(word, language)
-      .then((result) => {
-        if (active) setEntry(result);
-      })
-      .catch(() => {
-        if (active) setEntry(null);
-      });
+    (async () => {
+      for (const store of candidates) {
+        const result = await store.lookup(word, language).catch(() => null);
+        if (!active) return;
+        if (result) {
+          if (store.id !== storeId) setStoreId(store.id);
+          setEntry(result);
+          return;
+        }
+      }
+      if (active) setEntry(null);
+    })();
     return () => {
       active = false;
     };
-  }, [opened, word, language, storeId, stores]);
+  }, [opened, word, language, storeId, chosen, stores]);
 
   return (
     <Modal opened={opened} onClose={onClose} title={strings.dictionaryLookup.title} centered size="sm" portalProps={{ target: portalTarget }}>
@@ -57,7 +71,10 @@ export function DictionaryDialog({ opened, word, language, stores, onClose }: Di
           label={strings.dictionaryLookup.dictionaryLabel}
           value={stores.some((s) => s.id === storeId) ? storeId : stores[0]?.id ?? null}
           data={stores.map((s) => ({ value: s.id, label: s.label }))}
-          onChange={(value) => setStoreId(value ?? stores[0]?.id ?? '')}
+          onChange={(value) => {
+            setChosen(true);
+            setStoreId(value ?? stores[0]?.id ?? '');
+          }}
           allowDeselect={false}
         />
       )}

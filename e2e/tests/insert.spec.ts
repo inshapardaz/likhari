@@ -315,6 +315,21 @@ test.describe('images', () => {
     expect(await editor.output('Get Markdown')).toContain(`::figure[My caption]{src="${IMAGE_URL}" alt="A photo"}`);
   });
 
+  test('right-clicking an image opens only the image menu, not the text one as well', async ({ editor, page }) => {
+    await editor.open();
+    await editor.button('Insert image').click();
+    const dialog = page.getByRole('dialog', { name: 'Insert image' });
+    await dialog.getByRole('textbox', { name: 'Image URL' }).fill(IMAGE_URL);
+    await dialog.getByRole('textbox', { name: 'Caption' }).fill('My caption');
+    await dialog.getByRole('button', { name: 'Insert' }).click();
+    await expect(dialog).toBeHidden();
+
+    // The fixture image is a single pixel, so right-click the figure by its caption.
+    await editor.content.getByText('My caption').click({ button: 'right' });
+    await expect(page.locator('[role="menu"]')).toHaveCount(1);
+    await expect(page.getByRole('menuitem', { name: 'Cut' })).toHaveCount(0);
+  });
+
   test('requires an image URL', async ({ editor, page }) => {
     await editor.open();
     await editor.button('Insert image').click();

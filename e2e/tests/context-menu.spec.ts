@@ -225,12 +225,39 @@ test.describe('dictionary lookup', () => {
     await expect(dialog).toHaveCount(0);
   });
 
-  test('is not offered for a misspelled word', async ({ editor, page }) => {
+  test('is offered for a misspelled word too, alongside its spelling fixes', async ({ editor, page }) => {
     await editor.open();
     await editor.type('a wrold here');
     await openMenuOnWord(editor, 'a wrold here', 30);
 
-    await expect(item(page, 'Look up')).toHaveCount(0);
+    await expect(menu(page).getByText('Spelling suggestions')).toBeVisible();
+    await item(page, 'Look up').click();
+    const dialog = page.getByRole('dialog', { name: 'Dictionary' });
+    await expect(dialog.getByText('wrold', { exact: true })).toBeVisible();
+  });
+
+  test('is offered for a selected word, even one selected with its trailing space', async ({ editor, page }) => {
+    await editor.open();
+    await editor.type('hello world');
+    await editor.content.getByText('hello world').dblclick({ position: { x: 8, y: 8 } }); // selects "hello", maybe "hello "
+    await editor.content.getByText('hello world').click({ button: 'right', position: { x: 8, y: 8 } });
+    await expect(menu(page)).toBeVisible();
+
+    await item(page, 'Look up').click();
+    const dialog = page.getByRole('dialog', { name: 'Dictionary' });
+    await expect(dialog.getByText('hello', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('noun: A greeting.')).toBeVisible();
+  });
+
+  test("an Urdu word opens on the nawishta dictionary that has it, not the English one listed first", async ({ editor, page }) => {
+    await editor.open({ locale: 'ur' });
+    await editor.type('سلام');
+    await openMenuOnWord(editor, 'سلام', 8);
+
+    await item(page, 'لغت میں دیکھیں').click();
+    const dialog = page.getByRole('dialog', { name: 'لغت' });
+    await expect(dialog.getByText('سلامتی کی دعا، تسلیمات')).toBeVisible();
+    await expect(dialog.locator('input').first()).toHaveValue('اردو لغت');
   });
 });
 

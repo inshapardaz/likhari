@@ -23,6 +23,15 @@ const NAWISHTA_AUTOCORRECT = JSON.stringify([
   { incorrectText: 'کتا', correctText: 'کتّا', completeWord: true },
 ]);
 
+/** nawishta's dictionary library: the list, and one Urdu dictionary's articles for 'سلام'. */
+const NAWISHTA_DICTIONARIES = JSON.stringify({ data: [{ id: 3, name: 'اردو لغت' }] });
+const NAWISHTA_ARTICLES = JSON.stringify({
+  data: [
+    { headword: 'سلام علیک', senses: [{ meanings: [{ definition: 'آپس کی سلام دعا' }] }] },
+    { headword: 'سلام', senses: [{ meanings: [{ definition: 'سلامتی کی دعا، تسلیمات' }] }] },
+  ],
+});
+
 /** A fixture for the dictionaryapi.dev shape, so a dictionary lookup never depends on the real service. */
 const DICTIONARY_LOOKUP = JSON.stringify([
   { word: 'hello', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A greeting.' }] }] },
@@ -63,6 +72,8 @@ export async function mockNetwork(context: BrowserContext, appOrigin: string): P
       }
       if (url.hostname === 'api.nawishta.co.uk') {
         note(request);
+        if (url.pathname === '/dictionaries') return text(route, NAWISHTA_DICTIONARIES, 'application/json; charset=utf-8');
+        if (/^\/dictionaries\/\d+\/articles$/.test(url.pathname)) return text(route, NAWISHTA_ARTICLES, 'application/json; charset=utf-8');
         return text(route, NAWISHTA_AUTOCORRECT, 'application/json; charset=utf-8');
       }
       if (url.hostname === 'api.dictionaryapi.dev') {
