@@ -58,5 +58,10 @@ test.describe('drag grip', () => {
     await expect(coupletGrip).toBeVisible();
     await dragTo(page, coupletGrip, lines.first(), 'top');
     await expect(lines).toHaveText(['b1', 'a1', 'b2', 'a2']);
+
+    // The hover controls keep working after a drop (they are disabled only while a drag is in flight).
+    await expect(editor.page.locator('.likhari-dragging')).toHaveCount(0);
+    await page.getByRole('button', { name: 'نیچے شعر شامل کریں' }).click({ force: true });
+    await expect(lines).toHaveCount(6);
   });
 });
