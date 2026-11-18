@@ -1390,8 +1390,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       if (word && config.language.spellCheck) {
         const speller = getSpeller(language);
         if (speller) {
-          const checked = await speller;
-          if (!checked.correct(word.word)) {
+          // A remote dictionary that fails to load (e.g. a 404) must not stop the
+          // menu from opening with whatever else it found.
+          const checked = await speller.catch(() => null);
+          if (checked && !checked.correct(word.word)) {
             menu.spelling = { word: word.word, language, suggestions: checked.suggest(word.word).slice(0, 5), match: word.match };
           }
         }

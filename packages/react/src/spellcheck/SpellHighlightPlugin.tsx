@@ -163,10 +163,10 @@ export function SpellHighlightPlugin({ language = 'auto' }: SpellHighlightPlugin
       paint();
     });
 
-    Promise.all([getSpeller('en'), getSpeller('ur')]).then(async ([en, ur]) => {
+    Promise.all([getSpeller('en')?.catch(() => undefined), getSpeller('ur')?.catch(() => undefined)]).then(async ([en, ur]) => {
       if (!active) return;
-      const enSpeller = en ? await en : undefined;
-      const urSpeller = ur ? await ur : undefined;
+      const enSpeller = en ?? undefined;
+      const urSpeller = ur ?? undefined;
       checkers =
         language === 'auto'
           ? { ltr: enSpeller, rtl: urSpeller }
