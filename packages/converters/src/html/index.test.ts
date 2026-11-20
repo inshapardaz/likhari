@@ -216,6 +216,43 @@ describe('poetry export', () => {
     const [back] = blocksOf(roundTrip([block]));
     expect(back).toMatchObject({ layout: 'staggered', stagger: 'loose', width: 480 });
   });
+
+  it('round-trips a musaddas (6-line) stanza, single-column only', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'single', form: 'musaddas' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-form="musaddas"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', form: 'musaddas' });
+    expect(back.children).toHaveLength(6);
+  });
+
+  it('round-trips a mukhammas (5-line) stanza', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'single', form: 'mukhammas' });
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', form: 'mukhammas' });
+    expect(back.children).toHaveLength(5);
+  });
+
+  it('round-trips autoWidth as fit-content, single-layout only', () => {
+    const lines = [paragraph([textNode('a')]), paragraph([textNode('b')])];
+    const block = elementBase('poetry-couplet', lines, { layout: 'single', autoWidth: true });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: fit-content');
+    expect(html).toContain('data-likhari-poetry-auto-width="true"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', autoWidth: true });
+  });
+
+  it('keeps a non-default stagger group through a round trip (request 3)', () => {
+    const lines = [paragraph([textNode('a')]), paragraph([textNode('b')]), paragraph([textNode('c')]), paragraph([textNode('d')])];
+    const block = elementBase('poetry-couplet', lines, { layout: 'staggered', staggerGroup: 2 });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-stagger-group="2"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ layout: 'staggered', staggerGroup: 2 });
+  });
 });
 
 describe('html tables and footnotes export', () => {

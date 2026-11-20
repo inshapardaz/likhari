@@ -252,14 +252,47 @@ standard paragraph/heading semantics:
 | Single-column justified, with some couplets left-aligned and others right-aligned | Per-couplet alignment override within a single-column flow | Alignment is set per `CoupletNode`, not inherited from a document-wide setting — this is the same underlying need as the previous row (per-block override), just varying alignment instead of column count. |
 
 **Design recommendation**: rather than four bespoke node types, implement one
-`PoetryBlockNode` type with a `layout` attribute (`single` | `two-column`) and an
-`alignment` attribute (`justify` | `left` | `right` | `start`) settable per instance,
-and let editors mix instances of it freely in a document. This covers all four
+`PoetryBlockNode` type with a `layout` attribute (`single` | `two-column` | `staggered`)
+and an `alignment` attribute (`justify` | `left` | `right` | `start`) settable per
+instance, and let editors mix instances of it freely in a document. This covers all four
 requested templates (and combinations of them) with one extensible primitive instead of
-four fixed templates, and makes future variants (e.g. three-line forms) cheaper to add.
+four fixed templates.
+
+**Amendment — stanza form (musaddas/mukhammas)**: `layout` is one axis; a second,
+orthogonal `form` attribute picks the stanza size — exactly the "future variants (e.g.
+three-line forms)" this design anticipated. `form` is `'couplet'` (2 misras, the
+original and still the default), `'mukhammas'` (5) or `'musaddas'` (6); `layout`'s
+`single` rendering generalizes directly (a dashed divider + gap after every `form`-sized
+group of paragraphs instead of every 2nd). Scope restriction: `two-column` and
+`staggered` stay **couplet-only** — a musaddas/mukhammas block only ever offers
+`single`, so the toolbar hides the other two layout choices once `form !== 'couplet'`
+rather than letting a 5- or 6-column (or staggered-box) rendering exist. Backward
+compatible: a document with no `form` attribute imports as `'couplet'` and renders
+pixel-identical to before this amendment.
+
+**Amendment — auto width**: a boolean `autoWidth` attribute, `single`-layout only (a
+percentage/manual width inside a CSS `fit-content` parent is circular, so `two-column`
+and `staggered` never offer it), sizes the block to `width: fit-content` instead of the
+default 70%-of-canvas or a user-dragged pixel width — the block's width then tracks its
+own longest misra, with every other line's existing `text-align-last: justify` still
+stretching to fill that same width. Mutually exclusive with a manual drag-width: setting
+one is ignored while the other actually renders. Switching `layout` away from `single`
+forces `autoWidth` back to `false`.
+
+**Amendment — stagger grouping**: a `staggerGroup` attribute (`1 | 2`, default `1`,
+`staggered`-layout and couplet-form only) generalizes the "alternating sides" placement
+from flipping every single couplet to flipping every `staggerGroup` couplets — the
+"auto" grid the reference implementation (shakesvision.github.io/PoetryJustification)
+calls out, read here as this side-alternation period rather than a separately specified
+grid algorithm. `1` reproduces the original fixed alternation exactly.
 
 Provide a "poetry mode" toolbar/insert menu specific to Urdu/Punjabi editing contexts
-(hidden entirely when the feature is disabled via props, see §5).
+(hidden entirely when the feature is disabled via props, see §5) — "Insert couplet",
+"Insert musaddas" and "Insert mukhammas" each insert one empty stanza of the right size
+in `single` layout; which of the three show is restricted by `poetry.forms` (§5).
+Selecting text first and invoking any of the three converts the selection into that
+stanza form instead (padding a short final stanza with empty lines), generalizing the
+couplet-only "select multiple lines and press the poetry command" behaviour.
 
 ---
 
@@ -291,7 +324,16 @@ interface EditorFeatureConfig {
   tables?: boolean;
   columns?: boolean;
   footnotes?: boolean;
-  poetry?: { enabled?: boolean; defaultLayout?: 'single' | 'two-column' };
+  poetry?: {
+    enabled?: boolean;
+    defaultLayout?: 'single' | 'two-column';
+    // Restricts which stanza forms the insert menu offers — couplet/mukhammas/
+    // musaddas (§4.11, amended) — same idea as blocks.headingLevels restricting a
+    // list above. All custom node attributes stay supported regardless of this
+    // toggle (§2): narrowing it never breaks a document already containing the
+    // hidden form, since this only hides the *insert* entries, not node data.
+    forms?: ('couplet' | 'mukhammas' | 'musaddas')[];
+  };
   findReplace?: boolean;
   joinLines?: boolean; // combine the selected lines into one paragraph
   dragBlocks?: boolean; // drag grip beside each block; in poetry, per couplet and per line

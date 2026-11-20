@@ -84,16 +84,18 @@ function findTopLevelAt(editor: LexicalEditor, y: number, nearest: boolean): { k
 }
 
 /** Inside a poetry block: the misra under the point (by row, then by column
- * for the two misras of a two-column couplet), falling back to the nearest
- * line vertically, with the couplet it belongs to. */
-function findMisraAt(editor: LexicalEditor, blockKey: string, x: number, y: number): { couplet: Couplet; misraIndex: 0 | 1; lineEl: HTMLElement; coupletEls: HTMLElement[] } | null {
+ * for the two misras of a two-column couplet — a `single`/`staggered`
+ * stanza can be longer than two lines for musaddas/mukhammas, so this is
+ * generic over stanza length), falling back to the nearest line vertically,
+ * with the stanza it belongs to. */
+function findMisraAt(editor: LexicalEditor, blockKey: string, x: number, y: number): { couplet: Couplet; misraIndex: number; lineEl: HTMLElement; coupletEls: HTMLElement[] } | null {
   return editor.getEditorState().read(() => {
     const block = $getNodeByKey(blockKey);
     if (!$isPoetryBlockNode(block)) return null;
-    let best: { couplet: Couplet; misraIndex: 0 | 1; lineEl: HTMLElement; coupletEls: HTMLElement[]; score: number } | null = null;
+    let best: { couplet: Couplet; misraIndex: number; lineEl: HTMLElement; coupletEls: HTMLElement[]; score: number } | null = null;
     for (const couplet of $getCouplets(block)) {
       const els = couplet.map((misra) => editor.getElementByKey(misra.getKey()));
-      if (!els[0] || !els[1]) continue;
+      if (els.some((el) => !el)) continue;
       const coupletEls = els as HTMLElement[];
       coupletEls.forEach((el, i) => {
         const rect = el.getBoundingClientRect();
@@ -102,7 +104,7 @@ function findMisraAt(editor: LexicalEditor, blockKey: string, x: number, y: numb
         // Rows first, then columns: a point inside a row but between its two
         // misras still prefers the nearer of the two.
         const score = dy * 10_000 + dx;
-        if (!best || score < best.score) best = { couplet, misraIndex: i as 0 | 1, lineEl: el, coupletEls, score };
+        if (!best || score < best.score) best = { couplet, misraIndex: i, lineEl: el, coupletEls, score };
       });
     }
     return best;

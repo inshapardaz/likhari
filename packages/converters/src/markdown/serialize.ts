@@ -9,7 +9,7 @@ import {
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, isEmptyParagraph, rootChildren, type SNode,
 } from '../shared/serialized';
 import { directive, type Attrs, type MdNode } from './mdast';
-import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
+import { boolOrDefault, formOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault } from '../shared/poetry';
 import { nodeToHtml, setFootnoteOrder } from '../html/serialize';
 
 const processor = unified()
@@ -263,6 +263,10 @@ function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
     const value = scaleOrDefault(node[key]);
     if (value !== 'normal') attrs[key] = value;
   }
+  const form = formOrDefault(node.form);
+  if (form !== 'couplet') attrs.form = form;
+  if (boolOrDefault(node.autoWidth)) attrs.autoWidth = 'true';
+  if (staggerGroupOrDefault(node.staggerGroup) !== 1) attrs.staggerGroup = String(staggerGroupOrDefault(node.staggerGroup));
   if (typeof node.width === 'number' && node.width > 0) attrs.width = String(node.width);
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
   return directive('containerDirective', 'poetry', attrs, inner);

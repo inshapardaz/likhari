@@ -59,6 +59,8 @@ export interface Strings {
     insertColumns: string;
     insertFootnote: string;
     insertPoetryCouplet: string;
+    insertPoetryMusaddas: string;
+    insertPoetryMukhammas: string;
     insertHorizontalRule: string;
     comingSoon: (label: string) => string;
     autocorrect: string;
@@ -203,6 +205,12 @@ export interface Strings {
     widerGutter: string;
     deleteCouplet: string;
     deletePoetry: string;
+    /** Toggles `layout: 'single'`-only fit-content width on/off (request 2). */
+    autoWidth: string;
+    fixedWidth: string;
+    /** How many couplets share one side before `staggered` flips (request 3). */
+    staggerGroupOne: string;
+    staggerGroupTwo: string;
   };
   dragHandle: {
     block: string;
@@ -403,6 +411,8 @@ const en: Strings = {
     insertColumns: 'Insert columns',
     insertFootnote: 'Insert footnote',
     insertPoetryCouplet: 'Insert poetry couplet',
+    insertPoetryMusaddas: 'Insert musaddas',
+    insertPoetryMukhammas: 'Insert mukhammas',
     insertHorizontalRule: 'Insert horizontal rule',
     comingSoon: (label) => `${label} (coming soon)`,
     autocorrect: 'Auto-correct',
@@ -531,6 +541,10 @@ const en: Strings = {
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
     deletePoetry: 'Delete poetry',
+    autoWidth: 'Auto width',
+    fixedWidth: 'Fixed width',
+    staggerGroupOne: '1 couplet per side',
+    staggerGroupTwo: '2 couplets per side',
   },
   dragHandle: {
     block: 'Drag to move',
@@ -732,6 +746,8 @@ const ur: Strings = {
     insertColumns: 'کالم شامل کریں',
     insertFootnote: 'فٹ نوٹ شامل کریں',
     insertPoetryCouplet: 'شعر شامل کریں',
+    insertPoetryMusaddas: 'مسدس شامل کریں',
+    insertPoetryMukhammas: 'مخمس شامل کریں',
     insertHorizontalRule: 'افقی لکیر شامل کریں',
     comingSoon: (label) => `${label} (جلد آ رہا ہے)`,
     autocorrect: 'خودکار تصحیح',
@@ -860,6 +876,10 @@ const ur: Strings = {
     widerGutter: 'کالمز کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
     deletePoetry: 'پوری شاعری حذف کریں',
+    autoWidth: 'خودکار چوڑائی',
+    fixedWidth: 'مقررہ چوڑائی',
+    staggerGroupOne: 'ہر طرف ایک شعر',
+    staggerGroupTwo: 'ہر طرف دو شعر',
   },
   dragHandle: {
     block: 'منتقل کرنے کے لیے گھسیٹیں',
@@ -1061,6 +1081,8 @@ const paShahmukhi: Strings = {
     insertColumns: 'کالم پاؤ',
     insertFootnote: 'فٹ نوٹ پاؤ',
     insertPoetryCouplet: 'شعر پاؤ',
+    insertPoetryMusaddas: 'مسدس پاؤ',
+    insertPoetryMukhammas: 'مخمس پاؤ',
     insertHorizontalRule: 'لیٹی لکیر پاؤ',
     comingSoon: (label) => `${label} (چھیتی آ رہا اے)`,
     autocorrect: 'خودکار درستی',
@@ -1189,6 +1211,10 @@ const paShahmukhi: Strings = {
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',
     deletePoetry: 'ساری شاعری مٹاؤ',
+    autoWidth: 'خودکار چوڑائی',
+    fixedWidth: 'مقررہ چوڑائی',
+    staggerGroupOne: 'ہر پاسے اک شعر',
+    staggerGroupTwo: 'ہر پاسے دو شعر',
   },
   dragHandle: {
     block: 'ہلاون لئی گھسیٹو',

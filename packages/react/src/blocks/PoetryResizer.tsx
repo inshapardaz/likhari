@@ -43,7 +43,9 @@ export function PoetryResizer() {
       editor.getEditorState().read(() => {
         const couplet = $getPoetryBlockFromSelection();
         const el = couplet ? editor.getElementByKey(couplet.getKey()) : null;
-        if (!couplet || !el) {
+        // Nothing to drag while autoWidth (fit-content) is on — the block
+        // sizes itself from its longest line, not a user-chosen width.
+        if (!couplet || !el || couplet.getAutoWidth()) {
           setActiveKey(null);
           setBox(null);
           return;

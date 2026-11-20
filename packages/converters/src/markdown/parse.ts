@@ -10,7 +10,7 @@ import {
   elementBase, makeState, paragraph, rootChildren, textNode, type SNode,
 } from '../shared/serialized';
 import { parseHtml, safeImageSrc, safeUrl } from '../html/parse';
-import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
+import { boolOrDefault, formOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault } from '../shared/poetry';
 import type { MdNode } from './mdast';
 
 const processor = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
@@ -247,16 +247,21 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
           }
         } else if (node.name === 'poetry') {
           const attrs = node.attributes ?? {};
+          const form = formOrDefault(attrs.form);
           const settings = {
             layout: layoutOrDefault(attrs.layout),
             spacing: scaleOrDefault(attrs.spacing),
             gutter: scaleOrDefault(attrs.gutter),
             stagger: scaleOrDefault(attrs.stagger),
             centerWidth: scaleOrDefault(attrs.centerWidth),
+            form,
+            autoWidth: boolOrDefault(attrs.autoWidth),
+            staggerGroup: staggerGroupOrDefault(attrs.staggerGroup),
             ...(Number(attrs.width) > 0 ? { width: Number(attrs.width) } : {}),
           };
           const children = blocks(node.children ?? []);
-          out.push(elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], settings));
+          const fallback = Array.from({ length: POETRY_STANZA_SIZE[form] }, () => paragraph());
+          out.push(elementBase('poetry-couplet', children.length > 0 ? children : fallback, settings));
         } else {
           // Unknown containers (including a stray "column" outside "columns")
           // are transparent: their content is kept.

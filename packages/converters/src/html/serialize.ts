@@ -1,7 +1,8 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
-  POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, layoutOrDefault, scaleOrDefault,
+  POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, POETRY_STANZA_SIZE,
+  boolOrDefault, formOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault,
 } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
@@ -163,11 +164,20 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const gutter = scaleOrDefault(node.gutter);
   const stagger = scaleOrDefault(node.stagger);
   const centerWidth = scaleOrDefault(node.centerWidth);
+  const form = formOrDefault(node.form);
+  const autoWidth = boolOrDefault(node.autoWidth) && layout === 'single';
+  const staggerGroup = staggerGroupOrDefault(node.staggerGroup);
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
   const children = node.children ?? [];
   const dir = firstDirection(children);
   const gap = POETRY_COUPLET_GAP[spacing];
   const separator = `border-top: ${POETRY_RULE}; margin-top: ${gap}; padding-top: calc(${gap} * 0.6)`;
+  const stanzaSize = POETRY_STANZA_SIZE[form];
+  // Lines per side before `staggered` flips — generalizes the original fixed
+  // one-couplet-per-side alternation (staggerGroup 1) to `staggerGroup`
+  // couplets at a time (request 3); staggered is couplet-form only, so
+  // `stanzaSize` is always 2 whenever this is actually used.
+  const staggerPeriod = staggerGroup * 4;
 
   let body: string;
   if (layout === 'two-column') {
@@ -202,12 +212,12 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   } else {
     body = children
       .map((line, i) => {
-        const couplet = Math.floor(i / 2);
+        const stanzaIndex = Math.floor(i / stanzaSize);
         const parts: string[] = [];
-        if (i % 2 === 0 && couplet > 0) parts.push(separator);
+        if (i % stanzaSize === 0 && stanzaIndex > 0) parts.push(separator);
         if (layout === 'staggered') {
           parts.push(`width: ${POETRY_STAGGER_WIDTH[stagger]}`);
-          parts.push(couplet % 2 === 0 ? 'margin-inline-end: auto' : 'margin-inline-start: auto');
+          parts.push(i % staggerPeriod < staggerPeriod / 2 ? 'margin-inline-end: auto' : 'margin-inline-start: auto');
         }
         return poetryLineToHtml(line, parts.join('; '), ctx);
       })
@@ -218,7 +228,8 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const blockStyle = [
     'box-sizing: border-box',
     'margin: 0 auto 1.4em auto',
-    `max-width: ${width !== undefined ? `${width}px` : '70%'}`,
+    autoWidth ? 'width: fit-content' : `max-width: ${width !== undefined ? `${width}px` : '70%'}`,
+    ...(autoWidth ? ['max-width: 100%'] : []),
     'padding: 10px 16px',
     'text-align: justify',
     'text-align-last: justify',
@@ -226,7 +237,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
     `line-height: ${rtl ? '2.1' : '1.6'}`,
   ].join('; ');
   const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-form="${form}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

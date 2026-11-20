@@ -220,6 +220,56 @@ describe('poetry settings', () => {
     const [back] = parse(out);
     expect(back).toMatchObject({ layout: 'two-column', centerWidth: 'relaxed' });
   });
+
+  it('omits form from the directive for a plain couplet, but writes it for musaddas/mukhammas', () => {
+    const couplet = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], { layout: 'single' });
+    expect(md([couplet])).not.toContain('form=');
+
+    const musaddas = elementBase(
+      'poetry-couplet',
+      ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)])),
+      { layout: 'single', form: 'musaddas' },
+    );
+    const out = md([musaddas]);
+    expect(out).toContain('form="musaddas"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', form: 'musaddas' });
+    expect(back.children).toHaveLength(6);
+  });
+
+  it('round-trips a mukhammas (5-line) stanza', () => {
+    const mukhammas = elementBase(
+      'poetry-couplet',
+      ['a', 'b', 'c', 'd', 'e'].map((t) => paragraph([textNode(t)])),
+      { layout: 'single', form: 'mukhammas' },
+    );
+    const [back] = roundTrip([mukhammas]);
+    expect(back).toMatchObject({ type: 'poetry-couplet', form: 'mukhammas' });
+    expect(back.children).toHaveLength(5);
+  });
+
+  it('round-trips autoWidth', () => {
+    const block = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], {
+      layout: 'single',
+      autoWidth: true,
+    });
+    const out = md([block]);
+    expect(out).toContain('autoWidth="true"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', autoWidth: true });
+  });
+
+  it('keeps a non-default stagger group through a round trip (request 3)', () => {
+    const block = elementBase(
+      'poetry-couplet',
+      [paragraph([textNode('a')]), paragraph([textNode('b')]), paragraph([textNode('c')]), paragraph([textNode('d')])],
+      { layout: 'staggered', staggerGroup: 2 },
+    );
+    const out = md([block]);
+    expect(out).toContain('staggerGroup="2"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ layout: 'staggered', staggerGroup: 2 });
+  });
 });
 
 describe('markdown tables that Markdown cannot express', () => {

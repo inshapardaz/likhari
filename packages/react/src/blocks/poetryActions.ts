@@ -18,32 +18,43 @@ import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNo
 import {
   $createPoetryBlockNode,
   $isPoetryBlockNode,
+  DEFAULT_POETRY_FORM,
   POETRY_CENTER_WIDTHS,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
   POETRY_STAGGERS,
+  POETRY_STANZA_SIZE,
   type PoetryBlockNode,
+  type PoetryForm,
   type PoetryLayout,
+  type PoetryStaggerGroup,
 } from './PoetryNode';
 
-/** One couplet's two misra paragraphs, in order. */
-export type Couplet = [ParagraphNode, ParagraphNode];
+/** One stanza's misra paragraphs, in order — two for a couplet, five for a
+ * mukhammas, six for a musaddas (POETRY_STANZA_SIZE). The name/type predate
+ * the musaddas/mukhammas generalization (lexical-editor-spec.md §4.11,
+ * amended) and are kept for call-site stability; every function below reads
+ * its length rather than assuming 2. */
+export type Couplet = ParagraphNode[];
 
 /**
- * A poetry block is a *section* of one or more couplets sharing one layout
- * (single-column stacks each couplet's two misras directly as paragraph
- * children, two deep per couplet; two-column gives each couplet its own
- * LayoutContainerNode row). This walks that structure and returns each
- * couplet as a pair, in document order — the one place that knows how to
- * read either shape, so nothing else needs to.
+ * A poetry block is a *section* of one or more stanzas sharing one layout
+ * and form (single-column stacks each stanza's misras directly as paragraph
+ * children, `POETRY_STANZA_SIZE[form]` deep per stanza; two-column — couplet
+ * form only — gives each couplet its own LayoutContainerNode row). This
+ * walks that structure and returns each stanza as an array, in document
+ * order — the one place that knows how to read either shape, so nothing
+ * else needs to.
  */
 export function $getCouplets(node: PoetryBlockNode): Couplet[] {
   if (node.getLayout() !== 'two-column') {
+    const size = POETRY_STANZA_SIZE[node.getForm()];
     const paragraphs = node.getChildren().filter($isParagraphNode);
     const couplets: Couplet[] = [];
-    for (let i = 0; i + 1 < paragraphs.length; i += 2) couplets.push([paragraphs[i], paragraphs[i + 1]]);
+    for (let i = 0; i + size - 1 < paragraphs.length; i += size) couplets.push(paragraphs.slice(i, i + size));
     return couplets;
   }
+  // two-column is couplet-form only (PoetryNode.tsx), always two misras per row.
   const containers = node.getChildren().filter($isLayoutContainerNode);
   const couplets: Couplet[] = [];
   for (const container of containers) {
@@ -60,8 +71,8 @@ export function $getCouplets(node: PoetryBlockNode): Couplet[] {
   return couplets;
 }
 
-/** Every misra in the block, flattened across all its couplets — for
- * operations (like $setPoetryLayout) that don't care about couplet
+/** Every misra in the block, flattened across all its stanzas — for
+ * operations (like $setPoetryLayout) that don't care about stanza
  * boundaries, just the full set of lines. */
 export function $getMisraParagraphs(node: PoetryBlockNode): ParagraphNode[] {
   return $getCouplets(node).flat();
@@ -75,11 +86,11 @@ export function $getPoetryBlockFromSelection(): PoetryBlockNode | null {
   return match ?? null;
 }
 
-/** Which couplet (and which of its two misras, 0 or 1) a node sits inside,
- * or null if it's in neither — e.g. on the block's own boundary. */
-function $findCoupletPosition(couplets: Couplet[], target: import('lexical').LexicalNode): { coupletIndex: number; misraIndex: 0 | 1 } | null {
+/** Which stanza (and which misra index within it) a node sits inside, or
+ * null if it's in neither — e.g. on the block's own boundary. */
+function $findCoupletPosition(couplets: Couplet[], target: import('lexical').LexicalNode): { coupletIndex: number; misraIndex: number } | null {
   for (let c = 0; c < couplets.length; c++) {
-    for (const misraIndex of [0, 1] as const) {
+    for (let misraIndex = 0; misraIndex < couplets[c].length; misraIndex++) {
       const misra = couplets[c][misraIndex];
       if (misra.getKey() === target.getKey() || misra.isParentOf(target)) return { coupletIndex: c, misraIndex };
     }
@@ -87,7 +98,7 @@ function $findCoupletPosition(couplets: Couplet[], target: import('lexical').Lex
   return null;
 }
 
-/** The couplet the caret is in (its two misra paragraphs), or null when the
+/** The stanza the caret is in (its misra paragraphs), or null when the
  * selection is outside a poetry block or on a block boundary — what the
  * hover inserter (PoetryCoupletInserter.tsx) measures to place its
  * above/below affordances. */
@@ -101,56 +112,65 @@ export function $getCoupletFromSelection(): Couplet | null {
   return position ? couplets[position.coupletIndex] : null;
 }
 
+/** Removes a stanza's nodes from the tree: its single two-column row
+ * (couplet form only), or every one of its misra paragraphs otherwise. */
+function $removeCoupletNodes(couplet: Couplet, layout: PoetryLayout): void {
+  const container = layout === 'two-column' ? ($findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null) : null;
+  if (container) container.remove();
+  else for (const misra of couplet) misra.remove();
+}
+
 function $appendCoupletTo(node: PoetryBlockNode): Couplet {
-  const misraA = $createParagraphNode();
-  const misraB = $createParagraphNode();
+  const size = POETRY_STANZA_SIZE[node.getForm()];
+  const misras = Array.from({ length: size }, () => $createParagraphNode());
   if (node.getLayout() !== 'two-column') {
-    node.append(misraA, misraB);
+    node.append(...misras);
   } else {
     const container = $createLayoutContainerNode('repeat(2, 1fr)');
-    container.append($createLayoutItemNode().append(misraA), $createLayoutItemNode().append(misraB));
+    container.append($createLayoutItemNode().append(misras[0]), $createLayoutItemNode().append(misras[1]));
     node.append(container);
   }
-  return [misraA, misraB];
+  return misras;
 }
 
 /**
- * Inserts a new, empty couplet immediately before or after an existing one —
+ * Inserts a new, empty stanza immediately before or after an existing one —
  * the table-row-insert equivalent for a poetry block ("add/remove couplets
- * just like adding/removing table rows"). `existingFirstMisra` is that
- * couplet's first misra, used to locate its wrapper (nothing, in single
- * layout — just its two sibling paragraphs; a LayoutContainerNode row in
- * two-column) so the new couplet can be spliced in at the right spot
- * regardless of layout.
+ * just like adding/removing table rows"). `existingStanza` is the whole
+ * stanza to insert next to, so its first/last misra (and, in two-column
+ * layout, its row wrapper) can be located regardless of form or layout.
  */
-function $insertCoupletRelativeTo(existingFirstMisra: ParagraphNode, layout: PoetryLayout, position: 'before' | 'after'): Couplet {
-  const misraA = $createParagraphNode();
-  const misraB = $createParagraphNode();
+function $insertCoupletRelativeTo(existingStanza: Couplet, block: PoetryBlockNode, position: 'before' | 'after'): Couplet {
+  const layout = block.getLayout();
+  const size = POETRY_STANZA_SIZE[block.getForm()];
+  const misras = Array.from({ length: size }, () => $createParagraphNode());
   if (layout !== 'two-column') {
     if (position === 'before') {
-      existingFirstMisra.insertBefore(misraA);
-      misraA.insertAfter(misraB);
+      existingStanza[0].insertBefore(misras[0]);
     } else {
-      const existingSecondMisra = existingFirstMisra.getNextSibling() ?? existingFirstMisra;
-      existingSecondMisra.insertAfter(misraA);
-      misraA.insertAfter(misraB);
+      existingStanza[existingStanza.length - 1].insertAfter(misras[0]);
+    }
+    let previous = misras[0];
+    for (let i = 1; i < misras.length; i++) {
+      previous.insertAfter(misras[i]);
+      previous = misras[i];
     }
   } else {
-    const container = $findMatchingParent(existingFirstMisra, $isLayoutContainerNode) as LayoutContainerNode;
+    const container = $findMatchingParent(existingStanza[0], $isLayoutContainerNode) as LayoutContainerNode;
     const newContainer = $createLayoutContainerNode('repeat(2, 1fr)');
-    newContainer.append($createLayoutItemNode().append(misraA), $createLayoutItemNode().append(misraB));
+    newContainer.append($createLayoutItemNode().append(misras[0]), $createLayoutItemNode().append(misras[1]));
     if (position === 'before') container.insertBefore(newContainer);
     else container.insertAfter(newContainer);
   }
-  return [misraA, misraB];
+  return misras;
 }
 
 /**
  * The explicit "Insert couplet above/below" menu actions — mirrors the
- * table menu's "Insert row before/after". Targets the couplet the caret is
- * currently in, falling back to the block's last couplet (so the toolbar's
- * always-available insert button has somewhere sensible to act on even
- * without a precise caret position).
+ * table menu's own "Insert row before/after". Targets the stanza the caret
+ * is currently in, falling back to the block's last stanza (so the
+ * toolbar's always-available insert button has somewhere sensible to act on
+ * even without a precise caret position).
  */
 export function $insertCoupletRelativeToSelection(position: 'before' | 'after'): boolean {
   const block = $getPoetryBlockFromSelection();
@@ -164,21 +184,28 @@ export function $insertCoupletRelativeToSelection(position: 'before' | 'after'):
   const target = couplets[index];
   if (!target) return false;
 
-  const [newA] = $insertCoupletRelativeTo(target[0], block.getLayout(), position);
-  newA.selectStart();
+  const newStanza = $insertCoupletRelativeTo(target, block, position);
+  newStanza[0].selectStart();
   return true;
 }
 
 /**
- * Converts every couplet in the block between single-column (two stacked
- * misras) and two-column (built on the columns primitive, §4.9) in place —
- * pulls each couplet's two misra paragraphs out of whichever shape
- * currently holds them and rebuilds the other shape around the same
- * paragraph nodes, preserving couplet order, so content, selection and
- * undo history all survive the conversion.
+ * Converts every stanza in the block between single-column (stacked misras)
+ * and two-column (built on the columns primitive, §4.9) in place — pulls
+ * each couplet's two misra paragraphs out of whichever shape currently
+ * holds them and rebuilds the other shape around the same paragraph nodes,
+ * preserving stanza order, so content, selection and undo history all
+ * survive the conversion. `two-column` and `staggered` are couplet-form
+ * only (lexical-editor-spec.md §4.11, amended): switching into either while
+ * `form !== 'couplet'` is a no-op, same as switching into a layout the
+ * block is already in. Switching *out of* `single` also clears autoWidth
+ * (a percentage/fit-content width is only well-defined in a single-column
+ * flow).
  */
 export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): void {
   if (node.getLayout() === layout) return;
+  if (layout !== 'single' && node.getForm() !== 'couplet') return;
+
   const couplets = $getCouplets(node);
 
   // Removing a misra paragraph below (to re-append it in its new row) moves
@@ -189,14 +216,13 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
   const anchor = $isRangeSelection(selection) ? { key: selection.anchor.key, offset: selection.anchor.offset, type: selection.anchor.type } : null;
   const focus = $isRangeSelection(selection) ? { key: selection.focus.key, offset: selection.focus.offset, type: selection.focus.type } : null;
 
-  for (const [a, b] of couplets) {
-    a.remove();
-    b.remove();
+  for (const couplet of couplets) {
+    for (const misra of couplet) misra.remove();
   }
   for (const leftover of node.getChildren()) leftover.remove();
 
   if (layout !== 'two-column') {
-    for (const [a, b] of couplets) node.append(a, b);
+    for (const couplet of couplets) node.append(...couplet);
   } else {
     for (const [a, b] of couplets) {
       const container = $createLayoutContainerNode('repeat(2, 1fr)');
@@ -205,6 +231,7 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
     }
   }
   node.setLayoutAttribute(layout);
+  if (layout !== 'single' && node.getAutoWidth()) node.setAutoWidth(false);
 
   if (anchor && focus) {
     const restored = $createRangeSelection();
@@ -286,13 +313,14 @@ function $blockToPoetryLines(block: ElementNode): LexicalNode[][] {
 /**
  * Turns the blocks the selection spans into one single-column poetry block
  * ("select multiple lines and press the poetry command"): each selected
- * block's lines (see $blockToPoetryLines) become consecutive misras, paired
- * up two to a couplet in order, with an empty partner added for a dangling
- * last line. The new block takes the place of the first selected block and
- * the rest are removed. Returns false, changing nothing, when the selection
- * is collapsed, already inside a poetry block, or holds no non-blank text.
+ * block's lines (see $blockToPoetryLines) become consecutive misras,
+ * grouped `POETRY_STANZA_SIZE[form]` to a stanza in order, padding the
+ * final stanza out with empty lines if it falls short. The new block takes
+ * the place of the first selected block and the rest are removed. Returns
+ * false, changing nothing, when the selection is collapsed, already inside
+ * a poetry block, or holds no non-blank text.
  */
-export function $convertSelectionToPoetry(): boolean {
+export function $convertSelectionToPoetry(form: PoetryForm = DEFAULT_POETRY_FORM): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || selection.isCollapsed()) return false;
   if ($getPoetryBlockFromSelection()) return false;
@@ -310,7 +338,7 @@ export function $convertSelectionToPoetry(): boolean {
   const lines = blocks.flatMap($blockToPoetryLines);
   if (lines.length === 0) return false;
 
-  const node = $createPoetryBlockNode('single');
+  const node = $createPoetryBlockNode('single', undefined, undefined, undefined, undefined, undefined, form);
   for (const line of lines) node.append($createParagraphNode().append(...line));
   $completeSingleCoupletBlock(node);
 
@@ -322,18 +350,20 @@ export function $convertSelectionToPoetry(): boolean {
 }
 
 /**
- * Inserts a poetry couplet at the caret. With text selected outside a
- * poetry block, converts the selected lines into a single-column block
- * instead (see $convertSelectionToPoetry). If the caret is already inside a
- * poetry block, inserts a new couplet right after the one the caret is in
+ * Inserts a poetry stanza at the caret. With text selected outside a poetry
+ * block, converts the selected lines into a single-column block instead
+ * (see $convertSelectionToPoetry) — `form` picks the stanza size (couplet,
+ * mukhammas, musaddas) for that conversion. If the caret is already inside
+ * a poetry block, inserts a new stanza right after the one the caret is in
  * (same as the "Insert couplet below" menu action — table-row-insert
- * semantics, in its existing layout: "one poetry block can contain one or
- * more couplets, in one or two column layout", so a block's layout is
- * fixed once it has couplets, not chosen per couplet) and focuses its first
- * misra. Otherwise creates a new block (in `layout`) with one
- * couplet, after the selection's top-level element.
+ * semantics, in its existing layout and form: a block's form is fixed once
+ * it has stanzas, not chosen per stanza, so `form` is ignored in this
+ * branch) and focuses its first misra. Otherwise creates a new block (in
+ * `layout`, forced to `single` whenever `form !== 'couplet'` — two-column
+ * and staggered stay couplet-only) with one stanza, after the selection's
+ * top-level element.
  */
-export function $insertPoetryCouplet(layout: PoetryLayout): boolean {
+export function $insertPoetryCouplet(layout: PoetryLayout, form: PoetryForm = DEFAULT_POETRY_FORM): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
 
@@ -342,11 +372,12 @@ export function $insertPoetryCouplet(layout: PoetryLayout): boolean {
     return $insertCoupletRelativeToSelection('after');
   }
   if (!selection.isCollapsed()) {
-    return $convertSelectionToPoetry();
+    return $convertSelectionToPoetry(form);
   }
 
+  const effectiveLayout = form === 'couplet' ? layout : 'single';
   const anchorTopLevel = selection.anchor.getNode().getTopLevelElementOrThrow();
-  const node = $createPoetryBlockNode(layout);
+  const node = $createPoetryBlockNode(effectiveLayout, undefined, undefined, undefined, undefined, undefined, form);
   const [misraA] = $appendCoupletTo(node);
 
   anchorTopLevel.insertAfter(node);
@@ -355,10 +386,10 @@ export function $insertPoetryCouplet(layout: PoetryLayout): boolean {
   return true;
 }
 
-/** Removes the couplet the selection is inside. If it's the block's only
- * couplet, removes the whole block (an empty poetry section serves no
+/** Removes the stanza the selection is inside. If it's the block's only
+ * stanza, removes the whole block (an empty poetry section serves no
  * purpose) — the explicit, always-available counterpart to
- * $deletePoetryOnBackspace's empty-couplet shortcut (mirrors the table
+ * $deletePoetryOnBackspace's empty-stanza shortcut (mirrors the table
  * menu's own "Delete table" action). */
 export function $deletePoetryCouplet(): boolean {
   const block = $getPoetryBlockFromSelection();
@@ -376,13 +407,7 @@ export function $deletePoetryCouplet(): boolean {
     return true;
   }
 
-  const [a, b] = target;
-  const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-  if (container) container.remove();
-  else {
-    a.remove();
-    b.remove();
-  }
+  $removeCoupletNodes(target, block.getLayout());
   return true;
 }
 
@@ -396,12 +421,12 @@ function $isPointAt(paragraph: ParagraphNode, point: { key: string; offset: numb
 
 /**
  * Backspace at the start of a misra never merges it into its neighbour: the
- * block's lines are paired into couplets, so merging one line away would
- * shift every couplet after it (and take the previous couplet's last line
- * with it). Instead, Backspace at the start of an empty couplet removes that
- * couplet, and at the start of any other line it moves the caret to the end
- * of the previous line. Other caret positions (deleting within text) fall
- * through to normal handling.
+ * block's lines are grouped into fixed-size stanzas, so merging one line
+ * away would shift every stanza after it (and take the previous stanza's
+ * last line with it). Instead, Backspace at the start of an empty stanza
+ * removes that stanza, and at the start of any other line it moves the
+ * caret to the end of the previous line. Other caret positions (deleting
+ * within text) fall through to normal handling.
  */
 export function $deletePoetryOnBackspace(): boolean {
   const selection = $getSelection();
@@ -415,30 +440,25 @@ export function $deletePoetryOnBackspace(): boolean {
   if (!position) return false;
 
   const { coupletIndex, misraIndex } = position;
-  const [a, b] = couplets[coupletIndex];
-  const misra = couplets[coupletIndex][misraIndex];
+  const stanza = couplets[coupletIndex];
+  const misra = stanza[misraIndex];
   if (!$isPointAt(misra, selection.anchor, false)) return false;
 
-  if (a.isEmpty() && b.isEmpty()) {
+  if (stanza.every((p) => p.isEmpty())) {
     if (couplets.length <= 1) {
       const previous = block.getPreviousSibling();
       block.remove();
       if ($isElementNode(previous)) previous.selectEnd();
       return true;
     }
-    const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-    if (container) container.remove();
-    else {
-      a.remove();
-      b.remove();
-    }
+    $removeCoupletNodes(stanza, block.getLayout());
     const remaining = $getCouplets(block);
     const previousCouplet = remaining[coupletIndex - 1] ?? remaining[0];
-    previousCouplet?.[1].selectEnd();
+    previousCouplet?.[previousCouplet.length - 1]?.selectEnd();
     return true;
   }
 
-  const previousLine = misraIndex === 1 ? a : couplets[coupletIndex - 1]?.[1];
+  const previousLine = misraIndex > 0 ? stanza[misraIndex - 1] : couplets[coupletIndex - 1]?.[couplets[coupletIndex - 1].length - 1];
   previousLine?.selectEnd();
   return true;
 }
@@ -460,29 +480,30 @@ export function $deletePoetryForward(): boolean {
   if (!position) return false;
 
   const { coupletIndex, misraIndex } = position;
-  const misra = couplets[coupletIndex][misraIndex];
+  const stanza = couplets[coupletIndex];
+  const misra = stanza[misraIndex];
   if (!$isPointAt(misra, selection.anchor, true)) return false;
 
-  const nextLine = misraIndex === 0 ? couplets[coupletIndex][1] : couplets[coupletIndex + 1]?.[0];
+  const nextLine = misraIndex < stanza.length - 1 ? stanza[misraIndex + 1] : couplets[coupletIndex + 1]?.[0];
   nextLine?.selectStart();
   return true;
 }
 
 /**
- * Enter inside a poetry block never grows a couplet past its fixed two
- * misras. The block's *last* couplet being completely empty is always the
- * exit trigger, regardless of which of its two (both-empty) misras the
- * caret happens to be on — pressing Enter once on a non-empty last couplet
- * appends a fresh empty one to continue into ("new couplet after last"),
- * and pressing Enter again on that still-untouched couplet exits ("double
- * enter to exit the block"): the same empty-item convention most editors
- * use for lists. Outside that case: pressed in a couplet's first misra,
- * Enter moves the caret to the second (already there; nothing inserted —
+ * Enter inside a poetry block never grows a stanza past its fixed size. The
+ * block's *last* stanza being completely empty is always the exit trigger,
+ * regardless of which of its (all-empty) misras the caret happens to be on
+ * — pressing Enter once on a non-empty last stanza appends a fresh empty
+ * one to continue into ("new stanza after last"), and pressing Enter again
+ * on that still-untouched stanza exits ("double enter to exit the block"):
+ * the same empty-item convention most editors use for lists. Outside that
+ * case: pressed in any misra but the stanza's last, Enter moves the caret
+ * to the next misra in the same stanza (already there; nothing inserted —
  * this is what stops ParagraphNode's default insertNewAfter from growing
- * the couplet, which would otherwise insert the new paragraph as a sibling
- * of wherever the caret was, i.e. still inside the couplet); pressed in
- * the last misra of a couplet that isn't the block's last, it moves to the
- * next couplet's first misra.
+ * the stanza, which would otherwise insert the new paragraph as a sibling
+ * of wherever the caret was, i.e. still inside the stanza); pressed in the
+ * last misra of a stanza that isn't the block's last, it moves to the next
+ * stanza's first misra.
  */
 export function $exitPoetryOnEnter(): boolean {
   const selection = $getSelection();
@@ -496,22 +517,15 @@ export function $exitPoetryOnEnter(): boolean {
   if (!position) return false;
 
   const { coupletIndex, misraIndex } = position;
-  const [a, b] = couplets[coupletIndex];
+  const stanza = couplets[coupletIndex];
   const isLastCouplet = coupletIndex === couplets.length - 1;
-  const coupletEmpty = a.isEmpty() && b.isEmpty();
+  const coupletEmpty = stanza.every((p) => p.isEmpty());
 
   if (isLastCouplet && coupletEmpty) {
-    // Drop the couplet we ourselves auto-created on the previous Enter —
-    // unless it's the block's only couplet, in which case leave the
-    // section as the user's (empty) content rather than deleting it.
-    if (couplets.length > 1) {
-      const container = $findMatchingParent(a, $isLayoutContainerNode) as LayoutContainerNode | null;
-      if (container) container.remove();
-      else {
-        a.remove();
-        b.remove();
-      }
-    }
+    // Drop the stanza we ourselves auto-created on the previous Enter —
+    // unless it's the block's only stanza, in which case leave the section
+    // as the user's (empty) content rather than deleting it.
+    if (couplets.length > 1) $removeCoupletNodes(stanza, block.getLayout());
     const existingNext = block.getNextSibling();
     const paragraph = $isParagraphNode(existingNext) ? existingNext : $createParagraphNode();
     if (paragraph !== existingNext) block.insertAfter(paragraph);
@@ -519,8 +533,8 @@ export function $exitPoetryOnEnter(): boolean {
     return true;
   }
 
-  if (misraIndex === 0) {
-    b.selectEnd();
+  if (misraIndex < stanza.length - 1) {
+    stanza[misraIndex + 1].selectEnd();
     return true;
   }
 
@@ -578,6 +592,30 @@ export function $adjustPoetryCenterWidth(step: 1 | -1): boolean {
   return true;
 }
 
+/** Sets how many couplets share one side before the staggered layout flips
+ * (request 3 — "auto" grouping). Only meaningful for `layout === 'staggered'`
+ * (couplet-form only); a no-op otherwise. */
+export function $setPoetryStaggerGroup(staggerGroup: PoetryStaggerGroup): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block || block.getLayout() !== 'staggered') return false;
+  block.setStaggerGroup(staggerGroup);
+  return true;
+}
+
+/**
+ * Turns auto-width (fit-content, sized by the longest line, per request 2)
+ * on or off for the caret's poetry block. Only valid in `layout === 'single'`
+ * (a percentage/manual width inside a fit-content parent is circular) — a
+ * no-op (returns false) when the block is in `two-column` or `staggered`.
+ */
+export function $setPoetryAutoWidth(autoWidth: boolean): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block) return false;
+  if (autoWidth && block.getLayout() !== 'single') return false;
+  block.setAutoWidth(autoWidth);
+  return true;
+}
+
 /** A centered couplet is a two-column row holding both misras in one item
  * (a single-item row), rather than one item per misra. */
 function $isCoupletRowCentered(row: LayoutContainerNode): boolean {
@@ -629,7 +667,7 @@ export function $setCoupletCentered(centered: boolean): boolean {
   return true;
 }
 
-/** Removes the whole poetry block the caret is in, including every couplet. */
+/** Removes the whole poetry block the caret is in, including every stanza. */
 export function $deletePoetryBlock(): boolean {
   const block = $getPoetryBlockFromSelection();
   if (!block) return false;
@@ -637,17 +675,21 @@ export function $deletePoetryBlock(): boolean {
   return true;
 }
 
-/** Single-column blocks pair their paragraphs into couplets, so a line left
- * without a partner (from pasted or imported content) would be invisible to
- * the couplet logic. Give it an empty partner instead, so every line belongs
- * to a couplet and can be deleted like any other. */
+/** Single-column blocks group their paragraphs into stanzas of
+ * `POETRY_STANZA_SIZE[form]`, so a line left without a full stanza's worth
+ * of partners (from pasted or imported content) would be invisible to the
+ * stanza logic. Pad it out with empty partners instead, so every line
+ * belongs to a stanza and can be deleted like any other. */
 export function $completeSingleCoupletBlock(node: PoetryBlockNode): void {
   if (node.getLayout() === 'two-column') return;
-  if (node.getChildrenSize() % 2 === 1) node.append($createParagraphNode());
+  const size = POETRY_STANZA_SIZE[node.getForm()];
+  const remainder = node.getChildrenSize() % size;
+  if (remainder === 0) return;
+  for (let i = remainder; i < size; i++) node.append($createParagraphNode());
 }
 
-/** The couplet a node (a misra paragraph, or anything inside one) belongs
- * to, with its block and index — or null outside a couplet. */
+/** The stanza a node (a misra paragraph, or anything inside one) belongs
+ * to, with its block and index — or null outside a stanza. */
 export function $getCoupletContaining(node: LexicalNode): { block: PoetryBlockNode; couplet: Couplet; index: number } | null {
   const block = $findMatchingParent(node, $isPoetryBlockNode);
   if (!block) return null;
@@ -656,22 +698,23 @@ export function $getCoupletContaining(node: LexicalNode): { block: PoetryBlockNo
   return position ? { block, couplet: couplets[position.coupletIndex], index: position.coupletIndex } : null;
 }
 
-/** Pulls a couplet's two misras out of whatever currently holds them (and
- * drops a two-column row wrapper left behind). Returns whether that row was
- * a centered one, so the couplet can be rebuilt the same way elsewhere. */
+/** Pulls a couplet's misras out of whatever currently holds them (and drops
+ * a two-column row wrapper left behind, couplet form only). Returns whether
+ * that row was a centered one, so the couplet can be rebuilt the same way
+ * elsewhere. */
 function $detachCouplet(couplet: Couplet): boolean {
   const row = $findCoupletRow(couplet);
   const centered = row ? $isCoupletRowCentered(row) : false;
-  couplet[0].remove();
-  couplet[1].remove();
+  for (const misra of couplet) misra.remove();
   row?.remove();
   return centered;
 }
 
-/** The node(s) that hold a (detached) couplet in `layout`: the two misras
- * themselves, or one two-column row around them. */
-function $wrapCouplet(layout: PoetryLayout, [a, b]: Couplet, centered: boolean): LexicalNode[] {
-  if (layout !== 'two-column') return [a, b];
+/** The node(s) that hold a (detached) couplet in `layout`: the misras
+ * themselves, or (couplet form only) one two-column row around them. */
+function $wrapCouplet(layout: PoetryLayout, couplet: Couplet, centered: boolean): LexicalNode[] {
+  if (layout !== 'two-column') return [...couplet];
+  const [a, b] = couplet;
   const row = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');
   if (centered) row.append($createLayoutItemNode().append(a, b));
   else row.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
@@ -688,7 +731,7 @@ function $insertNodesRelativeTo(anchor: LexicalNode, nodes: LexicalNode[], posit
   }
 }
 
-/** Where a dragged couplet lands: next to another couplet (in its block,
+/** Where a dragged stanza lands: next to another stanza (in its block,
  * whatever that block's layout), or next to a top-level block as a new
  * poetry block of its own. */
 export type CoupletDropTarget =
@@ -696,12 +739,14 @@ export type CoupletDropTarget =
   | { kind: 'block'; block: LexicalNode; position: 'before' | 'after' };
 
 /**
- * Moves a couplet — the drag-and-drop counterpart to the insert/delete
- * couplet actions. Dropped next to another couplet it joins that block,
- * rebuilt for that block's layout (its two misra paragraphs move as they
- * are, so text, formatting and undo history survive). Dropped next to an
+ * Moves a stanza — the drag-and-drop counterpart to the insert/delete
+ * stanza actions. Dropped next to another stanza it joins that block,
+ * rebuilt for that block's layout (its misra paragraphs move as they are,
+ * so text, formatting and undo history survive) — the target block's own
+ * form governs the move, same as the insert actions. Dropped next to an
  * ordinary block it becomes a new poetry block with the source block's
- * layout and settings. A source block left with no couplets is removed.
+ * layout, form and settings. A source block left with no stanzas is
+ * removed.
  */
 export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boolean {
   const source = $findMatchingParent(couplet[0], $isPoetryBlockNode);
@@ -712,14 +757,24 @@ export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boole
     const targetBlock = $findMatchingParent(target.couplet[0], $isPoetryBlockNode);
     if (!targetBlock) return false;
     const layout = targetBlock.getLayout();
-    const anchor = layout === 'two-column' ? $findCoupletRow(target.couplet) : target.position === 'before' ? target.couplet[0] : target.couplet[1];
+    const anchor = layout === 'two-column' ? $findCoupletRow(target.couplet) : target.position === 'before' ? target.couplet[0] : target.couplet[target.couplet.length - 1];
     if (!anchor) return false;
     const centered = $detachCouplet(couplet);
     $insertNodesRelativeTo(anchor, $wrapCouplet(layout, couplet, centered), target.position);
   } else {
     if (target.block.is(source) && $getCouplets(source).length <= 1) return false;
     const centered = $detachCouplet(couplet);
-    const block = $createPoetryBlockNode(source.getLayout(), source.getWidth(), source.getSpacing(), source.getGutter(), source.getStagger(), source.getCenterWidth());
+    const block = $createPoetryBlockNode(
+      source.getLayout(),
+      source.getWidth(),
+      source.getSpacing(),
+      source.getGutter(),
+      source.getStagger(),
+      source.getCenterWidth(),
+      source.getForm(),
+      source.getAutoWidth(),
+      source.getStaggerGroup(),
+    );
     block.append(...$wrapCouplet(source.getLayout(), couplet, centered));
     $insertNodesRelativeTo(target.block, [block], target.position);
     $ensureTrailingParagraph(block);
@@ -733,8 +788,8 @@ export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boole
 /**
  * Exchanges two misras' positions — the drag-and-drop action for a single
  * line. A swap (rather than a move) is the one line operation that keeps
- * every couplet intact in every layout: no couplet gains or loses a line,
- * so nothing after it re-pairs. Works across couplets and across blocks.
+ * every stanza intact in every layout: no stanza gains or loses a line, so
+ * nothing after it re-pairs. Works across stanzas and across blocks.
  */
 export function $swapMisras(a: ParagraphNode, b: ParagraphNode): boolean {
   if (a.is(b)) return false;

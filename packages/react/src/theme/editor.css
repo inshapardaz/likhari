@@ -435,16 +435,34 @@
   margin: 0;
 }
 
-/* A poetry block is "one object with multiple couplets, add/remove like
-   table rows" — so couplet boundaries get the same visible divider as a
-   table's internal row borders, not just extra space. Every couplet but
-   the first (nth-child(odd), since each couplet is two paragraph
-   children — its first misra always lands on an odd position) gets a
-   border-top in place of the previous couplet's margin-bottom. */
-.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child) {
+/* A poetry block is "one object with multiple couplets/stanzas, add/remove
+   like table rows" — so stanza boundaries get the same visible divider as a
+   table's internal row borders, not just extra space. Every stanza but the
+   first gets a border-top in place of the previous stanza's margin-bottom.
+   `form` (lexical-editor-spec.md §4.11, amended) picks how many paragraphs
+   make up one stanza — couplet stays 2 (nth-child(odd), since its first
+   misra always lands on an odd position), mukhammas is 5 and musaddas is 6.
+   Each selector requires its own `--form-*` class, so only the one matching
+   the block's actual form ever applies — kept this explicit, rather than a
+   single `nth-child(Xn+1)` with X swapped via a custom property, so the
+   rule reads directly off the form name. */
+.likhari-poetry--form-couplet.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child),
+.likhari-poetry--form-mukhammas.likhari-poetry--single .likhari-paragraph:nth-child(5n+1):not(:first-child),
+.likhari-poetry--form-musaddas.likhari-poetry--single .likhari-paragraph:nth-child(6n+1):not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
   margin-top: var(--poetry-couplet-gap);
   padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+/* Auto-width (request 2): `fit-content` instead of a max-width, so the
+   block sizes itself to its longest misra and every other line's own
+   text-align-last: justify (createDOM/exportDOM) stretches to fill that
+   same width. `single`-layout only (PoetryNode.tsx) — a percentage width
+   is circular inside a fit-content parent, so this is never combined with
+   `--two-column`/`--staggered`. */
+.likhari-poetry--width-auto {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .likhari-poetry--spacing-compact { --poetry-couplet-gap: 0.4em; }
@@ -468,21 +486,40 @@
 .likhari-poetry--center-relaxed { --poetry-center-width: 72%; }
 .likhari-poetry--center-loose { --poetry-center-width: 85%; }
 
-/* Staggered: couplets are the same flat misra paragraphs as single column,
-   but each couplet's two misras are placed in a 65%-wide box that alternates
-   sides — the first couplet pushed to the start edge, the next to the end
-   edge, and so on. Logical properties keep the alternation mirrored for RTL. */
+/* Staggered (couplet form only): couplets are the same flat misra
+   paragraphs as single column, but each couplet's two misras are placed in
+   a 65%-wide box that alternates sides — pushed to the start edge for
+   `staggerGroup` couplets at a time, then the end edge for the next
+   `staggerGroup`, and so on (request 3 — generalizes the original fixed
+   one-couplet-per-side alternation, still the default). Logical properties
+   keep the alternation mirrored for RTL. The per-couplet box width and the
+   dashed divider below stay unchanged by the grouping — only which side a
+   couplet lands on depends on it. */
 .likhari-poetry--staggered .likhari-paragraph {
   width: var(--poetry-stagger-width, 65%);
 }
 
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+1),
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+2) {
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+1),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+2) {
   margin-inline-end: auto;
 }
 
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+3),
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+4) {
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+3),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+4) {
+  margin-inline-start: auto;
+}
+
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+1),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+2),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+3),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+4) {
+  margin-inline-end: auto;
+}
+
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+5),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+6),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+7),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+8) {
   margin-inline-start: auto;
 }
 

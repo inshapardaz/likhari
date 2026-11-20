@@ -60,10 +60,12 @@ import {
   POETRY_SPACINGS,
   POETRY_STAGGERS,
   type PoetryCenterWidth,
+  type PoetryForm,
   type PoetryGutter,
   type PoetryLayout,
   type PoetrySpacing,
   type PoetryStagger,
+  type PoetryStaggerGroup,
 } from '../blocks/PoetryNode';
 import {
   $adjustPoetryCenterWidth,
@@ -76,7 +78,9 @@ import {
   $deletePoetryCouplet,
   $getPoetryBlockFromSelection,
   $insertCoupletRelativeToSelection,
+  $setPoetryAutoWidth,
   $setPoetryLayout,
+  $setPoetryStaggerGroup,
 } from '../blocks/poetryActions';
 import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
@@ -113,6 +117,7 @@ import {
   IconAlignJustified,
   IconAlignLeft,
   IconAlignRight,
+  IconArrowAutofitWidth,
   IconArrowBackUp,
   IconArrowForwardUp,
   IconArrowsJoin,
@@ -174,6 +179,7 @@ import {
   IconRowInsertTop,
   IconRowRemove,
   IconArrowsShuffle,
+  IconArrowsShuffle2,
   IconTable,
   IconTableMinus,
   IconTableOptions,
@@ -230,8 +236,13 @@ interface ToolbarState {
   /** The caret is inside a poetry couplet; layout mirrors that couplet's own. */
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
+  poetryForm: PoetryForm;
   poetryScale: PoetryScale;
   poetryCentered: boolean;
+  /** fit-content width (request 2); only meaningful in `layout === 'single'`. */
+  poetryAutoWidth: boolean;
+  /** How many couplets share one side before `staggered` flips (request 3). */
+  poetryStaggerGroup: PoetryStaggerGroup;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -258,8 +269,11 @@ const INITIAL_STATE: ToolbarState = {
   canUnmergeCell: false,
   inPoetry: false,
   poetryLayout: 'single',
+  poetryForm: 'couplet',
   poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal', centerWidth: 'normal' },
   poetryCentered: false,
+  poetryAutoWidth: false,
+  poetryStaggerGroup: 1,
   canUndo: false,
   canRedo: false,
 };
@@ -721,16 +735,22 @@ function canStep<T extends string>(scale: readonly T[], value: T, step: 1 | -1):
 function PoetryMenuItems({
   strings,
   layout,
+  form,
   scale,
   centered,
+  autoWidth,
+  staggerGroup,
   onAction,
   mode = 'menu',
 }: {
   mode?: ItemMode;
   strings: Strings;
   layout: PoetryLayout;
+  form: PoetryForm;
   scale: PoetryScale;
   centered: boolean;
+  autoWidth: boolean;
+  staggerGroup: PoetryStaggerGroup;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
@@ -742,14 +762,17 @@ function PoetryMenuItems({
     if (node) $setPoetryLayout(node, next);
   };
 
-  // Which layout applies (single/two-column/staggered), kept apart from what that layout's
-  // selection then allows (insert, spacing, centering, delete) — two rows of icon buttons
-  // in `icons` mode, one heading-less list everywhere else.
+  // Which layout applies, kept apart from what that layout's selection then allows
+  // (insert, spacing, centering, delete) — two rows of icon buttons in `icons` mode,
+  // one heading-less list everywhere else. two-column/staggered stay couplet-form
+  // only (lexical-editor-spec.md §4.11, amended): a musaddas/mukhammas block only
+  // ever offers single-column, so the choice itself is hidden rather than disabled.
+  const isCouplet = form === 'couplet';
   const layoutItems = (
     <>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
-      {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
-      {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
+      {isCouplet && item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      {isCouplet && item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
     </>
   );
   // `icons` mode puts a divider between each group of similar actions (insert /
@@ -764,11 +787,20 @@ function PoetryMenuItems({
       {groupDivider}
       {item(IconCoupletSpacingTight, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
       {item(IconCoupletSpacingLoose, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
+      {layout === 'single' && (
+        <>
+          {groupDivider}
+          {item(IconArrowAutofitWidth, autoWidth ? t.fixedWidth : t.autoWidth, () => $setPoetryAutoWidth(!autoWidth))}
+        </>
+      )}
       {layout === 'staggered' && (
         <>
           {groupDivider}
           {item(IconCoupletStaggerNarrow, t.narrowerCouplets, () => $adjustPoetryStagger(-1), !canStep(POETRY_STAGGERS, scale.stagger, -1))}
           {item(IconCoupletStaggerWide, t.widerCouplets, () => $adjustPoetryStagger(1), !canStep(POETRY_STAGGERS, scale.stagger, 1))}
+          {groupDivider}
+          {item(IconArrowsShuffle, t.staggerGroupOne, () => $setPoetryStaggerGroup(1), staggerGroup === 1)}
+          {item(IconArrowsShuffle2, t.staggerGroupTwo, () => $setPoetryStaggerGroup(2), staggerGroup === 2)}
         </>
       )}
       {layout === 'two-column' && (
@@ -978,7 +1010,10 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const canJoinLines = $canJoinLines();
       const poetryLayout = poetryBlock?.getLayout();
+      const poetryForm = poetryBlock?.getForm();
       const poetryCentered = $getCoupletCenteredFromSelection();
+      const poetryAutoWidth = poetryBlock?.getAutoWidth();
+      const poetryStaggerGroup = poetryBlock?.getStaggerGroup();
       const poetryScale = poetryBlock
         ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger(), centerWidth: poetryBlock.getCenterWidth() }
         : null;
@@ -1001,8 +1036,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         canUnmergeCell,
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
+        poetryForm: poetryForm ?? s.poetryForm,
         poetryScale: poetryScale ?? s.poetryScale,
         poetryCentered: poetryCentered ?? false,
+        poetryAutoWidth: poetryAutoWidth ?? false,
+        poetryStaggerGroup: poetryStaggerGroup ?? s.poetryStaggerGroup,
       }));
     });
   }, [editor]);
@@ -1844,13 +1882,51 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         />
       )}
       {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
-          outside an Urdu/Punjabi editing context, not just when the feature is off. */}
-      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && (
+          outside an Urdu/Punjabi editing context, not just when the feature is off.
+          config.poetry.forms (lexical-editor-spec.md §5, amended) restricts which
+          insert-menu entries show, same idea as blocks.headingLevels — one plain
+          button when only couplet is offered (today's exact toolbar), a small menu
+          once musaddas/mukhammas are available too. Both forms always insert
+          `layout: 'single'`, the only layout they support. */}
+      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.forms.length <= 1 && (
         <ToolbarButton
           icon={IconFeather}
           title={strings.toolbar.insertPoetryCouplet}
-          onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout })}
+          onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, form: config.poetry.forms[0] ?? 'couplet' })}
         />
+      )}
+      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.forms.length > 1 && (
+        <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200}>
+          <Menu.Target>
+            <ToolbarButton icon={IconFeather} title={strings.toolbar.insertPoetryCouplet} aria-haspopup="menu" />
+          </Menu.Target>
+          <Menu.Dropdown>
+            {config.poetry.forms.includes('couplet') && (
+              <Menu.Item
+                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, form: 'couplet' })}
+              >
+                {strings.toolbar.insertPoetryCouplet}
+              </Menu.Item>
+            )}
+            {config.poetry.forms.includes('mukhammas') && (
+              <Menu.Item
+                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single', form: 'mukhammas' })}
+              >
+                {strings.toolbar.insertPoetryMukhammas}
+              </Menu.Item>
+            )}
+            {config.poetry.forms.includes('musaddas') && (
+              <Menu.Item
+                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single', form: 'musaddas' })}
+              >
+                {strings.toolbar.insertPoetryMusaddas}
+              </Menu.Item>
+            )}
+          </Menu.Dropdown>
+        </Menu>
       )}
       {contextual && config.poetry.enabled && state.inPoetry && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200} onOpen={snapshotSelection}>
@@ -1858,7 +1934,16 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             <ToolbarButton icon={IconFeather} title={strings.toolbar.poetryOptions} active aria-haspopup="menu" />
           </Menu.Target>
           <Menu.Dropdown>
-            <PoetryMenuItems strings={strings} layout={state.poetryLayout} scale={state.poetryScale} centered={state.poetryCentered} onAction={runMenuAction} />
+            <PoetryMenuItems
+              strings={strings}
+              layout={state.poetryLayout}
+              form={state.poetryForm}
+              scale={state.poetryScale}
+              centered={state.poetryCentered}
+              autoWidth={state.poetryAutoWidth}
+              staggerGroup={state.poetryStaggerGroup}
+              onAction={runMenuAction}
+            />
           </Menu.Dropdown>
         </Menu>
       )}
@@ -2400,8 +2485,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 mode="icons"
                 strings={strings}
                 layout={state.poetryLayout}
+                form={state.poetryForm}
                 scale={state.poetryScale}
                 centered={state.poetryCentered}
+                autoWidth={state.poetryAutoWidth}
+                staggerGroup={state.poetryStaggerGroup}
                 onAction={runMenuAction}
               />
             )}
@@ -2517,8 +2605,11 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               mode="ribbon"
               strings={strings}
               layout={state.poetryLayout}
+              form={state.poetryForm}
               scale={state.poetryScale}
               centered={state.poetryCentered}
+              autoWidth={state.poetryAutoWidth}
+              staggerGroup={state.poetryStaggerGroup}
               onAction={runMenuAction}
             />,
           ),

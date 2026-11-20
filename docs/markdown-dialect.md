@@ -97,25 +97,28 @@ the two-column poetry examples in §5).
 
 ## 5. Poetry
 
-A poetry block is one or more couplets (two-line verse units) sharing one layout,
-written as a `:::poetry{...}` container. `layout` is always written; every other
-attribute is only written when it differs from its default, so a plain couplet in
-the default layout carries no attributes at all beyond `layout`.
+A poetry block is one or more stanzas sharing one layout and form, written as a
+`:::poetry{...}` container. `layout` is always written; every other attribute is
+only written when it differs from its default, so a plain couplet in the default
+layout/form carries no attributes at all beyond `layout`.
 
 | Attribute | Values | Default | Meaning |
 |---|---|---|---|
-| `layout` | `single`, `two-column`, `staggered` | — (always written) | How the couplets in this block are arranged |
-| `spacing` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Vertical space between couplets |
+| `layout` | `single`, `two-column`, `staggered` | — (always written) | How the stanzas in this block are arranged |
+| `form` | `couplet`, `mukhammas`, `musaddas` | `couplet` | Stanza size — 2/5/6 misra lines (requirements doc §4.11, amended). `two-column`/`staggered` are `couplet`-only |
+| `spacing` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Vertical space between stanzas |
 | `gutter` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Horizontal space either side of the divider, `two-column` only |
 | `stagger` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of each couplet's box, `staggered` only |
+| `staggerGroup` | `1`, `2` | `1` | Couplets sharing one side before `staggered` flips |
 | `centerWidth` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of a centered couplet, `two-column` only (§5.3) |
-| `width` | a pixel number | unset | User-resized block width, from dragging the block's own resize handle |
+| `width` | a pixel number | unset | User-resized block width, from dragging the block's own resize handle. Mutually exclusive with `autoWidth` |
+| `autoWidth` | `true` | unset (`false`) | Fit-content width instead of a percentage/pixel max-width; `single`-layout only |
 
 ### 5.1 Single-column and staggered
 
-Both lay out a couplet's two misras (lines) as two plain paragraphs — the only
-difference is the `layout` attribute itself, which drives the editor's CSS, not
-the Markdown shape:
+Both lay out a stanza's misras (lines) as plain paragraphs — the only difference
+is the `layout` attribute itself, which drives the editor's CSS, not the
+Markdown shape:
 
 ```markdown
 :::poetry{layout="single"}
@@ -138,7 +141,25 @@ line d
 ```
 
 A block with more than one couplet is just more paragraphs in the same
-container, two per couplet, in order.
+container, two per couplet, in order — the same is true for a `musaddas`
+(6 lines per stanza) or `mukhammas` (5) block, just with a larger paragraph
+group per stanza, always in `single` layout:
+
+```markdown
+:::poetry{layout="single" form="musaddas"}
+line one
+
+line two
+
+line three
+
+line four
+
+line five
+
+line six
+:::
+```
 
 ### 5.2 Two-column
 
@@ -231,8 +252,9 @@ Round trip = editor → Markdown → editor.
 | Tables | content, rows, columns kept. **Header state is not**: the first row becomes the header on import. Multiple blocks in a cell are joined with line breaks |
 | Columns | lossless (§4) |
 | Footnotes | lossless; references and definitions re-pair by id |
-| Poetry: layout, spacing, gutter, stagger, centerWidth, width | lossless (§5) |
+| Poetry: layout, form, spacing, gutter, stagger, staggerGroup, centerWidth, width, autoWidth | lossless (§5) |
 | Poetry: couplet pairing in two-column layout | lossless, via one `:::columns` per couplet (§5.2) |
+| Poetry: musaddas/mukhammas stanza grouping in single layout | lossless, grouped by `form`'s stanza size on import (§5.1) |
 | Empty paragraphs at the end of the document | lossless, as `::blank` |
 | Empty paragraphs elsewhere | dropped (Markdown has no way to say them; a blank line is just a paragraph separator) |
 | Code combined with bold/italic/etc. | kept (marks wrap the code span) |
