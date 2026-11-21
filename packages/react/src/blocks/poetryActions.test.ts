@@ -887,29 +887,38 @@ function buildMixedMukhammas(editor: LexicalEditor): void {
 }
 
 describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () => {
-  it('centers the trailing line in place, keeping its text, and un-centers it again', () => {
+  it('is centered by default — $buildCoupletNodes defaults mukhammas-mixed\'s trailing line to centered (matching IconPoetryMixed\'s depiction) — and can be un-centered and re-centered', () => {
     const editor = makeEditor();
     buildMixedMukhammas(editor);
 
-    editor.update(() => {
-      const misras = $getMisraParagraphs(getBlock());
-      misras[4].selectEnd(); // 'e', the trailing line
-      expect($setCoupletCentered(true)).toBe(true);
-    }, { discrete: true });
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
-      const couplet = $getCouplets(block)[0];
-      expect(couplet.map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
     });
     editor.update(() => {
       $getCouplets(getBlock())[0][4].selectEnd();
       expect($getCoupletCenteredFromSelection()).toBe(true);
+    }, { discrete: true });
+
+    editor.update(() => {
+      $getCouplets(getBlock())[0][4].selectEnd();
       expect($setCoupletCentered(false)).toBe(true);
     }, { discrete: true });
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      misras[4].selectEnd(); // 'e', the trailing line, now bare
+      expect($setCoupletCentered(true)).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
       expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
     });
   });
@@ -918,12 +927,13 @@ describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () 
     const editor = makeEditor();
     buildMixedMukhammas(editor);
     editor.update(() => {
+      // Centered-wrapped by default (see the first test in this block).
       expect($getCouplets(getBlock())[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
       $getMisraParagraphs(getBlock())[4].selectEnd();
-      $setCoupletCentered(true);
+      $setCoupletCentered(false);
     }, { discrete: true });
     editor.getEditorState().read(() => {
-      // Reads the same 5 misras back, in the same order, once wrapped.
+      // Reads the same 5 misras back, in the same order, once un-wrapped.
       expect($getCouplets(getBlock())[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
     });
   });
@@ -1970,7 +1980,7 @@ describe('stanzaVariant "mixed" physical shape', () => {
     expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
 
-  it('builds 2 two-column rows + 1 trailing flat paragraph for mukhammas (4+1)', () => {
+  it('builds 2 two-column rows + 1 centered trailing line for mukhammas (4+1) — centered by default', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
     editor.update(
@@ -1985,7 +1995,9 @@ describe('stanzaVariant "mixed" physical shape', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       const children = block.getChildren();
-      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph']);
+      // The trailing slot is a centered layout-container, not a bare
+      // paragraph — mukhammas-mixed defaults to centered ($buildCoupletNodes).
+      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
       expect($getCouplets(block)).toHaveLength(1);
     });
     expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e']);
@@ -2007,8 +2019,8 @@ describe('stanzaVariant "mixed" physical shape', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect(block.getChildren().map((c) => c.getType())).toEqual([
-        'layout-container', 'layout-container', 'paragraph',
-        'layout-container', 'layout-container', 'paragraph',
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
       ]);
       expect($getCouplets(block)).toHaveLength(2);
     });
@@ -2106,10 +2118,13 @@ describe('stanzaVariant forced back to continuous on layout change', () => {
       // Re-chunked to mukhammas' own 5-line stanza size: the former 6th
       // misra ('f') pads out a second (new, empty) 5-line stanza instead —
       // each mukhammas-mixed stanza is 2 rows + 1 trailing flat (3 physical
-      // children), so 2 stanzas is 6 children total.
+      // children), so 2 stanzas is 6 children total. The trailing slot is a
+      // centered layout-container, not a bare paragraph — mukhammas-mixed
+      // defaults to centered ($buildCoupletNodes), including when rebuilt by
+      // a layout change.
       expect(block.getChildren().map((c) => c.getType())).toEqual([
-        'layout-container', 'layout-container', 'paragraph',
-        'layout-container', 'layout-container', 'paragraph',
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
       ]);
       expect($getCouplets(block)).toHaveLength(2);
     });

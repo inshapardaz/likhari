@@ -466,15 +466,21 @@
 }
 
 /* `stanzaVariant: 'split'` (musaddas/mukhammas only — lexical-editor-spec.md
-   §4.11, amended): a secondary, lighter divider before the stanza's last two
-   lines — musaddas 4+2 (nth-child(6n+5), position 5 of every 6), mukhammas
-   3+2 (nth-child(5n+4), position 4 of every 5). Lighter than the primary
-   stanza-boundary rule above: border only, no margin/padding-top bump, so
-   the two levels of grouping stay visually distinct. CSS-only — `split`
-   keeps the exact same flat physical shape as `continuous`. */
-.likhari-poetry--musaddas.likhari-poetry--variant-split .likhari-paragraph:nth-child(6n+5),
-.likhari-poetry--mukhammas.likhari-poetry--variant-split .likhari-paragraph:nth-child(5n+4) {
+   §4.11, amended): a secondary divider before the stanza's last two lines —
+   musaddas 4+2 (nth-child(6n+5), position 5 of every 6). Lighter than the
+   primary stanza-boundary rule above: border only, no margin/padding-top
+   bump, so the two levels of grouping stay visually distinct. CSS-only —
+   `split` keeps the exact same flat physical shape as `continuous`. */
+.likhari-poetry--musaddas.likhari-poetry--variant-split .likhari-paragraph:nth-child(6n+5) {
   border-top: 1px dotted var(--editor-line-strong);
+}
+
+/* Mukhammas 3+2 split: pure spacing, no divider line — extra margin before
+   the last two lines is the visual grouping cue by itself, rather than a
+   second line alongside the stanza boundary's own dashed one (nth-child(5n+4),
+   position 4 of every 5). */
+.likhari-poetry--mukhammas.likhari-poetry--variant-split .likhari-paragraph:nth-child(5n+4) {
+  margin-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
 
 /* `stanzaVariant: 'mixed'` (musaddas/mukhammas only): each stanza is 2

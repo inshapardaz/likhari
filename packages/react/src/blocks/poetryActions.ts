@@ -220,8 +220,23 @@ function $wrapTrailingMisra(misra: ParagraphNode): LayoutContainerNode {
  *    same way a two-column row is — ignored for musaddas (2 trailing
  *    misras: no single line to center).
  *  - everything else: the misras themselves, as flat siblings.
- */
-function $buildCoupletNodes(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant, misras: ParagraphNode[], centered = false): LexicalNode[] {
+ *
+ * `centered`'s default is smart, not a flat `false`: every call site that
+ * doesn't already have an opinion (a fresh stanza, a layout/variant change,
+ * $setPoetryStanzaVariant's rebuild) gets `false` for a two-column row
+ * (unchanged — centering a couplet has always been an explicit opt-in) but
+ * `true` for a mukhammas-mixed trailing line, matching how that shape is
+ * depicted everywhere it's chosen (the IconPoetryMixed glyph, the reference
+ * site) — centered-by-default, not full-width-by-default. Call sites that
+ * DO have an opinion (drag-move, preserving whatever state $detachCouplet
+ * read off the source) pass `centered` explicitly and bypass this default
+ * entirely. */
+function $buildCoupletNodes(
+  layout: PoetryLayout,
+  stanzaVariant: PoetryStanzaVariant,
+  misras: ParagraphNode[],
+  centered: boolean = layout === 'mukhammas' && $isMixedStanza(layout, stanzaVariant),
+): LexicalNode[] {
   if (layout === 'two-column') {
     const [a, b] = misras;
     const row = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');

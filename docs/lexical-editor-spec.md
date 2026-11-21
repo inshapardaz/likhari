@@ -285,23 +285,33 @@ already adds:
   stanza boundary only. Backward compatible: a document with no knowledge of this
   amendment renders pixel-identical to before it.
 - `split`: the same flat physical shape as `continuous` (CSS-only, no tree
-  restructuring), plus a lighter secondary divider before the stanza's last two lines —
+  restructuring), plus a secondary grouping cue before the stanza's last two lines —
   `musaddas` 4+2, `mukhammas` 3+2. This is the same idea the reference implementation
   (shakesvision.github.io/PoetryJustification) calls its "classic" musaddas split and
-  its "3+2" mukhammas split, read here as one shared rule (secondary divider before the
-  stanza's last 2 lines) rather than two separately-specified splits.
+  its "3+2" mukhammas split, read here as one shared rule (a cue before the stanza's
+  last 2 lines) rather than two separately-specified splits. Musaddas's cue is a lighter
+  divider line, matching the weight of its own stanza-internal row divider (see `mixed`
+  below); mukhammas's cue is pure extra spacing with no divider line at all, so the 3+2
+  grouping reads as breathing room rather than a second border competing with the
+  stanza-boundary divider above it.
 - `mixed`: a real shape change — the stanza's first 4 misras become 2 two-column rows
   (built the same way a `two-column` couplet row is, §4.9's columns primitive), followed
   by the remaining `POETRY_STANZA_SIZE[layout] - 4` misras as flat paragraphs (musaddas:
   2, mukhammas: 1). Matches the reference implementation's "mixed" musaddas/mukhammas
   variants. For `mukhammas` specifically (exactly 1 trailing misra, unlike `musaddas`'s
   2), that trailing line additionally supports the same centering/width control as a
-  centered `two-column` couplet (the toolbar's "Center this couplet" toggle, issue #27 —
+  centered `two-column` couplet (the toolbar's "Center"/"Un-center" toggle, issue #27 —
   narrows the row to the `centerWidth` scale and centers it) — the toolbar's
   "Center"/"Un-center" toggle and narrower/wider steppers reuse the exact same
   `data-likhari-single-column` wrapper and `--poetry-center-width` scale, just around one
   misra instead of two. Out of scope for `musaddas`'s 2-line trailing, which stays a
-  plain flat pair.
+  plain flat pair. Centered by default: every freshly-built mukhammas-mixed trailing
+  line (a new insert, a layout/variant change, Enter appending a new stanza) starts
+  centered — matching how `IconPoetryMixed` depicts it (a short, centered third line) —
+  rather than requiring an explicit toggle first; a block authored before this default
+  existed, or one explicitly un-centered since, keeps whatever physical shape it was
+  last saved with (this is a construction default, not a rendering rule, so it never
+  silently rewrites existing documents).
 
 Provide this as a sub-section of the poetry menu, shown only while the caret is in a
 musaddas/mukhammas block, offering the three choices as a radio-style group (mirroring
