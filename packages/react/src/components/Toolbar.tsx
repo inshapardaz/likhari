@@ -175,8 +175,6 @@ import {
   IconCut,
   IconSearch,
   IconSelectAll,
-  IconColumns1,
-  IconColumns2,
   IconNumber1Small,
   IconRowInsertBottom,
   IconRowInsertTop,
@@ -197,19 +195,21 @@ import {
 import {
   IconCoupletCenterNarrow,
   IconCoupletCenterWide,
-  IconCoupletDelete,
   IconCoupletGutterNarrow,
   IconCoupletGutterWide,
   IconCoupletSpacingLoose,
   IconCoupletSpacingTight,
   IconCoupletStaggerNarrow,
   IconCoupletStaggerWide,
+  IconPoetryAlternate,
   IconPoetryDelete,
   IconPoetryMixed,
   IconPoetryMukhammas,
   IconPoetryMusaddas,
+  IconPoetrySingleColumn,
   IconPoetrySplitMukhammas,
   IconPoetrySplitMusaddas,
+  IconPoetryTwoColumn,
 } from '../icons/poetryIcons';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
@@ -781,9 +781,9 @@ function PoetryMenuItems({
   // of the five behind another choice.
   const layoutItems = (
     <>
-      {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
-      {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
-      {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
+      {item(IconPoetrySingleColumn, t.singleColumn, setLayout('single'), layout === 'single')}
+      {item(IconPoetryTwoColumn, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      {item(IconPoetryAlternate, t.staggered, setLayout('staggered'), layout === 'staggered')}
       {item(IconPoetryMusaddas, strings.toolbar.insertPoetryMusaddas, setLayout('musaddas'), layout === 'musaddas')}
       {item(IconPoetryMukhammas, strings.toolbar.insertPoetryMukhammas, setLayout('mukhammas'), layout === 'mukhammas')}
     </>
@@ -793,6 +793,30 @@ function PoetryMenuItems({
   // it comes back as a full labelled item below, since a single trash icon in a
   // row of several would be too easy to hit by mistake.
   const groupDivider = mode === 'icons' ? <ItemDivider mode={mode} /> : null;
+
+  // Musaddas/mukhammas's stanza-variant sub-choice (continuous/split/mixed —
+  // "2+3, 4+2, mixed") gets its own row, apart from `layoutItems` above it and
+  // the structural/formatting actions below — a sub-choice under one of the
+  // five layouts, not an action on the stanza. Empty (no row at all) for the
+  // other three layouts, which have no stanza-variant concept.
+  const stanzaVariantItems = STANZA_VARIANT_LAYOUTS.has(layout) ? (
+    <>
+      {item(IconPoetrySingleColumn, t.stanzaVariantContinuous, () => $setPoetryStanzaVariant('continuous'), stanzaVariant === 'continuous')}
+      {item(
+        layout === 'musaddas' ? IconPoetrySplitMusaddas : IconPoetrySplitMukhammas,
+        layout === 'musaddas' ? t.stanzaVariantSplitMusaddas : t.stanzaVariantSplitMukhammas,
+        () => $setPoetryStanzaVariant('split'),
+        stanzaVariant === 'split',
+      )}
+      {item(
+        IconPoetryMixed,
+        layout === 'musaddas' ? t.stanzaVariantMixedMusaddas : t.stanzaVariantMixedMukhammas,
+        () => $setPoetryStanzaVariant('mixed'),
+        stanzaVariant === 'mixed',
+      )}
+    </>
+  ) : null;
+
   const actionItems = (
     <>
       {item(IconRowInsertTop, t.insertCoupletBefore, () => $insertCoupletRelativeToSelection('before'))}
@@ -804,24 +828,6 @@ function PoetryMenuItems({
         <>
           {groupDivider}
           {item(IconArrowAutofitWidth, autoWidth ? t.fixedWidth : t.autoWidth, () => $setPoetryAutoWidth(!autoWidth))}
-        </>
-      )}
-      {STANZA_VARIANT_LAYOUTS.has(layout) && (
-        <>
-          {groupDivider}
-          {item(IconColumns1, t.stanzaVariantContinuous, () => $setPoetryStanzaVariant('continuous'), stanzaVariant === 'continuous')}
-          {item(
-            layout === 'musaddas' ? IconPoetrySplitMusaddas : IconPoetrySplitMukhammas,
-            layout === 'musaddas' ? t.stanzaVariantSplitMusaddas : t.stanzaVariantSplitMukhammas,
-            () => $setPoetryStanzaVariant('split'),
-            stanzaVariant === 'split',
-          )}
-          {item(
-            IconPoetryMixed,
-            layout === 'musaddas' ? t.stanzaVariantMixedMusaddas : t.stanzaVariantMixedMukhammas,
-            () => $setPoetryStanzaVariant('mixed'),
-            stanzaVariant === 'mixed',
-          )}
         </>
       )}
       {layout === 'staggered' && (
@@ -861,16 +867,26 @@ function PoetryMenuItems({
         </>
       )}
       {groupDivider}
-      {item(IconCoupletDelete, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
+      {item(IconRowRemove, t.deleteCouplet, $deletePoetryCouplet, false, 'red')}
       {mode !== 'icons' && item(IconPoetryDelete, t.deletePoetry, $deletePoetryBlock, false, 'red')}
     </>
   );
 
   if (mode === 'icons') {
+    // Four explicit rows: layout choice, its stanza-variant sub-choice (only
+    // for musaddas/mukhammas), structural/formatting actions, then the
+    // block-level delete as its own row below — not a wrapping grid of
+    // every icon together, so each logical group reads as a row at a glance.
     return (
       <>
         <div className="likhari-context-icon-rows" role="group" aria-label={t.menuLabel}>
           <div className="likhari-context-icons">{layoutItems}</div>
+          {stanzaVariantItems && (
+            <>
+              <div className="likhari-context-icon-rows-divider" />
+              <div className="likhari-context-icons">{stanzaVariantItems}</div>
+            </>
+          )}
           <div className="likhari-context-icon-rows-divider" />
           <div className="likhari-context-icons">{actionItems}</div>
         </div>
@@ -889,7 +905,12 @@ function PoetryMenuItems({
     <>
       <ItemLabel mode={mode}>{t.menuLabel}</ItemLabel>
       {layoutItems}
-      <ItemDivider mode={mode} />
+      {stanzaVariantItems && (
+        <>
+          <ItemDivider mode={mode} />
+          {stanzaVariantItems}
+        </>
+      )}
       <ItemDivider mode={mode} />
       {actionItems}
     </>
@@ -1947,7 +1968,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
           <Menu.Dropdown>
             {config.poetry.layouts.includes('single') && (
               <Menu.Item
-                leftSection={<IconColumns1 size={ICON_SIZE} stroke={ICON_STROKE} />}
+                leftSection={<IconPoetrySingleColumn size={ICON_SIZE} stroke={ICON_STROKE} />}
                 onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single' })}
               >
                 {strings.poetryMenu.singleColumn}
@@ -1955,7 +1976,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             )}
             {config.poetry.layouts.includes('two-column') && (
               <Menu.Item
-                leftSection={<IconColumns2 size={ICON_SIZE} stroke={ICON_STROKE} />}
+                leftSection={<IconPoetryTwoColumn size={ICON_SIZE} stroke={ICON_STROKE} />}
                 onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'two-column' })}
               >
                 {strings.poetryMenu.twoColumn}
@@ -1963,7 +1984,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             )}
             {config.poetry.layouts.includes('staggered') && (
               <Menu.Item
-                leftSection={<IconArrowsShuffle size={ICON_SIZE} stroke={ICON_STROKE} />}
+                leftSection={<IconPoetryAlternate size={ICON_SIZE} stroke={ICON_STROKE} />}
                 onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'staggered' })}
               >
                 {strings.poetryMenu.staggered}

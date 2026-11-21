@@ -42,14 +42,6 @@ function createPoetryIcon(name: string, paths: string[]) {
   return Component;
 }
 
-/** A trash can with a single line inside it: delete this one couplet. */
-export const IconCoupletDelete = createPoetryIcon('couplet-delete', [
-  'M4 7h16',
-  'M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3',
-  'M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12',
-  'M12 11v6',
-]);
-
 /** A trash can with three lines inside it: delete every couplet in the block. */
 export const IconPoetryDelete = createPoetryIcon('poetry-delete', [
   'M4 7h16',
@@ -186,4 +178,41 @@ export const IconPoetryMixed = createPoetryIcon('poetry-mixed', [
   'M3 12h7',
   'M14 12h7',
   'M8 18h8',
+]);
+
+/** Three full-width lines, evenly stacked: the `single` layout — one flat
+ * column, no internal grouping. Replaces the generic @tabler/icons-react
+ * IconColumns1 everywhere this layout is picked (the layout list, the
+ * top-level insert menu, and the `continuous` stanza-variant reuse of the
+ * same glyph) so the layout row's five icons read as one consistent set. */
+export const IconPoetrySingleColumn = createPoetryIcon('poetry-single-column', [
+  'M5 5h14',
+  'M5 12h14',
+  'M5 19h14',
+]);
+
+/** Three rows of a short side-by-side line pair: the `two-column` layout —
+ * each row a couplet's two misras side by side. Replaces the generic
+ * @tabler/icons-react IconColumns2 everywhere this layout is picked. */
+export const IconPoetryTwoColumn = createPoetryIcon('poetry-two-column', [
+  'M3 5h6',
+  'M13 5h6',
+  'M3 12h6',
+  'M13 12h6',
+  'M3 19h6',
+  'M13 19h6',
+]);
+
+/** Four short lines zig-zagging left/right: the `staggered` ("alternate
+ * sides") layout — each couplet's box alternates which edge it's pushed to.
+ * Replaces the generic @tabler/icons-react IconArrowsShuffle everywhere this
+ * layout is picked (the layout list, the top-level insert menu) — kept
+ * distinct from the staggerGroup 1/2 controls' own icons, a different,
+ * narrower concept (how many couplets share one side) at a different depth
+ * of the same menu. */
+export const IconPoetryAlternate = createPoetryIcon('poetry-alternate', [
+  'M3 4h7',
+  'M14 9h7',
+  'M3 14h7',
+  'M14 19h7',
 ]);

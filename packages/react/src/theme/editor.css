@@ -643,12 +643,20 @@
   padding-inline-end: var(--poetry-gutter, 20px);
 }
 
-/* A visible divider between misra columns, same dashed language as the
-   couplet's own border — matches a table's internal cell borders. */
 .likhari-poetry--two-column .likhari-layout-item:not(:first-child),
 .likhari-poetry--variant-mixed .likhari-layout-item:not(:first-child) {
-  border-inline-start: 1px dashed var(--editor-line-strong);
   padding-inline-start: var(--poetry-gutter, 20px);
+}
+
+/* A visible divider between misra columns, same dashed language as the
+   couplet's own border — matches a table's internal cell borders. Only a
+   genuine two-column couplet gets this: a mixed musaddas/mukhammas stanza's
+   own 2-column rows are internal structure of ONE stanza, not a boundary
+   between stanzas, so they keep the gutter spacing above but stay divider-
+   free — the only divider a mixed stanza ever shows is the horizontal one
+   between stanzas (the rules above this whole column-styling section). */
+.likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
+  border-inline-start: 1px dashed var(--editor-line-strong);
 }
 
 /* PoetryResizer.tsx's drag handle — portaled to a fixed position over the
