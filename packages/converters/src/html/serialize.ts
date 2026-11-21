@@ -229,6 +229,23 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
         const isStanzaStart = posInStanza === 0 && i >= period;
         if (child.type === 'layout-container') {
           const items = child.children ?? [];
+          // mukhammas's single trailing misra (never musaddas's 2) can be
+          // centered/narrowed the same way a two-column couplet row is —
+          // same single-item encoding, same --poetry-center-width scale, no
+          // gutter divider since there's only the one column.
+          if (items.length === 1) {
+            const rowStyle = [
+              'display: grid',
+              'gap: 0',
+              'grid-template-columns: 1fr',
+              'margin: 0',
+              `width: ${POETRY_CENTER_WIDTH[centerWidth]}`,
+              'margin-inline: auto',
+              ...(isStanzaStart ? [separator] : posInStanza === 1 ? [`border-top: ${POETRY_RULE}`] : []),
+            ].join('; ');
+            const lines = (items[0].children ?? []).map((line) => poetryLineToHtml(line, '', ctx)).join('');
+            return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}"><div data-likhari-layout-item style="padding-inline: 0">${lines}</div></div>`;
+          }
           const rowStyle = [
             'display: grid',
             'gap: 0',

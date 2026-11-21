@@ -288,6 +288,36 @@ describe('poetry export', () => {
     expect(mukhammasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph']);
   });
 
+  it('round-trips a centered trailing line in a mukhammas-mixed stanza, narrowed by centerWidth', () => {
+    const row = (a: string, b: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(a)])]), elementBase('layout-item', [paragraph([textNode(b)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    // The trailing misra, centered: a LayoutContainerNode('1fr') holding one
+    // LayoutItemNode holding the one paragraph — same encoding a centered
+    // two-column row uses, reused for mukhammas's single trailing line.
+    const centeredTrailing = elementBase('layout-container', [elementBase('layout-item', [paragraph([textNode('e')])])], {
+      templateColumns: '1fr',
+    });
+    const block = elementBase('poetry-couplet', [row('a', 'b'), row('c', 'd'), centeredTrailing], {
+      layout: 'mukhammas',
+      stanzaVariant: 'mixed',
+      centerWidth: 'loose',
+    });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: 85%'); // loose centerWidth
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed', centerWidth: 'loose' });
+    expect(back.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'layout-container']);
+    const trailing = back.children![2] as SNode;
+    expect(trailing.children).toHaveLength(1);
+    const trailingItem = trailing.children![0] as SNode;
+    expect(trailingItem.children).toHaveLength(1);
+    expect((trailingItem.children![0] as SNode).children![0]).toMatchObject({ text: 'e' });
+  });
+
   it('round-trips autoWidth as fit-content, single-layout only', () => {
     const lines = [paragraph([textNode('a')]), paragraph([textNode('b')])];
     const block = elementBase('poetry-couplet', lines, { layout: 'single', autoWidth: true });

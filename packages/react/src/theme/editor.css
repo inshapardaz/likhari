@@ -621,8 +621,12 @@
    $setCoupletCentered) — narrowed to the middle of the block, with no column
    divider or gutter since there's only one column. The row carries this
    itself (LayoutNode.tsx), rather than :has(), which needs Firefox 121+
-   (issue #25). Width is the --poetry-center-width scale (issue #27). */
-.likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column] {
+   (issue #25). Width is the --poetry-center-width scale (issue #27). Also
+   matches a mukhammas-mixed stanza's single trailing misra when centered
+   the same way ($wrapTrailingMisra) — same marker attribute, same width
+   variable, no separate rule needed for it. */
+.likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column],
+.likhari-poetry--mukhammas.likhari-poetry--variant-mixed > .likhari-layout-container[data-likhari-single-column] {
   width: var(--poetry-center-width, 60%);
   margin-inline: auto;
 }

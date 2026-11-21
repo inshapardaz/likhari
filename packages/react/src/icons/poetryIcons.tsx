@@ -150,3 +150,40 @@ export const IconPoetryMukhammas = createPoetryIcon('poetry-mukhammas', [
   'M5 14h14',
   'M7 21h10',
 ]);
+
+/** Four closely-stacked full-width lines, a visible gap, then two more: a
+ * musaddas stanza's `stanzaVariant: 'split'` grouping (4+2) — same flat
+ * physical shape as `continuous`, just with the secondary gap shown. */
+export const IconPoetrySplitMusaddas = createPoetryIcon('poetry-split-musaddas', [
+  'M5 2h14',
+  'M5 5h14',
+  'M5 8h14',
+  'M5 11h14',
+  'M5 17h14',
+  'M5 20h14',
+]);
+
+/** Three closely-stacked full-width lines, a visible gap, then two more: a
+ * mukhammas stanza's `stanzaVariant: 'split'` grouping (3+2) — same flat
+ * physical shape as `continuous`, just with the secondary gap shown. */
+export const IconPoetrySplitMukhammas = createPoetryIcon('poetry-split-mukhammas', [
+  'M5 2h14',
+  'M5 5h14',
+  'M5 8h14',
+  'M5 14h14',
+  'M5 17h14',
+]);
+
+/** Two rows of a short side-by-side line pair (a 2-column grid), then one
+ * shorter, horizontally-centered line below: a musaddas/mukhammas stanza's
+ * `stanzaVariant: 'mixed'` grouping — 2 two-column rows followed by its
+ * remaining misra(s) as trailing flat line(s). One shared icon for both
+ * layouts (the actual trailing-line count differs — 2 for musaddas, 1 for
+ * mukhammas — but the shape this icon suggests is the same either way). */
+export const IconPoetryMixed = createPoetryIcon('poetry-mixed', [
+  'M3 6h7',
+  'M14 6h7',
+  'M3 12h7',
+  'M14 12h7',
+  'M8 18h8',
+]);

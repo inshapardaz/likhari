@@ -205,8 +205,11 @@ import {
   IconCoupletStaggerNarrow,
   IconCoupletStaggerWide,
   IconPoetryDelete,
+  IconPoetryMixed,
   IconPoetryMukhammas,
   IconPoetryMusaddas,
+  IconPoetrySplitMukhammas,
+  IconPoetrySplitMusaddas,
 } from '../icons/poetryIcons';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
@@ -808,13 +811,13 @@ function PoetryMenuItems({
           {groupDivider}
           {item(IconColumns1, t.stanzaVariantContinuous, () => $setPoetryStanzaVariant('continuous'), stanzaVariant === 'continuous')}
           {item(
-            IconArrowsSplit2,
+            layout === 'musaddas' ? IconPoetrySplitMusaddas : IconPoetrySplitMukhammas,
             layout === 'musaddas' ? t.stanzaVariantSplitMusaddas : t.stanzaVariantSplitMukhammas,
             () => $setPoetryStanzaVariant('split'),
             stanzaVariant === 'split',
           )}
           {item(
-            IconColumns2,
+            IconPoetryMixed,
             layout === 'musaddas' ? t.stanzaVariantMixedMusaddas : t.stanzaVariantMixedMukhammas,
             () => $setPoetryStanzaVariant('mixed'),
             stanzaVariant === 'mixed',
@@ -831,7 +834,14 @@ function PoetryMenuItems({
           {item(IconArrowsShuffle2, t.staggerGroupTwo, () => $setPoetryStaggerGroup(2), staggerGroup === 2)}
         </>
       )}
-      {layout === 'two-column' && (
+      {/* Centering/width applies to a two-column couplet's own row, and —
+          mukhammas only — its mixed stanza's single trailing misra, reusing
+          the exact same toggle/steppers (poetryActions.ts's
+          $getCoupletCenteredFromSelection/$setCoupletCentered already widen
+          their own guard the same way). The gutter steppers stay
+          two-column-only: a gutter is the space either side of a column
+          divider, which a single centered line never has. */}
+      {(layout === 'two-column' || (layout === 'mukhammas' && stanzaVariant === 'mixed')) && (
         <>
           {groupDivider}
           {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}
@@ -841,8 +851,12 @@ function PoetryMenuItems({
               {item(IconCoupletCenterWide, t.widerCenter, () => $adjustPoetryCenterWidth(1), !canStep(POETRY_CENTER_WIDTHS, scale.centerWidth, 1))}
             </>
           )}
-          {item(IconCoupletGutterNarrow, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
-          {item(IconCoupletGutterWide, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
+          {layout === 'two-column' && (
+            <>
+              {item(IconCoupletGutterNarrow, t.narrowerGutter, () => $adjustPoetryGutter(-1), !canStep(POETRY_GUTTERS, scale.gutter, -1))}
+              {item(IconCoupletGutterWide, t.widerGutter, () => $adjustPoetryGutter(1), !canStep(POETRY_GUTTERS, scale.gutter, 1))}
+            </>
+          )}
         </>
       )}
       {groupDivider}

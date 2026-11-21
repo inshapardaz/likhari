@@ -109,7 +109,7 @@ couplet in the default layout carries no attributes at all beyond `layout`.
 | `gutter` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Horizontal space either side of the divider, `two-column` only |
 | `stagger` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of each couplet's box, `staggered` only |
 | `staggerGroup` | `1`, `2` | `1` | Couplets sharing one side before `staggered` flips |
-| `centerWidth` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of a centered couplet, `two-column` only (§5.3) |
+| `centerWidth` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of a centered couplet (`two-column`), or a centered trailing line (`mukhammas`, `stanzaVariant: 'mixed'` only) (§5.3) |
 | `width` | a pixel number | unset | User-resized block width, from dragging the block's own resize handle. Mutually exclusive with `autoWidth` |
 | `autoWidth` | `true` | unset (`false`) | Fit-content width instead of a percentage/pixel max-width; `single`/`musaddas`/`mukhammas` layouts only |
 | `stanzaVariant` | `continuous`, `split`, `mixed` | `continuous` | Secondary grouping within each stanza, `musaddas`/`mukhammas` only (requirements doc §4.11, amended) — see §5.1.1 |
@@ -230,6 +230,41 @@ section — rather than needing a dedicated mixed-shape syntax, so this is
 exactly the same `:::columns`-per-row approximation §5.2 already uses, just
 limited to the stanza's first 4 lines.
 
+`mukhammas`'s single trailing line (unlike `musaddas`'s 2) can additionally be
+centered/narrowed the same way a `two-column` couplet can (§5.3) — written as
+a `:::columns{count="1"}` with one `:::column` in place of the plain trailing
+paragraph:
+
+```markdown
+:::::poetry{layout="mukhammas" stanzaVariant="mixed"}
+::::columns{count="2"}
+:::column
+line one
+:::
+
+:::column
+line two
+:::
+::::
+
+::::columns{count="2"}
+:::column
+line three
+:::
+
+:::column
+line four
+:::
+::::
+
+::::columns{count="1"}
+:::column
+line five
+:::
+::::
+:::::
+```
+
 ### 5.2 Two-column
 
 Each couplet is one row, and a row is written with the same `:::column`
@@ -256,12 +291,11 @@ block's couplets, one couplet per `columns` container, in order. A block with
 several couplets repeats the `::::columns{count="2"}` ... `::::` structure once
 per couplet, directly one after another inside the one `:::::poetry` container.
 
-### 5.3 Centered couplet
+### 5.3 Centered couplet (and centered mukhammas-mixed trailing line)
 
-A centered couplet (the toolbar's "Center this couplet", only available in
-`two-column` layout) is a `:::columns{count="1"}` with a single `:::column`
-holding both misras as two paragraphs, rather than two columns with one misra
-each:
+A centered couplet (the toolbar's "Center", available in `two-column`
+layout) is a `:::columns{count="1"}` with a single `:::column` holding both
+misras as two paragraphs, rather than two columns with one misra each:
 
 ```markdown
 :::::poetry{layout="two-column" centerWidth="relaxed"}
@@ -275,8 +309,14 @@ misra 2
 :::::
 ```
 
-`centerWidth` is set on the whole `poetry` block, not per couplet — every
-centered couplet in the same block shares it.
+The same toolbar toggle is also available in a `mukhammas` block with
+`stanzaVariant: 'mixed'`, for its single trailing line only (`musaddas`'s 2
+trailing lines are out of scope) — written the same way, just with one
+misra in the `:::column` instead of two (§5.1.1 shows the full block).
+
+`centerWidth` is set on the whole `poetry` block, not per couplet/line —
+every centered couplet or centered trailing line in the same block shares
+it.
 
 ## 6. Footnotes
 

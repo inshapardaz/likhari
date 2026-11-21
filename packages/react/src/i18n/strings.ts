@@ -195,6 +195,10 @@ export interface Strings {
     widerCouplets: string;
     insertCoupletBefore: string;
     insertCoupletAfter: string;
+    /** Centering toggle + width steppers — shown for a two-column couplet's
+     * own row, and (mukhammas only) its mixed stanza's single trailing
+     * misra (poetryActions.ts's $isCenterableStanza), so the wording stays
+     * couplet-agnostic rather than naming either shape specifically. */
     centerCouplet: string;
     uncenterCouplet: string;
     tighterSpacing: string;
@@ -540,12 +544,12 @@ const en: Strings = {
     widerCouplets: 'Wider couplets',
     insertCoupletBefore: 'Insert couplet above',
     insertCoupletAfter: 'Insert couplet below',
-    centerCouplet: 'Center this couplet',
-    uncenterCouplet: 'Un-center this couplet',
+    centerCouplet: 'Center',
+    uncenterCouplet: 'Un-center',
     tighterSpacing: 'Tighter couplet spacing',
     looserSpacing: 'Looser couplet spacing',
-    narrowerCenter: 'Narrower centered couplet',
-    widerCenter: 'Wider centered couplet',
+    narrowerCenter: 'Narrower width',
+    widerCenter: 'Wider width',
     narrowerGutter: 'Narrower gutter',
     widerGutter: 'Wider gutter',
     deleteCouplet: 'Delete couplet',
@@ -880,12 +884,12 @@ const ur: Strings = {
     widerCouplets: 'شعر کی چوڑائی زیادہ',
     insertCoupletBefore: 'اوپر شعر شامل کریں',
     insertCoupletAfter: 'نیچے شعر شامل کریں',
-    centerCouplet: 'یہ شعر وسط میں رکھیں',
+    centerCouplet: 'وسط میں رکھیں',
     uncenterCouplet: 'وسط میں رکھنا ختم کریں',
     tighterSpacing: 'شعروں کے درمیان کم جگہ',
     looserSpacing: 'شعروں کے درمیان زیادہ جگہ',
-    narrowerCenter: 'وسط شعر کی چوڑائی کم',
-    widerCenter: 'وسط شعر کی چوڑائی زیادہ',
+    narrowerCenter: 'وسط کی چوڑائی کم',
+    widerCenter: 'وسط کی چوڑائی زیادہ',
     narrowerGutter: 'کالمز کے درمیان کم جگہ',
     widerGutter: 'کالمز کے درمیان زیادہ جگہ',
     deleteCouplet: 'شعر حذف کریں',
@@ -1220,12 +1224,12 @@ const paShahmukhi: Strings = {
     widerCouplets: 'شعر دی چوڑائی ودھ',
     insertCoupletBefore: 'اُتے شعر شامل کرو',
     insertCoupletAfter: 'ھیٹھ شعر شامل کرو',
-    centerCouplet: 'ایہ شعر وچکار رکھو',
+    centerCouplet: 'وچکار رکھو',
     uncenterCouplet: 'وچکار رکھنا بند کرو',
     tighterSpacing: 'شعراں وچکار گھٹ جگہ',
     looserSpacing: 'شعراں وچکار ودھ جگہ',
-    narrowerCenter: 'وچکار شعر دی چوڑائی گھٹ',
-    widerCenter: 'وچکار شعر دی چوڑائی ودھ',
+    narrowerCenter: 'وچکار دی چوڑائی گھٹ',
+    widerCenter: 'وچکار دی چوڑائی ودھ',
     narrowerGutter: 'کالماں وچکار گھٹ جگہ',
     widerGutter: 'کالماں وچکار ودھ جگہ',
     deleteCouplet: 'شعر مٹاؤ',

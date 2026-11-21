@@ -325,6 +325,33 @@ describe('poetry settings', () => {
     expect(mukhammasBack).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed' });
     expect(mukhammasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph']);
   });
+
+  it('round-trips a centered trailing line in a mukhammas-mixed stanza', () => {
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    // Same single-item encoding a centered two-column row uses, reused for
+    // mukhammas's one trailing misra.
+    const centeredTrailing = elementBase('layout-container', [elementBase('layout-item', [paragraph([textNode('e')])])], {
+      templateColumns: '1fr',
+    });
+    const block = elementBase('poetry-couplet', [makeRow('a', 'b'), makeRow('c', 'd'), centeredTrailing], {
+      layout: 'mukhammas',
+      stanzaVariant: 'mixed',
+      centerWidth: 'relaxed',
+    });
+    const [back] = roundTrip([block]);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed', centerWidth: 'relaxed' });
+    expect(back.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'layout-container']);
+    const trailing = back.children![2] as SNode;
+    expect(trailing.children).toHaveLength(1);
+    const trailingItem = trailing.children![0] as SNode;
+    expect(trailingItem.children).toHaveLength(1);
+    expect((trailingItem.children![0] as SNode).children![0]).toMatchObject({ text: 'e' });
+  });
 });
 
 describe('markdown tables that Markdown cannot express', () => {

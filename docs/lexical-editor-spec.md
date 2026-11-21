@@ -294,7 +294,14 @@ already adds:
   (built the same way a `two-column` couplet row is, §4.9's columns primitive), followed
   by the remaining `POETRY_STANZA_SIZE[layout] - 4` misras as flat paragraphs (musaddas:
   2, mukhammas: 1). Matches the reference implementation's "mixed" musaddas/mukhammas
-  variants.
+  variants. For `mukhammas` specifically (exactly 1 trailing misra, unlike `musaddas`'s
+  2), that trailing line additionally supports the same centering/width control as a
+  centered `two-column` couplet (the toolbar's "Center this couplet" toggle, issue #27 —
+  narrows the row to the `centerWidth` scale and centers it) — the toolbar's
+  "Center"/"Un-center" toggle and narrower/wider steppers reuse the exact same
+  `data-likhari-single-column` wrapper and `--poetry-center-width` scale, just around one
+  misra instead of two. Out of scope for `musaddas`'s 2-line trailing, which stays a
+  plain flat pair.
 
 Provide this as a sub-section of the poetry menu, shown only while the caret is in a
 musaddas/mukhammas block, offering the three choices as a radio-style group (mirroring
