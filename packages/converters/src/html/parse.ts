@@ -1,6 +1,6 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
-import { boolOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault } from '../shared/poetry';
+import { boolOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX,
@@ -274,6 +274,7 @@ function convertPoetry(el: HTMLElement): SNode {
     centerWidth: scaleOrDefault(el.getAttribute('data-likhari-poetry-center-width')),
     autoWidth: boolOrDefault(el.getAttribute('data-likhari-poetry-auto-width')),
     staggerGroup: staggerGroupOrDefault(el.getAttribute('data-likhari-poetry-stagger-group')),
+    stanzaVariant: stanzaVariantOrDefault(el.getAttribute('data-likhari-poetry-stanza-variant'), layout),
     ...(Number(el.getAttribute('data-likhari-poetry-width')) > 0 ? { width: Number(el.getAttribute('data-likhari-poetry-width')) } : {}),
   };
 

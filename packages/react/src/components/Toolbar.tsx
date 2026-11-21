@@ -60,12 +60,14 @@ import {
   POETRY_SPACINGS,
   POETRY_STAGGERS,
   SINGLE_COLUMN_SHAPED_LAYOUTS,
+  STANZA_VARIANT_LAYOUTS,
   type PoetryCenterWidth,
   type PoetryGutter,
   type PoetryLayout,
   type PoetrySpacing,
   type PoetryStagger,
   type PoetryStaggerGroup,
+  type PoetryStanzaVariant,
 } from '../blocks/PoetryNode';
 import {
   $adjustPoetryCenterWidth,
@@ -81,6 +83,7 @@ import {
   $setPoetryAutoWidth,
   $setPoetryLayout,
   $setPoetryStaggerGroup,
+  $setPoetryStanzaVariant,
 } from '../blocks/poetryActions';
 import { INSERT_POETRY_COUPLET_COMMAND } from '../plugins/PoetryPlugin';
 import { TableDialog, type TableDialogValue } from './TableDialog';
@@ -245,6 +248,8 @@ interface ToolbarState {
   poetryAutoWidth: boolean;
   /** How many couplets share one side before `staggered` flips (request 3). */
   poetryStaggerGroup: PoetryStaggerGroup;
+  /** Secondary stanza grouping, musaddas/mukhammas only (lexical-editor-spec.md §4.11, amended). */
+  poetryStanzaVariant: PoetryStanzaVariant;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -275,6 +280,7 @@ const INITIAL_STATE: ToolbarState = {
   poetryCentered: false,
   poetryAutoWidth: false,
   poetryStaggerGroup: 1,
+  poetryStanzaVariant: 'continuous',
   canUndo: false,
   canRedo: false,
 };
@@ -740,6 +746,7 @@ function PoetryMenuItems({
   centered,
   autoWidth,
   staggerGroup,
+  stanzaVariant,
   onAction,
   mode = 'menu',
 }: {
@@ -750,6 +757,7 @@ function PoetryMenuItems({
   centered: boolean;
   autoWidth: boolean;
   staggerGroup: PoetryStaggerGroup;
+  stanzaVariant: PoetryStanzaVariant;
   onAction: (action: () => void) => () => void;
 }) {
   const t = strings.poetryMenu;
@@ -793,6 +801,24 @@ function PoetryMenuItems({
         <>
           {groupDivider}
           {item(IconArrowAutofitWidth, autoWidth ? t.fixedWidth : t.autoWidth, () => $setPoetryAutoWidth(!autoWidth))}
+        </>
+      )}
+      {STANZA_VARIANT_LAYOUTS.has(layout) && (
+        <>
+          {groupDivider}
+          {item(IconColumns1, t.stanzaVariantContinuous, () => $setPoetryStanzaVariant('continuous'), stanzaVariant === 'continuous')}
+          {item(
+            IconArrowsSplit2,
+            layout === 'musaddas' ? t.stanzaVariantSplitMusaddas : t.stanzaVariantSplitMukhammas,
+            () => $setPoetryStanzaVariant('split'),
+            stanzaVariant === 'split',
+          )}
+          {item(
+            IconColumns2,
+            layout === 'musaddas' ? t.stanzaVariantMixedMusaddas : t.stanzaVariantMixedMukhammas,
+            () => $setPoetryStanzaVariant('mixed'),
+            stanzaVariant === 'mixed',
+          )}
         </>
       )}
       {layout === 'staggered' && (
@@ -1015,6 +1041,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const poetryCentered = $getCoupletCenteredFromSelection();
       const poetryAutoWidth = poetryBlock?.getAutoWidth();
       const poetryStaggerGroup = poetryBlock?.getStaggerGroup();
+      const poetryStanzaVariant = poetryBlock?.getStanzaVariant();
       const poetryScale = poetryBlock
         ? { spacing: poetryBlock.getSpacing(), gutter: poetryBlock.getGutter(), stagger: poetryBlock.getStagger(), centerWidth: poetryBlock.getCenterWidth() }
         : null;
@@ -1041,6 +1068,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         poetryCentered: poetryCentered ?? false,
         poetryAutoWidth: poetryAutoWidth ?? false,
         poetryStaggerGroup: poetryStaggerGroup ?? s.poetryStaggerGroup,
+        poetryStanzaVariant: poetryStanzaVariant ?? s.poetryStanzaVariant,
       }));
     });
   }, [editor]);
@@ -1958,6 +1986,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               centered={state.poetryCentered}
               autoWidth={state.poetryAutoWidth}
               staggerGroup={state.poetryStaggerGroup}
+              stanzaVariant={state.poetryStanzaVariant}
               onAction={runMenuAction}
             />
           </Menu.Dropdown>
@@ -2505,6 +2534,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 centered={state.poetryCentered}
                 autoWidth={state.poetryAutoWidth}
                 staggerGroup={state.poetryStaggerGroup}
+                stanzaVariant={state.poetryStanzaVariant}
                 onAction={runMenuAction}
               />
             )}
@@ -2624,6 +2654,7 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               centered={state.poetryCentered}
               autoWidth={state.poetryAutoWidth}
               staggerGroup={state.poetryStaggerGroup}
+              stanzaVariant={state.poetryStanzaVariant}
               onAction={runMenuAction}
             />,
           ),

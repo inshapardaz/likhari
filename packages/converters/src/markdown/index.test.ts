@@ -271,6 +271,60 @@ describe('poetry settings', () => {
     const [back] = parse(out);
     expect(back).toMatchObject({ layout: 'staggered', staggerGroup: 2 });
   });
+
+  it('omits stanzaVariant when continuous (the default), and keeps split through a round trip', () => {
+    const continuousBlock = elementBase(
+      'poetry-couplet',
+      ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)])),
+      { layout: 'musaddas' },
+    );
+    expect(md([continuousBlock])).not.toContain('stanzaVariant=');
+
+    const splitBlock = elementBase(
+      'poetry-couplet',
+      ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)])),
+      { layout: 'musaddas', stanzaVariant: 'split' },
+    );
+    const out = md([splitBlock]);
+    expect(out).toContain('stanzaVariant="split"');
+    const [back] = parse(out);
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas', stanzaVariant: 'split' });
+    expect(back.children).toHaveLength(6);
+  });
+
+  it('round-trips a mixed stanzaVariant through :::columns per row + plain paragraphs, for musaddas and mukhammas', () => {
+    const makeRow = (left: string, right: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(left)])]), elementBase('layout-item', [paragraph([textNode(right)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+
+    // musaddas: 2 :::columns rows (4 misras) + 2 trailing flat paragraphs.
+    const musaddasBlock = elementBase(
+      'poetry-couplet',
+      [makeRow('a', 'b'), makeRow('c', 'd'), paragraph([textNode('e')]), paragraph([textNode('f')])],
+      { layout: 'musaddas', stanzaVariant: 'mixed' },
+    );
+    const musaddasOut = md([musaddasBlock]);
+    expect(musaddasOut).toContain('stanzaVariant="mixed"');
+    expect(musaddasOut).toContain('columns{count="2"}');
+    const [musaddasBack] = parse(musaddasOut);
+    expect(musaddasBack).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas', stanzaVariant: 'mixed' });
+    expect(musaddasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+    expect((musaddasBack.children![2] as SNode).children![0]).toMatchObject({ text: 'e' });
+    expect((musaddasBack.children![3] as SNode).children![0]).toMatchObject({ text: 'f' });
+
+    // mukhammas: 2 :::columns rows (4 misras) + 1 trailing flat paragraph.
+    const mukhammasBlock = elementBase(
+      'poetry-couplet',
+      [makeRow('a', 'b'), makeRow('c', 'd'), paragraph([textNode('e')])],
+      { layout: 'mukhammas', stanzaVariant: 'mixed' },
+    );
+    const [mukhammasBack] = roundTrip([mukhammasBlock]);
+    expect(mukhammasBack).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed' });
+    expect(mukhammasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph']);
+  });
 });
 
 describe('markdown tables that Markdown cannot express', () => {

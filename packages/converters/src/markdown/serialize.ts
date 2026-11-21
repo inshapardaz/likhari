@@ -9,7 +9,7 @@ import {
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, isEmptyParagraph, rootChildren, type SNode,
 } from '../shared/serialized';
 import { directive, type Attrs, type MdNode } from './mdast';
-import { boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault } from '../shared/poetry';
+import { boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault } from '../shared/poetry';
 import { nodeToHtml, setFootnoteOrder } from '../html/serialize';
 
 const processor = unified()
@@ -258,13 +258,16 @@ function layoutToMd(node: SNode, ctx?: ConverterContext): MdNode {
 }
 
 function poetryToMd(node: SNode, ctx?: ConverterContext): MdNode {
-  const attrs: Attrs = { layout: layoutOrDefault(node.layout) };
+  const layout = layoutOrDefault(node.layout);
+  const attrs: Attrs = { layout };
   for (const key of ['spacing', 'gutter', 'stagger', 'centerWidth'] as const) {
     const value = scaleOrDefault(node[key]);
     if (value !== 'normal') attrs[key] = value;
   }
   if (boolOrDefault(node.autoWidth)) attrs.autoWidth = 'true';
   if (staggerGroupOrDefault(node.staggerGroup) !== 1) attrs.staggerGroup = String(staggerGroupOrDefault(node.staggerGroup));
+  const stanzaVariant = stanzaVariantOrDefault(node.stanzaVariant, layout);
+  if (stanzaVariant !== 'continuous') attrs.stanzaVariant = stanzaVariant;
   if (typeof node.width === 'number' && node.width > 0) attrs.width = String(node.width);
   const inner = (node.children ?? []).flatMap((child) => blockToMd(child, ctx));
   return directive('containerDirective', 'poetry', attrs, inner);

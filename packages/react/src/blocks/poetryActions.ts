@@ -18,15 +18,18 @@ import { $createLayoutContainerNode, $createLayoutItemNode, $isLayoutContainerNo
 import {
   $createPoetryBlockNode,
   $isPoetryBlockNode,
+  DEFAULT_POETRY_STANZA_VARIANT,
   POETRY_CENTER_WIDTHS,
   POETRY_GUTTERS,
   POETRY_SPACINGS,
   POETRY_STAGGERS,
   POETRY_STANZA_SIZE,
   SINGLE_COLUMN_SHAPED_LAYOUTS,
+  STANZA_VARIANT_LAYOUTS,
   type PoetryBlockNode,
   type PoetryLayout,
   type PoetryStaggerGroup,
+  type PoetryStanzaVariant,
 } from './PoetryNode';
 
 /** One stanza's misra paragraphs, in order — two for single/two-column/
@@ -45,28 +48,67 @@ export type Couplet = ParagraphNode[];
  * document order — the one place that knows how to read either shape, so
  * nothing else needs to.
  */
+/** Reads one two-column row's misras (its one centered item, or its two
+ * side-by-side items) — shared by the two-column branch and the `mixed`
+ * stanza-variant branch below, since a `mixed` stanza's first two rows are
+ * built exactly like a two-column couplet row. */
+function $misrasFromRow(container: LayoutContainerNode): [ParagraphNode, ParagraphNode] | null {
+  const items = container.getChildren().filter($isLayoutItemNode);
+  if (items.length === 1) {
+    const [a, b] = items[0].getChildren();
+    return $isParagraphNode(a) && $isParagraphNode(b) ? [a, b] : null;
+  }
+  const a = items[0]?.getFirstChild();
+  const b = items[1]?.getFirstChild();
+  return $isParagraphNode(a) && $isParagraphNode(b) ? [a, b] : null;
+}
+
 export function $getCouplets(node: PoetryBlockNode): Couplet[] {
-  if (node.getLayout() !== 'two-column') {
-    const size = POETRY_STANZA_SIZE[node.getLayout()];
-    const paragraphs = node.getChildren().filter($isParagraphNode);
+  const layout = node.getLayout();
+
+  if (layout === 'two-column') {
+    // two-column always pairs two misras per row.
+    const containers = node.getChildren().filter($isLayoutContainerNode);
     const couplets: Couplet[] = [];
-    for (let i = 0; i + size - 1 < paragraphs.length; i += size) couplets.push(paragraphs.slice(i, i + size));
+    for (const container of containers) {
+      const pair = $misrasFromRow(container);
+      if (pair) couplets.push(pair);
+    }
     return couplets;
   }
-  // two-column always pairs two misras per row.
-  const containers = node.getChildren().filter($isLayoutContainerNode);
-  const couplets: Couplet[] = [];
-  for (const container of containers) {
-    const items = container.getChildren().filter($isLayoutItemNode);
-    if (items.length === 1) {
-      const [a, b] = items[0].getChildren();
-      if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
-      continue;
+
+  if (STANZA_VARIANT_LAYOUTS.has(layout) && node.getStanzaVariant() === 'mixed') {
+    // A `mixed` stanza is 2 two-column rows (4 misras) immediately followed
+    // by POETRY_STANZA_SIZE[layout] - 4 flat paragraphs — walk the block's
+    // children consuming that fixed pattern repeatedly.
+    const trailingCount = POETRY_STANZA_SIZE[layout] - 4;
+    const children = node.getChildren();
+    const couplets: Couplet[] = [];
+    let i = 0;
+    while (i + 1 < children.length) {
+      const row1 = children[i];
+      const row2 = children[i + 1];
+      if (!$isLayoutContainerNode(row1) || !$isLayoutContainerNode(row2)) break;
+      const pair1 = $misrasFromRow(row1);
+      const pair2 = $misrasFromRow(row2);
+      if (!pair1 || !pair2) break;
+      const trailing: ParagraphNode[] = [];
+      for (let t = 0; t < trailingCount; t++) {
+        const candidate = children[i + 2 + t];
+        if (!$isParagraphNode(candidate)) break;
+        trailing.push(candidate);
+      }
+      if (trailing.length !== trailingCount) break;
+      couplets.push([...pair1, ...pair2, ...trailing]);
+      i += 2 + trailingCount;
     }
-    const a = items[0]?.getFirstChild();
-    const b = items[1]?.getFirstChild();
-    if ($isParagraphNode(a) && $isParagraphNode(b)) couplets.push([a, b]);
+    return couplets;
   }
+
+  const size = POETRY_STANZA_SIZE[layout];
+  const paragraphs = node.getChildren().filter($isParagraphNode);
+  const couplets: Couplet[] = [];
+  for (let i = 0; i + size - 1 < paragraphs.length; i += size) couplets.push(paragraphs.slice(i, i + size));
   return couplets;
 }
 
@@ -111,25 +153,93 @@ export function $getCoupletFromSelection(): Couplet | null {
   return position ? couplets[position.coupletIndex] : null;
 }
 
-/** Removes a stanza's nodes from the tree: its single two-column row
- * (`layout === 'two-column'`, always a 2-misra row), or every one of its
- * misra paragraphs otherwise. */
-function $removeCoupletNodes(couplet: Couplet, layout: PoetryLayout): void {
-  const container = layout === 'two-column' ? ($findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null) : null;
-  if (container) container.remove();
-  else for (const misra of couplet) misra.remove();
+/** Whether a stanza in `layout`/`stanzaVariant` is built as 2 two-column
+ * rows (4 misras) plus trailing flat paragraphs, rather than one flat run
+ * (single/musaddas/mukhammas-continuous/-split) or one two-column row
+ * (`layout === 'two-column'`). */
+function $isMixedStanza(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant): boolean {
+  return STANZA_VARIANT_LAYOUTS.has(layout) && stanzaVariant === 'mixed';
+}
+
+/**
+ * Builds the physical node(s) for one stanza's `misras` — the one place
+ * that knows how to *build* any of the three physical shapes $getCouplets
+ * knows how to *read*, so insert/delete/layout-change/variant-change/drag-move
+ * all construct a stanza the same way:
+ *  - `layout === 'two-column'`: one row (centered, single item, when
+ *    `centered`; otherwise one item per misra) — `misras` is always length 2.
+ *  - musaddas/mukhammas with `stanzaVariant === 'mixed'`: 2 two-column rows
+ *    (the first 4 misras, 2 per row) followed by the remaining misras as
+ *    plain siblings — `misras.length` is `POETRY_STANZA_SIZE[layout]`.
+ *  - everything else: the misras themselves, as flat siblings.
+ */
+function $buildCoupletNodes(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant, misras: ParagraphNode[], centered = false): LexicalNode[] {
+  if (layout === 'two-column') {
+    const [a, b] = misras;
+    const row = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');
+    if (centered) row.append($createLayoutItemNode().append(a, b));
+    else row.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
+    return [row];
+  }
+  // Guarded by length, not just layout/variant: a drag-moved stanza can
+  // arrive with a different misra count than the target block's own stanza
+  // size (e.g. a 2-line couplet dropped onto a mixed musaddas stanza) — the
+  // same size mismatch every other branch here already tolerates (by just
+  // using however many misras it was given), rather than destructuring into
+  // `undefined` layout items.
+  if ($isMixedStanza(layout, stanzaVariant) && misras.length >= 4) {
+    const [a, b, c, d, ...rest] = misras;
+    const row1 = $createLayoutContainerNode('repeat(2, 1fr)');
+    row1.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
+    const row2 = $createLayoutContainerNode('repeat(2, 1fr)');
+    row2.append($createLayoutItemNode().append(c), $createLayoutItemNode().append(d));
+    return [row1, row2, ...rest];
+  }
+  return [...misras];
+}
+
+/** The first/last physical node holding a stanza — the anchor(s) insert/move
+ * operations attach new siblings next to, for whichever of the three shapes
+ * $getCouplets/$buildCoupletNodes work with. */
+function $findCoupletBounds(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant, couplet: Couplet): { first: LexicalNode; last: LexicalNode } {
+  if (layout === 'two-column') {
+    const row = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+    if (row) return { first: row, last: row };
+  } else if ($isMixedStanza(layout, stanzaVariant)) {
+    const row1 = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+    const last = couplet.length > 4 ? couplet[couplet.length - 1] : ($findMatchingParent(couplet[2], $isLayoutContainerNode) as LayoutContainerNode | null);
+    if (row1 && last) return { first: row1, last };
+  }
+  return { first: couplet[0], last: couplet[couplet.length - 1] };
+}
+
+/** Removes a stanza's nodes from the tree, for whichever physical shape
+ * `layout`/`stanzaVariant` builds: its single two-column row
+ * (`layout === 'two-column'`), its 2 two-column rows plus trailing flat
+ * paragraphs (musaddas/mukhammas `mixed`), or every one of its misra
+ * paragraphs otherwise. */
+function $removeCoupletNodes(couplet: Couplet, layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant): void {
+  if (layout === 'two-column') {
+    const container = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+    if (container) {
+      container.remove();
+      return;
+    }
+  } else if ($isMixedStanza(layout, stanzaVariant)) {
+    const row1 = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+    const row2 = $findMatchingParent(couplet[2], $isLayoutContainerNode) as LayoutContainerNode | null;
+    row1?.remove();
+    row2?.remove();
+    for (const misra of couplet.slice(4)) misra.remove();
+    return;
+  }
+  for (const misra of couplet) misra.remove();
 }
 
 function $appendCoupletTo(node: PoetryBlockNode): Couplet {
   const size = POETRY_STANZA_SIZE[node.getLayout()];
   const misras = Array.from({ length: size }, () => $createParagraphNode());
-  if (node.getLayout() !== 'two-column') {
-    node.append(...misras);
-  } else {
-    const container = $createLayoutContainerNode('repeat(2, 1fr)');
-    container.append($createLayoutItemNode().append(misras[0]), $createLayoutItemNode().append(misras[1]));
-    node.append(container);
-  }
+  node.append(...$buildCoupletNodes(node.getLayout(), node.getStanzaVariant(), misras));
   return misras;
 }
 
@@ -137,32 +247,17 @@ function $appendCoupletTo(node: PoetryBlockNode): Couplet {
  * Inserts a new, empty stanza immediately before or after an existing one —
  * the table-row-insert equivalent for a poetry block ("add/remove couplets
  * just like adding/removing table rows"). `existingStanza` is the whole
- * stanza to insert next to, so its first/last misra (and, in two-column
- * layout, its row wrapper) can be located regardless of layout or stanza
- * size.
+ * stanza to insert next to, so its physical bounds ($findCoupletBounds) can
+ * be located regardless of layout, stanza size or stanza variant.
  */
 function $insertCoupletRelativeTo(existingStanza: Couplet, block: PoetryBlockNode, position: 'before' | 'after'): Couplet {
   const layout = block.getLayout();
+  const stanzaVariant = block.getStanzaVariant();
   const size = POETRY_STANZA_SIZE[layout];
   const misras = Array.from({ length: size }, () => $createParagraphNode());
-  if (layout !== 'two-column') {
-    if (position === 'before') {
-      existingStanza[0].insertBefore(misras[0]);
-    } else {
-      existingStanza[existingStanza.length - 1].insertAfter(misras[0]);
-    }
-    let previous = misras[0];
-    for (let i = 1; i < misras.length; i++) {
-      previous.insertAfter(misras[i]);
-      previous = misras[i];
-    }
-  } else {
-    const container = $findMatchingParent(existingStanza[0], $isLayoutContainerNode) as LayoutContainerNode;
-    const newContainer = $createLayoutContainerNode('repeat(2, 1fr)');
-    newContainer.append($createLayoutItemNode().append(misras[0]), $createLayoutItemNode().append(misras[1]));
-    if (position === 'before') container.insertBefore(newContainer);
-    else container.insertAfter(newContainer);
-  }
+  const nodes = $buildCoupletNodes(layout, stanzaVariant, misras);
+  const bounds = $findCoupletBounds(layout, stanzaVariant, existingStanza);
+  $insertNodesRelativeTo(position === 'before' ? bounds.first : bounds.last, nodes, position);
   return misras;
 }
 
@@ -211,7 +306,12 @@ export function $insertCoupletRelativeToSelection(position: 'before' | 'after'):
  * conversion. A no-op when the block is already in the target layout.
  * Switching to `two-column`/`staggered` also clears autoWidth (valid only
  * for the single-column-shaped layouts — a percentage/fit-content width is
- * only well-defined in a single-column flow).
+ * only well-defined in a single-column flow), and forces `stanzaVariant`
+ * back to `'continuous'` (only meaningful for musaddas/mukhammas) — moving
+ * *between* musaddas and mukhammas keeps the current variant, rebuilt at
+ * the new stanza size ($buildCoupletNodes already does this: a `mixed`
+ * stanza's trailing flat-paragraph count is `POETRY_STANZA_SIZE[layout] - 4`,
+ * whatever that layout's own stanza size is).
  */
 export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): void {
   if (node.getLayout() === layout) return;
@@ -236,15 +336,11 @@ export function $setPoetryLayout(node: PoetryBlockNode, layout: PoetryLayout): v
   const lastGroup = groups[groups.length - 1];
   while (lastGroup.length < toSize) lastGroup.push($createParagraphNode());
 
-  if (layout !== 'two-column') {
-    for (const group of groups) node.append(...group);
-  } else {
-    for (const [a, b] of groups) {
-      const container = $createLayoutContainerNode('repeat(2, 1fr)');
-      container.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
-      node.append(container);
-    }
+  if (!STANZA_VARIANT_LAYOUTS.has(layout) && node.getStanzaVariant() !== DEFAULT_POETRY_STANZA_VARIANT) {
+    node.setStanzaVariantAttribute(DEFAULT_POETRY_STANZA_VARIANT);
   }
+  const stanzaVariant = node.getStanzaVariant();
+  for (const group of groups) node.append(...$buildCoupletNodes(layout, stanzaVariant, group));
   node.setLayoutAttribute(layout);
   if (!SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout) && node.getAutoWidth()) node.setAutoWidth(false);
 
@@ -428,7 +524,7 @@ export function $deletePoetryCouplet(): boolean {
     return true;
   }
 
-  $removeCoupletNodes(target, block.getLayout());
+  $removeCoupletNodes(target, block.getLayout(), block.getStanzaVariant());
   return true;
 }
 
@@ -472,7 +568,7 @@ export function $deletePoetryOnBackspace(): boolean {
       if ($isElementNode(previous)) previous.selectEnd();
       return true;
     }
-    $removeCoupletNodes(stanza, block.getLayout());
+    $removeCoupletNodes(stanza, block.getLayout(), block.getStanzaVariant());
     const remaining = $getCouplets(block);
     const previousCouplet = remaining[coupletIndex - 1] ?? remaining[0];
     previousCouplet?.[previousCouplet.length - 1]?.selectEnd();
@@ -546,7 +642,7 @@ export function $exitPoetryOnEnter(): boolean {
     // Drop the stanza we ourselves auto-created on the previous Enter —
     // unless it's the block's only stanza, in which case leave the section
     // as the user's (empty) content rather than deleting it.
-    if (couplets.length > 1) $removeCoupletNodes(stanza, block.getLayout());
+    if (couplets.length > 1) $removeCoupletNodes(stanza, block.getLayout(), block.getStanzaVariant());
     const existingNext = block.getNextSibling();
     const paragraph = $isParagraphNode(existingNext) ? existingNext : $createParagraphNode();
     if (paragraph !== existingNext) block.insertAfter(paragraph);
@@ -638,6 +734,42 @@ export function $setPoetryAutoWidth(autoWidth: boolean): boolean {
   return true;
 }
 
+/**
+ * Converts every stanza in the caret's block between the three
+ * `stanzaVariant` choices (continuous/split/mixed — see PoetryNode.tsx),
+ * preserving every misra's content and the caret's own position, same
+ * selection-preserving pattern as $setPoetryLayout. Only meaningful for
+ * musaddas/mukhammas — a no-op (returns false) for any other layout. A
+ * no-op (returns true, nothing to rebuild) when already in the requested
+ * variant.
+ */
+export function $setPoetryStanzaVariant(stanzaVariant: PoetryStanzaVariant): boolean {
+  const block = $getPoetryBlockFromSelection();
+  if (!block || !STANZA_VARIANT_LAYOUTS.has(block.getLayout())) return false;
+  if (block.getStanzaVariant() === stanzaVariant) return true;
+
+  const layout = block.getLayout();
+  const stanzas = $getCouplets(block).map((couplet) => [...couplet]);
+
+  const selection = $getSelection();
+  const anchor = $isRangeSelection(selection) ? { key: selection.anchor.key, offset: selection.anchor.offset, type: selection.anchor.type } : null;
+  const focus = $isRangeSelection(selection) ? { key: selection.focus.key, offset: selection.focus.offset, type: selection.focus.type } : null;
+
+  for (const stanza of stanzas) for (const misra of stanza) misra.remove();
+  for (const leftover of block.getChildren()) leftover.remove();
+
+  block.setStanzaVariantAttribute(stanzaVariant);
+  for (const stanza of stanzas) block.append(...$buildCoupletNodes(layout, stanzaVariant, stanza));
+
+  if (anchor && focus) {
+    const restored = $createRangeSelection();
+    restored.anchor.set(anchor.key, anchor.offset, anchor.type);
+    restored.focus.set(focus.key, focus.offset, focus.type);
+    $setSelection(restored);
+  }
+  return true;
+}
+
 /** A centered couplet is a two-column row holding both misras in one item
  * (a single-item row), rather than one item per misra. */
 function $isCoupletRowCentered(row: LayoutContainerNode): boolean {
@@ -701,10 +833,18 @@ export function $deletePoetryBlock(): boolean {
  * `POETRY_STANZA_SIZE[layout]`, so a line left without a full stanza's worth
  * of partners (from pasted or imported content) would be invisible to the
  * stanza logic. Pad it out with empty partners instead, so every line
- * belongs to a stanza and can be deleted like any other. */
+ * belongs to a stanza and can be deleted like any other. Skipped for
+ * `two-column` (rows, not flat paragraphs — nothing to pad this way) and for
+ * a `mixed` musaddas/mukhammas stanza (2 rows + trailing flats, not a flat
+ * run either — and, unlike continuous/split, a `mixed` stanza is always
+ * built whole via $buildCoupletNodes rather than grown misra-by-misra, so it
+ * never needs this kind of repair; the plain `% size` remainder check below
+ * would also be wrong for it, since a mixed stanza's own child count is
+ * `2 + (POETRY_STANZA_SIZE[layout] - 4)`, not `POETRY_STANZA_SIZE[layout]`). */
 export function $completeSingleCoupletBlock(node: PoetryBlockNode): void {
-  if (node.getLayout() === 'two-column') return;
-  const size = POETRY_STANZA_SIZE[node.getLayout()];
+  const layout = node.getLayout();
+  if (layout === 'two-column' || $isMixedStanza(layout, node.getStanzaVariant())) return;
+  const size = POETRY_STANZA_SIZE[layout];
   const remainder = node.getChildrenSize() % size;
   if (remainder === 0) return;
   for (let i = remainder; i < size; i++) node.append($createParagraphNode());
@@ -721,26 +861,29 @@ export function $getCoupletContaining(node: LexicalNode): { block: PoetryBlockNo
 }
 
 /** Pulls a couplet's misras out of whatever currently holds them (and drops
- * a two-column row wrapper left behind, when there is one). Returns whether
- * that row was a centered one, so the couplet can be rebuilt the same way
- * elsewhere. */
-function $detachCouplet(couplet: Couplet): boolean {
-  const row = $findCoupletRow(couplet);
-  const centered = row ? $isCoupletRowCentered(row) : false;
+ * any row wrapper(s) left behind — one for `layout === 'two-column'`, two
+ * for a musaddas/mukhammas `mixed` stanza). Returns whether a two-column row
+ * was a centered one, so the couplet can be rebuilt the same way elsewhere
+ * (never true for a `mixed` stanza — centering is a two-column-only couplet
+ * override, never offered for musaddas/mukhammas). */
+function $detachCouplet(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant, couplet: Couplet): boolean {
+  if (layout === 'two-column') {
+    const row = $findCoupletRow(couplet);
+    const centered = row ? $isCoupletRowCentered(row) : false;
+    for (const misra of couplet) misra.remove();
+    row?.remove();
+    return centered;
+  }
+  if ($isMixedStanza(layout, stanzaVariant)) {
+    const row1 = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
+    const row2 = $findMatchingParent(couplet[2], $isLayoutContainerNode) as LayoutContainerNode | null;
+    for (const misra of couplet) misra.remove();
+    row1?.remove();
+    row2?.remove();
+    return false;
+  }
   for (const misra of couplet) misra.remove();
-  row?.remove();
-  return centered;
-}
-
-/** The node(s) that hold a (detached) couplet in `layout`: the misras
- * themselves, or (`layout === 'two-column'`) one two-column row around them. */
-function $wrapCouplet(layout: PoetryLayout, couplet: Couplet, centered: boolean): LexicalNode[] {
-  if (layout !== 'two-column') return [...couplet];
-  const [a, b] = couplet;
-  const row = $createLayoutContainerNode(centered ? '1fr' : 'repeat(2, 1fr)');
-  if (centered) row.append($createLayoutItemNode().append(a, b));
-  else row.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
-  return [row];
+  return false;
 }
 
 function $insertNodesRelativeTo(anchor: LexicalNode, nodes: LexicalNode[], position: 'before' | 'after'): void {
@@ -772,21 +915,24 @@ export type CoupletDropTarget =
 export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boolean {
   const source = $findMatchingParent(couplet[0], $isPoetryBlockNode);
   if (!source) return false;
+  const sourceLayout = source.getLayout();
+  const sourceVariant = source.getStanzaVariant();
 
   if (target.kind === 'couplet') {
     if (target.couplet[0].is(couplet[0])) return false;
     const targetBlock = $findMatchingParent(target.couplet[0], $isPoetryBlockNode);
     if (!targetBlock) return false;
     const layout = targetBlock.getLayout();
-    const anchor = layout === 'two-column' ? $findCoupletRow(target.couplet) : target.position === 'before' ? target.couplet[0] : target.couplet[target.couplet.length - 1];
-    if (!anchor) return false;
-    const centered = $detachCouplet(couplet);
-    $insertNodesRelativeTo(anchor, $wrapCouplet(layout, couplet, centered), target.position);
+    const stanzaVariant = targetBlock.getStanzaVariant();
+    const bounds = $findCoupletBounds(layout, stanzaVariant, target.couplet);
+    const anchor = target.position === 'before' ? bounds.first : bounds.last;
+    const centered = $detachCouplet(sourceLayout, sourceVariant, couplet);
+    $insertNodesRelativeTo(anchor, $buildCoupletNodes(layout, stanzaVariant, couplet, centered), target.position);
   } else {
     if (target.block.is(source) && $getCouplets(source).length <= 1) return false;
-    const centered = $detachCouplet(couplet);
+    const centered = $detachCouplet(sourceLayout, sourceVariant, couplet);
     const block = $createPoetryBlockNode(
-      source.getLayout(),
+      sourceLayout,
       source.getWidth(),
       source.getSpacing(),
       source.getGutter(),
@@ -794,8 +940,9 @@ export function $moveCouplet(couplet: Couplet, target: CoupletDropTarget): boole
       source.getCenterWidth(),
       source.getAutoWidth(),
       source.getStaggerGroup(),
+      sourceVariant,
     );
-    block.append(...$wrapCouplet(source.getLayout(), couplet, centered));
+    block.append(...$buildCoupletNodes(sourceLayout, sourceVariant, couplet, centered));
     $insertNodesRelativeTo(target.block, [block], target.position);
     $ensureTrailingParagraph(block);
   }

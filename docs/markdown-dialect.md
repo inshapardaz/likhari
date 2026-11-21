@@ -112,6 +112,7 @@ couplet in the default layout carries no attributes at all beyond `layout`.
 | `centerWidth` | `compact`, `normal`, `relaxed`, `loose` | `normal` | Width of a centered couplet, `two-column` only (§5.3) |
 | `width` | a pixel number | unset | User-resized block width, from dragging the block's own resize handle. Mutually exclusive with `autoWidth` |
 | `autoWidth` | `true` | unset (`false`) | Fit-content width instead of a percentage/pixel max-width; `single`/`musaddas`/`mukhammas` layouts only |
+| `stanzaVariant` | `continuous`, `split`, `mixed` | `continuous` | Secondary grouping within each stanza, `musaddas`/`mukhammas` only (requirements doc §4.11, amended) — see §5.1.1 |
 
 ### 5.1 Single-column and staggered
 
@@ -160,6 +161,74 @@ line five
 line six
 :::
 ```
+
+#### 5.1.1 Stanza variant (`musaddas`/`mukhammas` only)
+
+`stanzaVariant` adds a secondary grouping inside each stanza, on top of the
+flat paragraph list above:
+
+- `continuous` (default): exactly the shape above — one divider at the
+  stanza boundary only.
+- `split`: the same flat paragraph shape (no change to the Markdown at
+  all — it's a CSS-only rendering difference), but with an extra attribute
+  marking a lighter secondary divider before the stanza's last two lines
+  (musaddas 4+2, mukhammas 3+2):
+
+```markdown
+:::poetry{layout="musaddas" stanzaVariant="split"}
+line one
+
+line two
+
+line three
+
+line four
+
+line five
+
+line six
+:::
+```
+
+- `mixed`: a real shape change — the stanza's first 4 lines become 2
+  `:::columns{count="2"}` rows (exactly like a `two-column` couplet, §5.2),
+  and the remaining `musaddas`: 2, `mukhammas`: 1 lines stay flat paragraphs
+  directly after them, inside the same `:::poetry` container:
+
+```markdown
+:::::poetry{layout="musaddas" stanzaVariant="mixed"}
+::::columns{count="2"}
+:::column
+line one
+:::
+
+:::column
+line two
+:::
+::::
+
+::::columns{count="2"}
+:::column
+line three
+:::
+
+:::column
+line four
+:::
+::::
+
+line five
+
+line six
+:::::
+```
+
+On import, a `:::poetry{layout="musaddas"|"mukhammas"}` container reads its
+children generically by their own type — a `:::columns` child becomes part
+of the 2-column section, a plain paragraph becomes part of the trailing flat
+section — rather than needing a dedicated mixed-shape syntax, so this is
+exactly the same `:::columns`-per-row approximation §5.2 already uses, just
+limited to the stanza's first 4 lines.
 
 ### 5.2 Two-column
 
@@ -255,6 +324,7 @@ Round trip = editor → Markdown → editor.
 | Poetry: layout, spacing, gutter, stagger, staggerGroup, centerWidth, width, autoWidth | lossless (§5) |
 | Poetry: couplet pairing in two-column layout | lossless, via one `:::columns` per couplet (§5.2) |
 | Poetry: musaddas/mukhammas stanza grouping | lossless, grouped by `layout`'s own stanza size on import (§5.1) |
+| Poetry: stanzaVariant (continuous/split/mixed) | lossless, including a `mixed` stanza's `:::columns` + flat-paragraph shape (§5.1.1) |
 | Empty paragraphs at the end of the document | lossless, as `::blank` |
 | Empty paragraphs elsewhere | dropped (Markdown has no way to say them; a blank line is just a paragraph separator) |
 | Code combined with bold/italic/etc. | kept (marks wrap the code span) |

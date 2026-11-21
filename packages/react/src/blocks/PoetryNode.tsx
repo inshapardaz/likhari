@@ -55,6 +55,29 @@ export type PoetryStaggerGroup = 1 | 2;
 export const POETRY_STAGGER_GROUPS: readonly PoetryStaggerGroup[] = [1, 2];
 export const DEFAULT_POETRY_STAGGER_GROUP: PoetryStaggerGroup = 1;
 
+/**
+ * A secondary grouping within a `musaddas`/`mukhammas` stanza (lexical-editor-spec.md
+ * §4.11, amended) — only meaningful for those two layouts; always `'continuous'`
+ * for `single`/`two-column`/`staggered`.
+ *  - `continuous` (default): the original flat stack, one divider at the
+ *    stanza boundary only — pixel-identical to how musaddas/mukhammas
+ *    already rendered before this attribute existed.
+ *  - `split`: same flat physical shape as `continuous` (CSS-only — no tree
+ *    restructuring), plus a lighter secondary divider before the stanza's
+ *    last two lines (musaddas 4+2, mukhammas 3+2).
+ *  - `mixed`: a real shape change — the stanza's first 4 misras become 2
+ *    two-column `LayoutContainerNode` rows (built the same way a
+ *    `two-column` couplet row is), followed by the remaining
+ *    `POETRY_STANZA_SIZE[layout] - 4` misras as flat paragraphs.
+ */
+export const POETRY_STANZA_VARIANTS = ['continuous', 'split', 'mixed'] as const;
+export type PoetryStanzaVariant = (typeof POETRY_STANZA_VARIANTS)[number];
+export const DEFAULT_POETRY_STANZA_VARIANT: PoetryStanzaVariant = 'continuous';
+
+/** Layouts `stanzaVariant` is meaningful for — a secondary grouping inside a
+ * stanza only makes sense when the stanza itself has more than 2 lines. */
+export const STANZA_VARIANT_LAYOUTS = new Set<PoetryLayout>(['musaddas', 'mukhammas']);
+
 const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'staggered', 'musaddas', 'mukhammas']);
 /** The layouts that render as a flat single-column stack of paragraphs —
  * the only shapes a fit-content `autoWidth` (a percentage width inside a
@@ -66,6 +89,15 @@ const VALID_GUTTERS = new Set<PoetryGutter>(POETRY_GUTTERS);
 const VALID_STAGGERS = new Set<PoetryStagger>(POETRY_STAGGERS);
 const VALID_CENTER_WIDTHS = new Set<PoetryCenterWidth>(POETRY_CENTER_WIDTHS);
 const VALID_STAGGER_GROUPS = new Set<PoetryStaggerGroup>(POETRY_STAGGER_GROUPS);
+const VALID_STANZA_VARIANTS = new Set<PoetryStanzaVariant>(POETRY_STANZA_VARIANTS);
+
+/** `stanzaVariant` only has meaning for musaddas/mukhammas — every other
+ * layout always reads back `'continuous'`, same gating as `autoWidth`'s own
+ * SINGLE_COLUMN_SHAPED_LAYOUTS check above. */
+function normalizeStanzaVariant(value: unknown, layout: PoetryLayout): PoetryStanzaVariant {
+  if (!STANZA_VARIANT_LAYOUTS.has(layout)) return DEFAULT_POETRY_STANZA_VARIANT;
+  return VALID_STANZA_VARIANTS.has(value as PoetryStanzaVariant) ? (value as PoetryStanzaVariant) : DEFAULT_POETRY_STANZA_VARIANT;
+}
 
 /** Poetry is always justified: `text-align-last: justify` stretches a
  * one-line misra across the full column width too, not just wrapped lines,
@@ -98,6 +130,7 @@ export type SerializedPoetryBlockNode = Spread<
     centerWidth?: PoetryCenterWidth;
     autoWidth?: boolean;
     staggerGroup?: PoetryStaggerGroup;
+    stanzaVariant?: PoetryStanzaVariant;
   },
   SerializedElementNode
 >;
@@ -134,6 +167,11 @@ export class PoetryBlockNode extends ElementNode {
    * (poetryActions.ts's $setPoetryLayout). */
   __autoWidth: boolean;
   __staggerGroup: PoetryStaggerGroup;
+  /** Secondary grouping within a musaddas/mukhammas stanza (see
+   * POETRY_STANZA_VARIANTS above) — always `'continuous'` for every other
+   * layout, forced back whenever `layout` changes away from
+   * musaddas/mukhammas ($setPoetryLayout in poetryActions.ts). */
+  __stanzaVariant: PoetryStanzaVariant;
 
   constructor(
     layout: PoetryLayout = 'single',
@@ -144,6 +182,7 @@ export class PoetryBlockNode extends ElementNode {
     centerWidth: PoetryCenterWidth = DEFAULT_POETRY_CENTER_WIDTH,
     autoWidth: boolean = false,
     staggerGroup: PoetryStaggerGroup = DEFAULT_POETRY_STAGGER_GROUP,
+    stanzaVariant: PoetryStanzaVariant = DEFAULT_POETRY_STANZA_VARIANT,
     key?: NodeKey,
   ) {
     super(key);
@@ -155,6 +194,7 @@ export class PoetryBlockNode extends ElementNode {
     this.__centerWidth = centerWidth;
     this.__autoWidth = autoWidth;
     this.__staggerGroup = staggerGroup;
+    this.__stanzaVariant = stanzaVariant;
   }
 
   static getType(): string {
@@ -171,6 +211,7 @@ export class PoetryBlockNode extends ElementNode {
       node.__centerWidth,
       node.__autoWidth,
       node.__staggerGroup,
+      node.__stanzaVariant,
       node.__key,
     );
   }
@@ -258,6 +299,19 @@ export class PoetryBlockNode extends ElementNode {
     return writable;
   }
 
+  getStanzaVariant(): PoetryStanzaVariant {
+    return this.getLatest().__stanzaVariant;
+  }
+
+  /** Attribute-only, same split as setLayoutAttribute — rebuilding the
+   * stanza's physical shape (flat vs. mixed 2-column-rows-plus-flats) for a
+   * variant change is poetryActions.ts's $setPoetryStanzaVariant. */
+  setStanzaVariantAttribute(stanzaVariant: PoetryStanzaVariant): this {
+    const writable = this.getWritable();
+    writable.__stanzaVariant = stanzaVariant;
+    return writable;
+  }
+
   // Validated the same way the DOM import below validates its attributes
   // (issue #29) — hand-edited or otherwise untrusted JSON could carry any
   // string here, which would otherwise add an unknown CSS modifier class
@@ -278,7 +332,8 @@ export class PoetryBlockNode extends ElementNode {
     const staggerGroup = VALID_STAGGER_GROUPS.has(serializedNode.staggerGroup as PoetryStaggerGroup)
       ? (serializedNode.staggerGroup as PoetryStaggerGroup)
       : DEFAULT_POETRY_STAGGER_GROUP;
-    return $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup);
+    const stanzaVariant = normalizeStanzaVariant(serializedNode.stanzaVariant, layout);
+    return $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant);
   }
 
   exportJSON(): SerializedPoetryBlockNode {
@@ -294,6 +349,7 @@ export class PoetryBlockNode extends ElementNode {
       centerWidth: this.getCenterWidth(),
       autoWidth: this.getAutoWidth(),
       staggerGroup: this.getStaggerGroup(),
+      stanzaVariant: this.getStanzaVariant(),
       ...(width !== undefined ? { width } : {}),
     };
   }
@@ -321,7 +377,11 @@ export class PoetryBlockNode extends ElementNode {
         const staggerGroup = VALID_STAGGER_GROUPS.has(rawStaggerGroup as PoetryStaggerGroup)
           ? (rawStaggerGroup as PoetryStaggerGroup)
           : DEFAULT_POETRY_STAGGER_GROUP;
-        return { conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup) }), priority: 2 };
+        const stanzaVariant = normalizeStanzaVariant(domNode.getAttribute('data-likhari-poetry-stanza-variant'), layout);
+        return {
+          conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant) }),
+          priority: 2,
+        };
       },
     };
   }
@@ -335,6 +395,7 @@ export class PoetryBlockNode extends ElementNode {
     element.setAttribute('data-likhari-poetry-center-width', this.getCenterWidth());
     element.setAttribute('data-likhari-poetry-auto-width', String(this.getAutoWidth()));
     element.setAttribute('data-likhari-poetry-stagger-group', String(this.getStaggerGroup()));
+    element.setAttribute('data-likhari-poetry-stanza-variant', this.getStanzaVariant());
     const width = this.getWidth();
     if (width !== undefined) element.setAttribute('data-likhari-poetry-width', String(width));
     applyJustifyStyle(element);
@@ -354,6 +415,7 @@ export class PoetryBlockNode extends ElementNode {
       `${base}--stagger-${this.__stagger}`,
       `${base}--center-${this.__centerWidth}`,
       `${base}--stagger-group-${this.__staggerGroup}`,
+      `${base}--variant-${this.__stanzaVariant}`,
     );
     if (this.__autoWidth) element.classList.add(`${base}--width-auto`);
     applyJustifyStyle(element);
@@ -391,6 +453,10 @@ export class PoetryBlockNode extends ElementNode {
       dom.classList.remove(`${base}--stagger-group-${prevNode.__staggerGroup}`);
       dom.classList.add(`${base}--stagger-group-${this.__staggerGroup}`);
     }
+    if (prevNode.__stanzaVariant !== this.__stanzaVariant) {
+      dom.classList.remove(`${base}--variant-${prevNode.__stanzaVariant}`);
+      dom.classList.add(`${base}--variant-${this.__stanzaVariant}`);
+    }
     if (prevNode.__autoWidth !== this.__autoWidth) {
       dom.classList.toggle(`${base}--width-auto`, this.__autoWidth);
     }
@@ -418,8 +484,9 @@ export function $createPoetryBlockNode(
   centerWidth: PoetryCenterWidth = DEFAULT_POETRY_CENTER_WIDTH,
   autoWidth: boolean = false,
   staggerGroup: PoetryStaggerGroup = DEFAULT_POETRY_STAGGER_GROUP,
+  stanzaVariant: PoetryStanzaVariant = DEFAULT_POETRY_STANZA_VARIANT,
 ): PoetryBlockNode {
-  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup));
+  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant));
 }
 
 export function $isPoetryBlockNode(node: LexicalNode | null | undefined): node is PoetryBlockNode {

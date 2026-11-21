@@ -211,6 +211,15 @@ export interface Strings {
     /** How many couplets share one side before `staggered` flips (request 3). */
     staggerGroupOne: string;
     staggerGroupTwo: string;
+    /** `stanzaVariant` sub-choices (musaddas/mukhammas only — lexical-editor-spec.md
+     * §4.11, amended). `stanzaVariantSplit*`/`stanzaVariantMixed*` are named per
+     * layout since the actual line split differs (musaddas 4+2/2-column+2,
+     * mukhammas 3+2/2-column+1). */
+    stanzaVariantContinuous: string;
+    stanzaVariantSplitMusaddas: string;
+    stanzaVariantSplitMukhammas: string;
+    stanzaVariantMixedMusaddas: string;
+    stanzaVariantMixedMukhammas: string;
   };
   dragHandle: {
     block: string;
@@ -545,6 +554,11 @@ const en: Strings = {
     fixedWidth: 'Fixed width',
     staggerGroupOne: '1 couplet per side',
     staggerGroupTwo: '2 couplets per side',
+    stanzaVariantContinuous: 'Continuous',
+    stanzaVariantSplitMusaddas: 'Split (4+2)',
+    stanzaVariantSplitMukhammas: 'Split (3+2)',
+    stanzaVariantMixedMusaddas: 'Mixed (2-column + 2)',
+    stanzaVariantMixedMukhammas: 'Mixed (2-column + 1)',
   },
   dragHandle: {
     block: 'Drag to move',
@@ -880,6 +894,11 @@ const ur: Strings = {
     fixedWidth: 'مقررہ چوڑائی',
     staggerGroupOne: 'ہر طرف ایک شعر',
     staggerGroupTwo: 'ہر طرف دو شعر',
+    stanzaVariantContinuous: 'تسلسل',
+    stanzaVariantSplitMusaddas: 'تقسیم (4+2)',
+    stanzaVariantSplitMukhammas: 'تقسیم (3+2)',
+    stanzaVariantMixedMusaddas: 'مخلوط (2-کالم + 2)',
+    stanzaVariantMixedMukhammas: 'مخلوط (2-کالم + 1)',
   },
   dragHandle: {
     block: 'منتقل کرنے کے لیے گھسیٹیں',
@@ -1215,6 +1234,11 @@ const paShahmukhi: Strings = {
     fixedWidth: 'مقررہ چوڑائی',
     staggerGroupOne: 'ہر پاسے اک شعر',
     staggerGroupTwo: 'ہر پاسے دو شعر',
+    stanzaVariantContinuous: 'تسلسل',
+    stanzaVariantSplitMusaddas: 'ونڈ (4+2)',
+    stanzaVariantSplitMukhammas: 'ونڈ (3+2)',
+    stanzaVariantMixedMusaddas: 'رلا (2-کالم + 2)',
+    stanzaVariantMixedMukhammas: 'رلا (2-کالم + 1)',
   },
   dragHandle: {
     block: 'ہلاون لئی گھسیٹو',

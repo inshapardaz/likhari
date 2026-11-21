@@ -97,6 +97,9 @@ standard node contract (`getType`, `clone`, `importJSON`, `exportJSON`, `createD
 > `layout` itself (see below) once the toolbar exposed all five choices as one
 > flat list, since `form` and `layout` together only ever produced 5 valid
 > combinations out of 9 (`two-column`/`staggered` were always `form: 'couplet'`).
+> `stanzaVariant` is a later, independent addition — a sub-choice *within* a
+> musaddas/mukhammas stanza, not another layout axis, so it never grows the
+> `layout` enum the way `form` almost did.
 
 ```ts
 // Single flat set, not a layout × stanza-size pair: single/two-column/staggered
@@ -106,6 +109,13 @@ type PoetryLayout = 'single' | 'two-column' | 'staggered' | 'musaddas' | 'mukham
 const POETRY_STANZA_SIZE: Record<PoetryLayout, number> =
   { single: 2, 'two-column': 2, staggered: 2, musaddas: 6, mukhammas: 5 };
 
+// Secondary grouping within a musaddas/mukhammas stanza — meaningless (always
+// 'continuous') for the other three layouts. 'continuous' is today's flat
+// rendering; 'split' is the same flat shape plus a CSS-only secondary divider
+// before the stanza's last 2 lines; 'mixed' is a real shape change — the
+// stanza's first 4 misras become 2 two-column rows, the rest stay flat.
+type PoetryStanzaVariant = 'continuous' | 'split' | 'mixed';
+
 class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
   __width?: number; // user-dragged, single-column-shaped layouts only
@@ -114,10 +124,19 @@ class PoetryBlockNode extends ElementNode {
                          // exclusive with __width (forced false when `layout`
                          // changes to 'two-column'/'staggered')
   __staggerGroup: 1 | 2; // couplets sharing one side before 'staggered' flips
-  // children: for the single-column-shaped layouts, POETRY_STANZA_SIZE[layout]
-  // ParagraphNode misras stacked per stanza; for 'two-column' layout, internally
-  // composes a LayoutContainerNode with two LayoutItemNodes (one misra each) per
-  // couplet — see §4 note on composition.
+  __stanzaVariant: PoetryStanzaVariant; // musaddas/mukhammas only; forced back
+                                        // to 'continuous' when `layout` changes
+                                        // away from them
+  // children: for 'continuous'/'split' (and single/two-column/staggered,
+  // which are always 'continuous'), POETRY_STANZA_SIZE[layout] ParagraphNode
+  // misras stacked flat per stanza; for 'two-column' layout, a
+  // LayoutContainerNode with two LayoutItemNodes (one misra each) per couplet
+  // (see §4 note on composition); for a 'mixed' stanza, 2 such
+  // LayoutContainerNode rows (the stanza's first 4 misras) followed by
+  // POETRY_STANZA_SIZE[layout] - 4 flat ParagraphNode misras — poetryActions.ts's
+  // $getCouplets is the one place that reads any of these three physical
+  // shapes back into a uniform per-stanza misra array, and $buildCoupletNodes
+  // is the one place that builds any of them.
 }
 ```
 

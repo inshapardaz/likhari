@@ -31,6 +31,19 @@ export const SINGLE_COLUMN_SHAPED_LAYOUTS = new Set<PoetryLayout>(['single', 'mu
 export const POETRY_STAGGER_GROUPS = [1, 2] as const;
 export type PoetryStaggerGroup = (typeof POETRY_STAGGER_GROUPS)[number];
 
+/** Secondary stanza grouping, musaddas/mukhammas only (lexical-editor-spec.md
+ * §4.11, amended) — mirrors packages/react/src/blocks/PoetryNode.tsx's own
+ * POETRY_STANZA_VARIANTS. `continuous` is the default/original flat stanza
+ * shape; `split` is the same flat shape with an extra CSS divider; `mixed`
+ * is a real shape change (2 two-column rows + trailing flat paragraphs),
+ * which both the HTML and Markdown converters round-trip generically
+ * through the node's own children (no dedicated mixed-shape syntax needed —
+ * each child already carries its own type, `layout-container` or
+ * `paragraph`). */
+export const POETRY_STANZA_VARIANTS = ['continuous', 'split', 'mixed'] as const;
+export type PoetryStanzaVariant = (typeof POETRY_STANZA_VARIANTS)[number];
+export const STANZA_VARIANT_LAYOUTS = new Set<PoetryLayout>(['musaddas', 'mukhammas']);
+
 export const POETRY_SCALE_NAMES = ['compact', 'normal', 'relaxed', 'loose'] as const;
 export type PoetryScaleName = (typeof POETRY_SCALE_NAMES)[number];
 
@@ -84,4 +97,12 @@ export function boolOrDefault(value: unknown, fallback = false): boolean {
 
 export function staggerGroupOrDefault(value: unknown): PoetryStaggerGroup {
   return Number(value) === 2 ? 2 : 1;
+}
+
+/** `stanzaVariant` only has meaning for musaddas/mukhammas — every other
+ * layout always reads back `'continuous'`, same gating as PoetryNode.tsx's
+ * own normalizeStanzaVariant. */
+export function stanzaVariantOrDefault(value: unknown, layout: PoetryLayout): PoetryStanzaVariant {
+  if (!STANZA_VARIANT_LAYOUTS.has(layout)) return 'continuous';
+  return POETRY_STANZA_VARIANTS.find((name) => name === value) ?? 'continuous';
 }

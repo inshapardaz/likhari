@@ -274,6 +274,33 @@ exposed it as a single list of five choices anyway. Backward compatible: a docum
 with no knowledge of this amendment uses one of the original three `layout` values and
 renders pixel-identical to before it.
 
+**Amendment — stanza variant (musaddas/mukhammas sub-choice)**: a `stanzaVariant`
+attribute (`'continuous' | 'split' | 'mixed'`, default `'continuous'`), meaningful only
+for `musaddas`/`mukhammas` (always `'continuous'` for the other three layouts, and
+forced back to it whenever `layout` changes away from musaddas/mukhammas) — a secondary
+grouping *within* the stanza, on top of the stanza-boundary divider the amendment above
+already adds:
+
+- `continuous` (default): today's rendering — a flat stack with one divider at the
+  stanza boundary only. Backward compatible: a document with no knowledge of this
+  amendment renders pixel-identical to before it.
+- `split`: the same flat physical shape as `continuous` (CSS-only, no tree
+  restructuring), plus a lighter secondary divider before the stanza's last two lines —
+  `musaddas` 4+2, `mukhammas` 3+2. This is the same idea the reference implementation
+  (shakesvision.github.io/PoetryJustification) calls its "classic" musaddas split and
+  its "3+2" mukhammas split, read here as one shared rule (secondary divider before the
+  stanza's last 2 lines) rather than two separately-specified splits.
+- `mixed`: a real shape change — the stanza's first 4 misras become 2 two-column rows
+  (built the same way a `two-column` couplet row is, §4.9's columns primitive), followed
+  by the remaining `POETRY_STANZA_SIZE[layout] - 4` misras as flat paragraphs (musaddas:
+  2, mukhammas: 1). Matches the reference implementation's "mixed" musaddas/mukhammas
+  variants.
+
+Provide this as a sub-section of the poetry menu, shown only while the caret is in a
+musaddas/mukhammas block, offering the three choices as a radio-style group (mirroring
+how `staggerGroup`'s own 1/2 pair is offered) — converting an existing populated stanza
+between the three preserves every misra's text.
+
 **Amendment — auto width**: a boolean `autoWidth` attribute, valid for the
 single-column-shaped layouts (`single`/`musaddas`/`mukhammas` — a percentage/manual
 width inside a CSS `fit-content` parent is circular, so `two-column` and `staggered`

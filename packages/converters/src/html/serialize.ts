@@ -2,8 +2,8 @@ import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
   POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, POETRY_STANZA_SIZE,
-  SINGLE_COLUMN_SHAPED_LAYOUTS,
-  boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault,
+  SINGLE_COLUMN_SHAPED_LAYOUTS, STANZA_VARIANT_LAYOUTS,
+  boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault,
 } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
@@ -167,6 +167,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const centerWidth = scaleOrDefault(node.centerWidth);
   const autoWidth = boolOrDefault(node.autoWidth) && SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout);
   const staggerGroup = staggerGroupOrDefault(node.staggerGroup);
+  const stanzaVariant = stanzaVariantOrDefault(node.stanzaVariant, layout);
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
   const children = node.children ?? [];
   const dir = firstDirection(children);
@@ -209,6 +210,44 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
         return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}">${cells}</div>`;
       })
       .join('');
+  } else if (STANZA_VARIANT_LAYOUTS.has(layout) && stanzaVariant === 'mixed') {
+    // A `mixed` stanza is 2 two-column rows (the first 4 misras) followed by
+    // POETRY_STANZA_SIZE[layout] - 4 flat paragraphs — children mix
+    // layout-container and paragraph SNodes, unlike every other layout's
+    // uniform shape, so this walks them by type rather than assuming every
+    // child is a flat "line" the way the branch below does. `period` is how
+    // many DOM children make up one stanza (2 rows + however many trailing
+    // flats); row 1 of a later stanza gets the heavier stanza-boundary
+    // divider, row 2 (within the same stanza) a lighter one — same
+    // distinction as editor.css's --variant-mixed rules.
+    const trailing = stanzaSize - 4;
+    const period = 2 + trailing;
+    const px = POETRY_GUTTER_PX[gutter];
+    body = children
+      .map((child, i) => {
+        const posInStanza = i % period;
+        const isStanzaStart = posInStanza === 0 && i >= period;
+        if (child.type === 'layout-container') {
+          const items = child.children ?? [];
+          const rowStyle = [
+            'display: grid',
+            'gap: 0',
+            'grid-template-columns: repeat(2, 1fr)',
+            'margin: 0',
+            ...(isStanzaStart ? [separator] : posInStanza === 1 ? [`border-top: ${POETRY_RULE}`] : []),
+          ].join('; ');
+          const cells = items
+            .map((item, idx) => {
+              const cellStyle = idx === 0 ? `padding-inline-end: ${px}px` : `border-inline-start: ${POETRY_RULE}; padding-inline-start: ${px}px`;
+              const lines = (item.children ?? []).map((line) => poetryLineToHtml(line, '', ctx)).join('');
+              return `<div data-likhari-layout-item style="${escapeAttr(cellStyle)}">${lines}</div>`;
+            })
+            .join('');
+          return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}">${cells}</div>`;
+        }
+        return poetryLineToHtml(child, isStanzaStart ? separator : '', ctx);
+      })
+      .join('');
   } else {
     body = children
       .map((line, i) => {
@@ -237,7 +276,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
     `line-height: ${rtl ? '2.1' : '1.6'}`,
   ].join('; ');
   const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}" data-likhari-poetry-stanza-variant="${stanzaVariant}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

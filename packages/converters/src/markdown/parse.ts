@@ -10,7 +10,7 @@ import {
   elementBase, makeState, paragraph, rootChildren, textNode, type SNode,
 } from '../shared/serialized';
 import { parseHtml, safeImageSrc, safeUrl } from '../html/parse';
-import { boolOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault } from '../shared/poetry';
+import { boolOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault } from '../shared/poetry';
 import type { MdNode } from './mdast';
 
 const processor = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
@@ -256,6 +256,7 @@ function blocks(nodes: MdNode[], extra: Record<string, unknown> = {}): SNode[] {
             centerWidth: scaleOrDefault(attrs.centerWidth),
             autoWidth: boolOrDefault(attrs.autoWidth),
             staggerGroup: staggerGroupOrDefault(attrs.staggerGroup),
+            stanzaVariant: stanzaVariantOrDefault(attrs.stanzaVariant, layout),
             ...(Number(attrs.width) > 0 ? { width: Number(attrs.width) } : {}),
           };
           const children = blocks(node.children ?? []);
