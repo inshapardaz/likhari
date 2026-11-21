@@ -252,14 +252,100 @@ standard paragraph/heading semantics:
 | Single-column justified, with some couplets left-aligned and others right-aligned | Per-couplet alignment override within a single-column flow | Alignment is set per `CoupletNode`, not inherited from a document-wide setting — this is the same underlying need as the previous row (per-block override), just varying alignment instead of column count. |
 
 **Design recommendation**: rather than four bespoke node types, implement one
-`PoetryBlockNode` type with a `layout` attribute (`single` | `two-column`) and an
-`alignment` attribute (`justify` | `left` | `right` | `start`) settable per instance,
-and let editors mix instances of it freely in a document. This covers all four
+`PoetryBlockNode` type with a `layout` attribute (`single` | `two-column` | `staggered`)
+and an `alignment` attribute (`justify` | `left` | `right` | `start`) settable per
+instance, and let editors mix instances of it freely in a document. This covers all four
 requested templates (and combinations of them) with one extensible primitive instead of
-four fixed templates, and makes future variants (e.g. three-line forms) cheaper to add.
+four fixed templates.
+
+**Amendment — stanza forms (musaddas/mukhammas)**: `layout` widens to a flat five-value
+set — `'single' | 'two-column' | 'staggered' | 'musaddas' | 'mukhammas'` — covering
+exactly the "future variants (e.g. three-line forms)" this design anticipated. The two
+new values pick a larger stanza size (`musaddas` 6 misras, `mukhammas` 5) and always
+render the same flat single-column shape `single` already does (a dashed divider + gap
+after every stanza-sized group of paragraphs instead of every 2nd) — they are not a
+second axis layered on top of `layout`, just two more entries in the same list, since a
+5- or 6-line stanza never needed (and never got) a two-column or staggered rendering of
+its own. An earlier revision of this amendment specified `musaddas`/`mukhammas` as a
+separate `form` attribute orthogonal to `layout`; that split produced only 5 valid
+`layout`×`form` combinations out of 9 (two-column/staggered were always `form:
+'couplet'`-only) and was folded back into one flat `layout` enum once the toolbar
+exposed it as a single list of five choices anyway. Backward compatible: a document
+with no knowledge of this amendment uses one of the original three `layout` values and
+renders pixel-identical to before it.
+
+**Amendment — stanza variant (musaddas/mukhammas sub-choice)**: a `stanzaVariant`
+attribute (`'continuous' | 'split' | 'mixed'`, default `'continuous'`), meaningful only
+for `musaddas`/`mukhammas` (always `'continuous'` for the other three layouts, and
+forced back to it whenever `layout` changes away from musaddas/mukhammas) — a secondary
+grouping *within* the stanza, on top of the stanza-boundary divider the amendment above
+already adds:
+
+- `continuous` (default): today's rendering — a flat stack with one divider at the
+  stanza boundary only. Backward compatible: a document with no knowledge of this
+  amendment renders pixel-identical to before it.
+- `split`: the same flat physical shape as `continuous` (CSS-only, no tree
+  restructuring), plus a secondary grouping cue before the stanza's last two lines —
+  `musaddas` 4+2, `mukhammas` 3+2. This is the same idea the reference implementation
+  (shakesvision.github.io/PoetryJustification) calls its "classic" musaddas split and
+  its "3+2" mukhammas split, read here as one shared rule (a cue before the stanza's
+  last 2 lines) rather than two separately-specified splits. Both forms' cue is pure
+  extra spacing, no divider line at all — for the same reason both stanza types'
+  `mixed` variant below is spacing-only too: the grouping should read as breathing
+  room, not as a second border competing with the stanza-boundary divider above it.
+- `mixed`: a real shape change — the stanza's first 4 misras become 2 two-column rows
+  (built the same way a `two-column` couplet row is, §4.9's columns primitive), followed
+  by the remaining `POETRY_STANZA_SIZE[layout] - 4` misras as a trailing misra group
+  (musaddas: 2 lines, mukhammas: 1 line). Matches the reference implementation's "mixed"
+  musaddas/mukhammas variants. The internal divider between the stanza's own 2 rows is
+  pure spacing too, not a line — the trailing group's own centering (below) already
+  reads as its grouping cue, so a divider there as well would be one too many.
+  That trailing misra group — 1 or 2 lines together — supports the same centering/width
+  control as a centered `two-column` couplet (the toolbar's "Center"/"Un-center" toggle,
+  issue #27 — narrows the row to the `centerWidth` scale and centers it): the toolbar's
+  "Center"/"Un-center" toggle and narrower/wider steppers reuse the exact same
+  `data-likhari-single-column` wrapper and `--poetry-center-width` scale, just wrapping
+  however many trailing misras this stanza has (1 for mukhammas, 2 for musaddas,
+  appended into the one shared item together) rather than always exactly two. Centered
+  by default: every freshly-built mixed stanza's trailing group (a new insert, a
+  layout/variant change, Enter appending a new stanza) starts centered — matching how
+  `IconPoetryMixed` depicts it (a short, centered third line) — rather than requiring an
+  explicit toggle first; a block authored before this default existed, or one explicitly
+  un-centered since, keeps whatever physical shape it was last saved with (this is a
+  construction default, not a rendering rule, so it never silently rewrites existing
+  documents).
+
+Provide this as a sub-section of the poetry menu, shown only while the caret is in a
+musaddas/mukhammas block, offering the three choices as a radio-style group (mirroring
+how `staggerGroup`'s own 1/2 pair is offered) — converting an existing populated stanza
+between the three preserves every misra's text.
+
+**Amendment — auto width**: a boolean `autoWidth` attribute, valid for the
+single-column-shaped layouts (`single`/`musaddas`/`mukhammas` — a percentage/manual
+width inside a CSS `fit-content` parent is circular, so `two-column` and `staggered`
+never offer it), sizes the block to `width: fit-content` instead of the default
+70%-of-canvas or a user-dragged pixel width — the block's width then tracks its own
+longest misra, with every other line's existing `text-align-last: justify` still
+stretching to fill that same width. Mutually exclusive with a manual drag-width: setting
+one is ignored while the other actually renders. Switching `layout` to `two-column` or
+`staggered` forces `autoWidth` back to `false`.
+
+**Amendment — stagger grouping**: a `staggerGroup` attribute (`1 | 2`, default `1`,
+`staggered`-layout only) generalizes the "alternating sides" placement from flipping
+every single couplet to flipping every `staggerGroup` couplets — the "auto" grid the
+reference implementation (shakesvision.github.io/PoetryJustification) calls out, read
+here as this side-alternation period rather than a separately specified grid algorithm.
+`1` reproduces the original fixed alternation exactly.
 
 Provide a "poetry mode" toolbar/insert menu specific to Urdu/Punjabi editing contexts
-(hidden entirely when the feature is disabled via props, see §5).
+(hidden entirely when the feature is disabled via props, see §5) — one flat list of all
+five layout choices (Single column, Two column, Alternating sides, Musaddas, Mukhammas);
+"Insert musaddas" and "Insert mukhammas" each insert one empty stanza of the right size,
+always in their own flat single-column shape; which of the five show is restricted by
+`poetry.layouts` (§5). Selecting text first and invoking any of the three
+single-column-shaped choices converts the selection into that stanza size instead
+(padding a short final stanza with empty lines), generalizing the couplet-only "select
+multiple lines and press the poetry command" behaviour.
 
 ---
 
@@ -291,7 +377,17 @@ interface EditorFeatureConfig {
   tables?: boolean;
   columns?: boolean;
   footnotes?: boolean;
-  poetry?: { enabled?: boolean; defaultLayout?: 'single' | 'two-column' };
+  poetry?: {
+    enabled?: boolean;
+    defaultLayout?: 'single' | 'two-column';
+    // Restricts which of the five layout choices the insert menu offers —
+    // single/two-column/staggered/musaddas/mukhammas (§4.11, amended) — same
+    // idea as blocks.headingLevels restricting a list above. All custom node
+    // attributes stay supported regardless of this toggle (§2): narrowing it
+    // never breaks a document already containing the hidden layout, since
+    // this only hides the *insert* entries, not node data.
+    layouts?: ('single' | 'two-column' | 'staggered' | 'mukhammas' | 'musaddas')[];
+  };
   findReplace?: boolean;
   joinLines?: boolean; // combine the selected lines into one paragraph
   dragBlocks?: boolean; // drag grip beside each block; in poetry, per couplet and per line

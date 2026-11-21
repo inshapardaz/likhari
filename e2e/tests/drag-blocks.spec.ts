@@ -33,7 +33,9 @@ test.describe('drag grip', () => {
 
   test('inside poetry, one grip moves the couplet and another swaps the line', async ({ editor, page }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
-    await editor.button('شعر شامل کریں').click();
+    // The 'poetry' preset's default layouts list has more than one entry, so
+    // the insert button is a menu (layout choices) rather than a direct insert.
+    await editor.menu('شعر شامل کریں', 'ایک کالم');
     await editor.type('a1');
     await page.keyboard.press('Enter');
     await editor.type('a2');

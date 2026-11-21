@@ -12,7 +12,7 @@ import {
   ElementNode,
 } from 'lexical';
 
-export type PoetryLayout = 'single' | 'two-column' | 'staggered';
+export type PoetryLayout = 'single' | 'two-column' | 'staggered' | 'musaddas' | 'mukhammas';
 /** Vertical space between couplets — an ordered scale the menu steps through. */
 export const POETRY_SPACINGS = ['compact', 'normal', 'relaxed', 'loose'] as const;
 export type PoetrySpacing = (typeof POETRY_SPACINGS)[number];
@@ -31,11 +31,73 @@ export const POETRY_CENTER_WIDTHS = ['compact', 'normal', 'relaxed', 'loose'] as
 export type PoetryCenterWidth = (typeof POETRY_CENTER_WIDTHS)[number];
 export const DEFAULT_POETRY_CENTER_WIDTH: PoetryCenterWidth = 'normal';
 
-const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'staggered']);
+/**
+ * How many misra paragraphs make up one stanza for each layout
+ * (lexical-editor-spec.md §4.11, amended) — `single`/`two-column`/
+ * `staggered` are all 2-line couplets; `musaddas` (6) and `mukhammas` (5)
+ * are generalizations of the same "fixed-size stanza, add/remove like
+ * table rows" model, folded into `layout` itself rather than a separate
+ * axis, since they only ever render as a flat single-column stack anyway —
+ * the same shape `single` already uses.
+ */
+export const POETRY_STANZA_SIZE: Record<PoetryLayout, number> = {
+  single: 2,
+  'two-column': 2,
+  staggered: 2,
+  musaddas: 6,
+  mukhammas: 5,
+};
+
+/** How many couplets share one side before the staggered layout flips —
+ * generalizes the (fixed) one-couplet-per-side alternation. Only meaningful
+ * for `layout === 'staggered'`. */
+export type PoetryStaggerGroup = 1 | 2;
+export const POETRY_STAGGER_GROUPS: readonly PoetryStaggerGroup[] = [1, 2];
+export const DEFAULT_POETRY_STAGGER_GROUP: PoetryStaggerGroup = 1;
+
+/**
+ * A secondary grouping within a `musaddas`/`mukhammas` stanza (lexical-editor-spec.md
+ * §4.11, amended) — only meaningful for those two layouts; always `'continuous'`
+ * for `single`/`two-column`/`staggered`.
+ *  - `continuous` (default): the original flat stack, one divider at the
+ *    stanza boundary only — pixel-identical to how musaddas/mukhammas
+ *    already rendered before this attribute existed.
+ *  - `split`: same flat physical shape as `continuous` (CSS-only — no tree
+ *    restructuring), plus a lighter secondary divider before the stanza's
+ *    last two lines (musaddas 4+2, mukhammas 3+2).
+ *  - `mixed`: a real shape change — the stanza's first 4 misras become 2
+ *    two-column `LayoutContainerNode` rows (built the same way a
+ *    `two-column` couplet row is), followed by the remaining
+ *    `POETRY_STANZA_SIZE[layout] - 4` misras as flat paragraphs.
+ */
+export const POETRY_STANZA_VARIANTS = ['continuous', 'split', 'mixed'] as const;
+export type PoetryStanzaVariant = (typeof POETRY_STANZA_VARIANTS)[number];
+export const DEFAULT_POETRY_STANZA_VARIANT: PoetryStanzaVariant = 'continuous';
+
+/** Layouts `stanzaVariant` is meaningful for — a secondary grouping inside a
+ * stanza only makes sense when the stanza itself has more than 2 lines. */
+export const STANZA_VARIANT_LAYOUTS = new Set<PoetryLayout>(['musaddas', 'mukhammas']);
+
+const VALID_LAYOUTS = new Set<PoetryLayout>(['single', 'two-column', 'staggered', 'musaddas', 'mukhammas']);
+/** The layouts that render as a flat single-column stack of paragraphs —
+ * the only shapes a fit-content `autoWidth` (a percentage width inside a
+ * fit-content parent is circular) or a plain misra-paragraph stanza can
+ * apply to. `two-column`/`staggered` are excluded. */
+export const SINGLE_COLUMN_SHAPED_LAYOUTS = new Set<PoetryLayout>(['single', 'musaddas', 'mukhammas']);
 const VALID_SPACINGS = new Set<PoetrySpacing>(POETRY_SPACINGS);
 const VALID_GUTTERS = new Set<PoetryGutter>(POETRY_GUTTERS);
 const VALID_STAGGERS = new Set<PoetryStagger>(POETRY_STAGGERS);
 const VALID_CENTER_WIDTHS = new Set<PoetryCenterWidth>(POETRY_CENTER_WIDTHS);
+const VALID_STAGGER_GROUPS = new Set<PoetryStaggerGroup>(POETRY_STAGGER_GROUPS);
+const VALID_STANZA_VARIANTS = new Set<PoetryStanzaVariant>(POETRY_STANZA_VARIANTS);
+
+/** `stanzaVariant` only has meaning for musaddas/mukhammas — every other
+ * layout always reads back `'continuous'`, same gating as `autoWidth`'s own
+ * SINGLE_COLUMN_SHAPED_LAYOUTS check above. */
+function normalizeStanzaVariant(value: unknown, layout: PoetryLayout): PoetryStanzaVariant {
+  if (!STANZA_VARIANT_LAYOUTS.has(layout)) return DEFAULT_POETRY_STANZA_VARIANT;
+  return VALID_STANZA_VARIANTS.has(value as PoetryStanzaVariant) ? (value as PoetryStanzaVariant) : DEFAULT_POETRY_STANZA_VARIANT;
+}
 
 /** Poetry is always justified: `text-align-last: justify` stretches a
  * one-line misra across the full column width too, not just wrapped lines,
@@ -47,39 +109,69 @@ function applyJustifyStyle(element: HTMLElement): void {
 
 /** A user-dragged width overrides editor.css's default max-width: 70% —
  * clearing the inline style (rather than setting it to that same 70%)
- * lets the CSS default keep tracking the canvas if it's ever resized. */
-function applyWidthStyle(element: HTMLElement, width: number | undefined): void {
-  if (width === undefined) element.style.removeProperty('max-width');
+ * lets the CSS default keep tracking the canvas if it's ever resized.
+ * `autoWidth` (fit-content) is rendered entirely through the
+ * `--width-auto` modifier class instead (see createDOM/exportDOM), so a
+ * manual width is never applied on top of it — the two are mutually
+ * exclusive, and autoWidth wins whenever both happen to be set (e.g. from
+ * hand-edited JSON). */
+function applyWidthStyle(element: HTMLElement, width: number | undefined, autoWidth: boolean): void {
+  if (autoWidth || width === undefined) element.style.removeProperty('max-width');
   else element.style.maxWidth = `${width}px`;
 }
 
 export type SerializedPoetryBlockNode = Spread<
-  { layout: PoetryLayout; width?: number; spacing?: PoetrySpacing; gutter?: PoetryGutter; stagger?: PoetryStagger; centerWidth?: PoetryCenterWidth },
+  {
+    layout: PoetryLayout;
+    width?: number;
+    spacing?: PoetrySpacing;
+    gutter?: PoetryGutter;
+    stagger?: PoetryStagger;
+    centerWidth?: PoetryCenterWidth;
+    autoWidth?: boolean;
+    staggerGroup?: PoetryStaggerGroup;
+    stanzaVariant?: PoetryStanzaVariant;
+  },
   SerializedElementNode
 >;
 
 /**
- * A poetry *section*: one or more couplets (two-line verse units) sharing
- * one layout — single-column stacks each couplet's two misras directly as
- * paragraph children (two per couplet, in order), two-column gives each
- * couplet its own LayoutContainerNode row (built on the columns primitive,
- * §4.9) — see blocks/poetryActions.ts's $getCouplets for how either shape
- * is read, and $setPoetryLayout/$exitPoetryOnEnter for how children are
- * restructured/grown between couplets and layouts. `layout` applies to the
- * whole section, not per couplet, and mutates in place via poetryActions so
+ * A poetry *section*: one or more stanzas of `POETRY_STANZA_SIZE[layout]`
+ * misra lines sharing one layout — single/musaddas/mukhammas stack each
+ * stanza's misras directly as paragraph children (differing only in stanza
+ * size), two-column gives each couplet its own LayoutContainerNode row
+ * (built on the columns primitive, §4.9) — see blocks/poetryActions.ts's
+ * $getCouplets for how either shape is read, and
+ * $setPoetryLayout/$exitPoetryOnEnter for how children are
+ * restructured/grown between stanzas and layouts. `layout` applies to the
+ * whole section, not per stanza, and mutates in place via poetryActions so
  * converting a section between layouts doesn't lose selection/undo
- * coherence. One extensible primitive in place of four fixed templates,
- * per requirements doc §4.11.
+ * coherence. One extensible primitive — a single flat set of layout
+ * choices — in place of fixed templates, per requirements doc §4.11
+ * (amended for musaddas/mukhammas and auto-width).
  */
 export class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
   /** User-chosen width in px (drag-resized), overriding editor.css's default
-   * max-width: 70%. Undefined until the user resizes it. */
+   * max-width: 70%. Undefined until the user resizes it. Ignored while
+   * `__autoWidth` is on. */
   __width?: number;
   __spacing: PoetrySpacing;
   __gutter: PoetryGutter;
   __stagger: PoetryStagger;
   __centerWidth: PoetryCenterWidth;
+  /** `width: fit-content` instead of a max-width — only valid for the
+   * single-column-shaped layouts (`single`/`musaddas`/`mukhammas`; a
+   * percentage width inside a fit-content parent is circular); forced back
+   * to false when the layout changes to `two-column`/`staggered`
+   * (poetryActions.ts's $setPoetryLayout). */
+  __autoWidth: boolean;
+  __staggerGroup: PoetryStaggerGroup;
+  /** Secondary grouping within a musaddas/mukhammas stanza (see
+   * POETRY_STANZA_VARIANTS above) — always `'continuous'` for every other
+   * layout, forced back whenever `layout` changes away from
+   * musaddas/mukhammas ($setPoetryLayout in poetryActions.ts). */
+  __stanzaVariant: PoetryStanzaVariant;
 
   constructor(
     layout: PoetryLayout = 'single',
@@ -88,6 +180,9 @@ export class PoetryBlockNode extends ElementNode {
     gutter: PoetryGutter = DEFAULT_POETRY_GUTTER,
     stagger: PoetryStagger = DEFAULT_POETRY_STAGGER,
     centerWidth: PoetryCenterWidth = DEFAULT_POETRY_CENTER_WIDTH,
+    autoWidth: boolean = false,
+    staggerGroup: PoetryStaggerGroup = DEFAULT_POETRY_STAGGER_GROUP,
+    stanzaVariant: PoetryStanzaVariant = DEFAULT_POETRY_STANZA_VARIANT,
     key?: NodeKey,
   ) {
     super(key);
@@ -97,6 +192,9 @@ export class PoetryBlockNode extends ElementNode {
     this.__gutter = gutter;
     this.__stagger = stagger;
     this.__centerWidth = centerWidth;
+    this.__autoWidth = autoWidth;
+    this.__staggerGroup = staggerGroup;
+    this.__stanzaVariant = stanzaVariant;
   }
 
   static getType(): string {
@@ -104,7 +202,18 @@ export class PoetryBlockNode extends ElementNode {
   }
 
   static clone(node: PoetryBlockNode): PoetryBlockNode {
-    return new PoetryBlockNode(node.__layout, node.__width, node.__spacing, node.__gutter, node.__stagger, node.__centerWidth, node.__key);
+    return new PoetryBlockNode(
+      node.__layout,
+      node.__width,
+      node.__spacing,
+      node.__gutter,
+      node.__stagger,
+      node.__centerWidth,
+      node.__autoWidth,
+      node.__staggerGroup,
+      node.__stanzaVariant,
+      node.__key,
+    );
   }
 
   getLayout(): PoetryLayout {
@@ -170,10 +279,46 @@ export class PoetryBlockNode extends ElementNode {
     return writable;
   }
 
+  getAutoWidth(): boolean {
+    return this.getLatest().__autoWidth;
+  }
+
+  setAutoWidth(autoWidth: boolean): this {
+    const writable = this.getWritable();
+    writable.__autoWidth = autoWidth;
+    return writable;
+  }
+
+  getStaggerGroup(): PoetryStaggerGroup {
+    return this.getLatest().__staggerGroup;
+  }
+
+  setStaggerGroup(staggerGroup: PoetryStaggerGroup): this {
+    const writable = this.getWritable();
+    writable.__staggerGroup = staggerGroup;
+    return writable;
+  }
+
+  getStanzaVariant(): PoetryStanzaVariant {
+    return this.getLatest().__stanzaVariant;
+  }
+
+  /** Attribute-only, same split as setLayoutAttribute — rebuilding the
+   * stanza's physical shape (flat vs. mixed 2-column-rows-plus-flats) for a
+   * variant change is poetryActions.ts's $setPoetryStanzaVariant. */
+  setStanzaVariantAttribute(stanzaVariant: PoetryStanzaVariant): this {
+    const writable = this.getWritable();
+    writable.__stanzaVariant = stanzaVariant;
+    return writable;
+  }
+
   // Validated the same way the DOM import below validates its attributes
   // (issue #29) — hand-edited or otherwise untrusted JSON could carry any
   // string here, which would otherwise add an unknown CSS modifier class
-  // and render with no style for that setting.
+  // and render with no style for that setting. Missing `autoWidth`/
+  // `staggerGroup` (a document saved before this feature existed) falls
+  // back to their defaults, which reproduce today's couplet rendering
+  // exactly — the backward-compatibility bar for this change.
   static importJSON(serializedNode: SerializedPoetryBlockNode): PoetryBlockNode {
     const layout = VALID_LAYOUTS.has(serializedNode.layout) ? serializedNode.layout : 'single';
     const width = typeof serializedNode.width === 'number' && serializedNode.width > 0 ? serializedNode.width : undefined;
@@ -183,7 +328,12 @@ export class PoetryBlockNode extends ElementNode {
     const centerWidth = VALID_CENTER_WIDTHS.has(serializedNode.centerWidth as PoetryCenterWidth)
       ? (serializedNode.centerWidth as PoetryCenterWidth)
       : DEFAULT_POETRY_CENTER_WIDTH;
-    return $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth);
+    const autoWidth = serializedNode.autoWidth === true && SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout);
+    const staggerGroup = VALID_STAGGER_GROUPS.has(serializedNode.staggerGroup as PoetryStaggerGroup)
+      ? (serializedNode.staggerGroup as PoetryStaggerGroup)
+      : DEFAULT_POETRY_STAGGER_GROUP;
+    const stanzaVariant = normalizeStanzaVariant(serializedNode.stanzaVariant, layout);
+    return $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant);
   }
 
   exportJSON(): SerializedPoetryBlockNode {
@@ -197,6 +347,9 @@ export class PoetryBlockNode extends ElementNode {
       gutter: this.getGutter(),
       stagger: this.getStagger(),
       centerWidth: this.getCenterWidth(),
+      autoWidth: this.getAutoWidth(),
+      staggerGroup: this.getStaggerGroup(),
+      stanzaVariant: this.getStanzaVariant(),
       ...(width !== undefined ? { width } : {}),
     };
   }
@@ -219,7 +372,16 @@ export class PoetryBlockNode extends ElementNode {
         const centerWidth = VALID_CENTER_WIDTHS.has(rawCenterWidth as PoetryCenterWidth)
           ? (rawCenterWidth as PoetryCenterWidth)
           : DEFAULT_POETRY_CENTER_WIDTH;
-        return { conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth) }), priority: 2 };
+        const autoWidth = domNode.getAttribute('data-likhari-poetry-auto-width') === 'true' && SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout);
+        const rawStaggerGroup = Number(domNode.getAttribute('data-likhari-poetry-stagger-group'));
+        const staggerGroup = VALID_STAGGER_GROUPS.has(rawStaggerGroup as PoetryStaggerGroup)
+          ? (rawStaggerGroup as PoetryStaggerGroup)
+          : DEFAULT_POETRY_STAGGER_GROUP;
+        const stanzaVariant = normalizeStanzaVariant(domNode.getAttribute('data-likhari-poetry-stanza-variant'), layout);
+        return {
+          conversion: () => ({ node: $createPoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant) }),
+          priority: 2,
+        };
       },
     };
   }
@@ -231,10 +393,13 @@ export class PoetryBlockNode extends ElementNode {
     element.setAttribute('data-likhari-poetry-gutter', this.getGutter());
     element.setAttribute('data-likhari-poetry-stagger', this.getStagger());
     element.setAttribute('data-likhari-poetry-center-width', this.getCenterWidth());
+    element.setAttribute('data-likhari-poetry-auto-width', String(this.getAutoWidth()));
+    element.setAttribute('data-likhari-poetry-stagger-group', String(this.getStaggerGroup()));
+    element.setAttribute('data-likhari-poetry-stanza-variant', this.getStanzaVariant());
     const width = this.getWidth();
     if (width !== undefined) element.setAttribute('data-likhari-poetry-width', String(width));
     applyJustifyStyle(element);
-    applyWidthStyle(element, width);
+    applyWidthStyle(element, width, this.getAutoWidth());
     return { element };
   }
 
@@ -249,9 +414,12 @@ export class PoetryBlockNode extends ElementNode {
       `${base}--gutter-${this.__gutter}`,
       `${base}--stagger-${this.__stagger}`,
       `${base}--center-${this.__centerWidth}`,
+      `${base}--stagger-group-${this.__staggerGroup}`,
+      `${base}--variant-${this.__stanzaVariant}`,
     );
+    if (this.__autoWidth) element.classList.add(`${base}--width-auto`);
     applyJustifyStyle(element);
-    applyWidthStyle(element, this.__width);
+    applyWidthStyle(element, this.__width, this.__autoWidth);
     return element;
   }
 
@@ -281,8 +449,19 @@ export class PoetryBlockNode extends ElementNode {
       dom.classList.remove(`${base}--center-${prevNode.__centerWidth}`);
       dom.classList.add(`${base}--center-${this.__centerWidth}`);
     }
-    if (prevNode.__width !== this.__width) {
-      applyWidthStyle(dom, this.__width);
+    if (prevNode.__staggerGroup !== this.__staggerGroup) {
+      dom.classList.remove(`${base}--stagger-group-${prevNode.__staggerGroup}`);
+      dom.classList.add(`${base}--stagger-group-${this.__staggerGroup}`);
+    }
+    if (prevNode.__stanzaVariant !== this.__stanzaVariant) {
+      dom.classList.remove(`${base}--variant-${prevNode.__stanzaVariant}`);
+      dom.classList.add(`${base}--variant-${this.__stanzaVariant}`);
+    }
+    if (prevNode.__autoWidth !== this.__autoWidth) {
+      dom.classList.toggle(`${base}--width-auto`, this.__autoWidth);
+    }
+    if (prevNode.__width !== this.__width || prevNode.__autoWidth !== this.__autoWidth) {
+      applyWidthStyle(dom, this.__width, this.__autoWidth);
     }
     return false;
   }
@@ -303,8 +482,11 @@ export function $createPoetryBlockNode(
   gutter: PoetryGutter = DEFAULT_POETRY_GUTTER,
   stagger: PoetryStagger = DEFAULT_POETRY_STAGGER,
   centerWidth: PoetryCenterWidth = DEFAULT_POETRY_CENTER_WIDTH,
+  autoWidth: boolean = false,
+  staggerGroup: PoetryStaggerGroup = DEFAULT_POETRY_STAGGER_GROUP,
+  stanzaVariant: PoetryStanzaVariant = DEFAULT_POETRY_STANZA_VARIANT,
 ): PoetryBlockNode {
-  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth));
+  return $applyNodeReplacement(new PoetryBlockNode(layout, width, spacing, gutter, stagger, centerWidth, autoWidth, staggerGroup, stanzaVariant));
 }
 
 export function $isPoetryBlockNode(node: LexicalNode | null | undefined): node is PoetryBlockNode {

@@ -1,6 +1,6 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
-import { layoutOrDefault, scaleOrDefault } from '../shared/poetry';
+import { boolOrDefault, layoutOrDefault, POETRY_STANZA_SIZE, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
   FORMAT_SUBSCRIPT, FORMAT_SUPERSCRIPT, FORMAT_UNDERLINE, INDENT_PX,
@@ -272,6 +272,9 @@ function convertPoetry(el: HTMLElement): SNode {
     gutter: scaleOrDefault(el.getAttribute('data-likhari-poetry-gutter')),
     stagger: scaleOrDefault(el.getAttribute('data-likhari-poetry-stagger')),
     centerWidth: scaleOrDefault(el.getAttribute('data-likhari-poetry-center-width')),
+    autoWidth: boolOrDefault(el.getAttribute('data-likhari-poetry-auto-width')),
+    staggerGroup: staggerGroupOrDefault(el.getAttribute('data-likhari-poetry-stagger-group')),
+    stanzaVariant: stanzaVariantOrDefault(el.getAttribute('data-likhari-poetry-stanza-variant'), layout),
     ...(Number(el.getAttribute('data-likhari-poetry-width')) > 0 ? { width: Number(el.getAttribute('data-likhari-poetry-width')) } : {}),
   };
 
@@ -291,7 +294,8 @@ function convertPoetry(el: HTMLElement): SNode {
   }
 
   const children = flowBlocks(el);
-  return elementBase('poetry-couplet', children.length > 0 ? children : [paragraph(), paragraph()], settings);
+  const fallback = Array.from({ length: POETRY_STANZA_SIZE[layout] }, () => paragraph());
+  return elementBase('poetry-couplet', children.length > 0 ? children : fallback, settings);
 }
 
 function convertFootnoteList(el: HTMLElement): SNode {

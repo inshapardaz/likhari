@@ -192,7 +192,9 @@ test.describe('toolbar presentation', () => {
 test.describe('poetry', () => {
   test('inserts a poetry block that exports to the poetry directive', async ({ editor }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
-    await editor.button('شعر شامل کریں').click();
+    // The 'poetry' preset's default layouts list has more than one entry, so
+    // the insert button is a menu (layout choices) rather than a direct insert.
+    await editor.menu('شعر شامل کریں', 'ایک کالم');
     await editor.type('پہلا مصرع');
 
     expect(await editor.html()).toContain('data-likhari-poetry-layout="single"');
@@ -202,7 +204,7 @@ test.describe('poetry', () => {
   test('the poetry options menu appears with the caret in the block and changes its layout', async ({ editor, page }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
     await expect(editor.button('شاعری کے اختیارات')).toHaveCount(0);
-    await editor.button('شعر شامل کریں').click();
+    await editor.menu('شعر شامل کریں', 'ایک کالم');
     await editor.type('شعر');
 
     await editor.button('شاعری کے اختیارات').click();
@@ -216,7 +218,7 @@ test.describe('poetry', () => {
     await page.keyboard.press('Enter');
     await editor.type('دوسرا مصرع');
     await editor.selectAll();
-    await editor.button('شعر شامل کریں').click();
+    await editor.menu('شعر شامل کریں', 'ایک کالم');
 
     const html = await editor.html();
     expect(html).toContain('data-likhari-poetry-layout="single"');
@@ -227,7 +229,7 @@ test.describe('poetry', () => {
 
   test('hovering a couplet border shows a button that inserts a couplet above or below', async ({ editor, page }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
-    await editor.button('شعر شامل کریں').click();
+    await editor.menu('شعر شامل کریں', 'ایک کالم');
     await editor.type('شعر');
 
     const below = page.getByRole('button', { name: 'نیچے شعر شامل کریں' });
