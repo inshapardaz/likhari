@@ -490,16 +490,20 @@
    positions no longer line up with a uniform `nth-child(stanzaSize*n+1)`
    the way the flat layouts above do, since every stanza is `4 + trailing`
    DOM children, not `stanzaSize` — musaddas is 4 children per stanza (2
-   rows + 2 flats), mukhammas is 3 (2 rows + 1 flat). The stanza's own
-   second row gets a lighter divider from its first (same weight as
-   `split`'s secondary one, for the same "distinct from the stanza boundary"
-   reason); the *next* stanza's first row gets the usual heavier
+   rows + 2 flats), mukhammas is 3 (2 rows + 1 flat). Musaddas's own second
+   row gets a lighter divider from its first (same weight as `split`'s own
+   secondary divider, for the same "distinct from the stanza boundary"
+   reason); mukhammas gets pure spacing there instead, no divider line — same
+   treatment as mukhammas's `split` 3+2 (its trailing single line already
+   reads as its own grouping via centering, so a second internal line on top
+   of that plus the stanza boundary below would be one divider too many). The
+   *next* stanza's first row (either form) gets the usual heavier
    stanza-boundary treatment. */
 .likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+2) {
   border-top: 1px dotted var(--editor-line-strong);
 }
 .likhari-poetry--mukhammas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(3n+2) {
-  border-top: 1px dotted var(--editor-line-strong);
+  margin-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
 .likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+1):not(:first-child),
 .likhari-poetry--mukhammas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(3n+1):not(:first-child) {
