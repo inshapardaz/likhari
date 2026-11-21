@@ -53,8 +53,10 @@ function substringAutoCorrectRules(entries: AutoCorrectEntry[]): PunctuationRule
  * Corrects typed words as the user finishes them, the way the reference editor
  * does, but from any set of stores. Corrections are loaded once per change
  * of `stores` or `version` (bump `version` after saving a new correction so
- * the table reloads). The table used depends on the block's direction: RTL
- * blocks use the Urdu and Shahmukhi tables, LTR blocks the English one.
+ * the table reloads). The table used depends on each word's own script —
+ * Urdu/Shahmukhi script uses the RTL table, everything else the English one —
+ * not the block's `dir`, which is unreliable for this: Lexical sets it from
+ * only the first strongly-directional character anywhere in the block.
  */
 export function AutoCorrectPlugin({
   stores,
@@ -150,8 +152,6 @@ export function AutoCorrectPlugin({
   useEffect(() => {
     if (!enabled || !typing) return;
 
-    const tableFor = (rtl: boolean): Map<string, string> | undefined => (rtl ? rtlTable.current : tables.current.get('en'));
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.isComposing || event.key.length !== 1) return;
       const boundary = BOUNDARY_KEYS.has(event.key);
@@ -165,11 +165,8 @@ export function AutoCorrectPlugin({
             // Punctuation can end in any character (e.g. the letter ه), so every key is checked.
             $correctPunctuationBeforeCaret(combinedRules());
             if (!boundary) return;
-            const block = selection.anchor.getNode().getTopLevelElement();
-            const rtl = block?.getDirection() === 'rtl';
-            const table = tableFor(rtl);
-            if (table) $correctWordBeforeCaret(table, rtl ? normalizeRtl : undefined);
-            else autoCorrectDebugLog('keydown: no table for direction', rtl ? 'rtl' : 'ltr');
+            // The word's own script picks the table, not the block's `dir` (see autoCorrectActions.ts).
+            $correctWordBeforeCaret(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
           },
           { discrete: true },
         );
@@ -188,9 +185,7 @@ export function AutoCorrectPlugin({
     const correctEndingWord = () => {
       const selection = $getSelection();
       if (!$isRangeSelection(selection)) return false;
-      const rtl = selection.anchor.getNode().getTopLevelElement()?.getDirection() === 'rtl';
-      const table = tableFor(rtl);
-      if (table) $correctWordEndingAtCaret(table, rtl ? normalizeRtl : undefined);
+      $correctWordEndingAtCaret(tables.current.get('en') ?? new Map(), rtlTable.current, normalizeRtl);
       return false;
     };
     const unregisterEnter = editor.registerCommand(KEY_ENTER_COMMAND, correctEndingWord, COMMAND_PRIORITY_HIGH);

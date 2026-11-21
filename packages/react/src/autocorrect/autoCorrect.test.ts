@@ -144,7 +144,7 @@ describe('$correctWordBeforeCaret', () => {
     editor.update(
       () => {
         $getRoot().getAllTextNodes()[0].select(4, 4);
-        corrected = $correctWordBeforeCaret(new Map([['teh', 'the']]));
+        corrected = $correctWordBeforeCaret(new Map([['teh', 'the']]), new Map());
       },
       { discrete: true },
     );
@@ -162,7 +162,7 @@ describe('$correctWordBeforeCaret', () => {
     editor.update(
       () => {
         $getRoot().getAllTextNodes()[0].select(3, 3);
-        corrected = $correctWordBeforeCaret(new Map([['teh', 'the']]));
+        corrected = $correctWordBeforeCaret(new Map([['teh', 'the']]), new Map());
       },
       { discrete: true },
     );
@@ -172,6 +172,40 @@ describe('$correctWordBeforeCaret', () => {
 });
 
 describe('$correctDocument', () => {
+  it('corrects an Urdu word by its own script, even when a leading Latin word marks the whole block ltr', () => {
+    const editor = createEditor({
+      namespace: 'direction-test',
+      onError: (e) => {
+        throw e;
+      },
+    });
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    editor.setRootElement(root);
+
+    editor.update(
+      () => {
+        $getRoot().clear().append($createParagraphNode().append($createTextNode('X کچھ یہ تحریر ہے')));
+      },
+      { discrete: true },
+    );
+    // Confirms the block really is mislabelled ltr by Lexical's own direction detection,
+    // which is exactly the condition this correction must still work under.
+    editor.getEditorState().read(() => {
+      expect(($getRoot().getFirstChild() as unknown as { getDirection(): string | null }).getDirection()).toBe('ltr');
+    });
+
+    let count = 0;
+    editor.update(
+      () => {
+        count = $correctDocument(new Map(), new Map([['کچھ', 'کُچھ']]));
+      },
+      { discrete: true },
+    );
+    expect(count).toBe(1);
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('X کُچھ یہ تحریر ہے');
+  });
+
   it('corrects every word, including one split across formatted text, and counts them', () => {
     const editor = createEditor({
       namespace: 'correct-document-test',
@@ -218,7 +252,7 @@ describe('auto-correct with Urdu normalisation', () => {
     editor.update(
       () => {
         $getRoot().getAllTextNodes()[0].select(4, 4);
-        $correctWordBeforeCaret(new Map(), (word) => normalizeUrdu(word));
+        $correctWordBeforeCaret(new Map(), new Map(), (word) => normalizeUrdu(word));
       },
       { discrete: true },
     );
@@ -238,7 +272,7 @@ describe('$correctWordEndingAtCaret', () => {
     editor.update(
       () => {
         $getRoot().getAllTextNodes()[0].select(3, 3);
-        expect($correctWordEndingAtCaret(new Map([['teh', 'the']]))).toBe(true);
+        expect($correctWordEndingAtCaret(new Map([['teh', 'the']]), new Map())).toBe(true);
       },
       { discrete: true },
     );

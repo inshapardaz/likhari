@@ -33,8 +33,59 @@ describe('$cleanUpText', () => {
     setParagraph(editor, [{ text: 'a  b\t\tc   d' }]);
     let changed = 0;
     editor.update(() => (changed = $cleanUpText()), { discrete: true });
-    expect(changed).toBe(1);
+    expect(changed).toBe(3);
     expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('a b c d');
+  });
+
+  it('collapses a run of spaces split across adjacent text nodes of different formatting', () => {
+    const editor = makeEditor();
+    setParagraph(editor, [{ text: 'a  ' }, { text: ' b', bold: true }]);
+    editor.update(() => $cleanUpText(), { discrete: true });
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('a b');
+  });
+
+  it('removes a leading space from a paragraph', () => {
+    const editor = makeEditor();
+    setParagraph(editor, [{ text: '  hello world' }]);
+    editor.update(() => $cleanUpText(), { discrete: true });
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('hello world');
+  });
+
+  it('removes a leading space split across several leading text nodes', () => {
+    const editor = makeEditor();
+    setParagraph(editor, [{ text: ' ' }, { text: ' ', bold: true }, { text: 'hello' }]);
+    editor.update(() => $cleanUpText(), { discrete: true });
+    editor.getEditorState().read(() => {
+      expect($getRoot().getTextContent()).toBe('hello');
+      expect($getRoot().getAllTextNodes()).toHaveLength(1);
+    });
+  });
+
+  it('removes a leading space from every paragraph, independently', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const root = $getRoot().clear();
+        root.append(
+          $createParagraphNode().append($createTextNode(' first')),
+          $createParagraphNode().append($createTextNode('second')),
+        );
+      },
+      { discrete: true },
+    );
+    editor.update(() => $cleanUpText(), { discrete: true });
+    editor.getEditorState().read(() => {
+      const paragraphs = $getRoot().getChildren();
+      expect(paragraphs.map((p) => p.getTextContent())).toEqual(['first', 'second']);
+    });
+  });
+
+  it('leaves a space in the middle of a paragraph alone', () => {
+    const editor = makeEditor();
+    setParagraph(editor, [{ text: 'hello world' }]);
+    let changed = -1;
+    editor.update(() => (changed = $cleanUpText()), { discrete: true });
+    expect(changed).toBe(0);
   });
 
   it('normalises Arabic-script text to NFC, so visually identical words compare equal', () => {
