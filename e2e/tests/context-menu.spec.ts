@@ -172,7 +172,10 @@ test.describe('submenus', () => {
 
   test('Poetry shows its commands as icon buttons in the main menu and they work', async ({ editor, page }) => {
     await editor.open({ preset: 'poetry', locale: 'ur' });
+    // The 'poetry' preset's default layouts list has more than one entry, so
+    // the insert button is a menu (layout choices) rather than a direct insert.
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
+    await item(page, 'ایک کالم').click();
     await editor.type('شعر');
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
 
@@ -371,12 +374,17 @@ test.describe('context menu stays on screen', () => {
   }
 
   test('a menu taller than the room scrolls, and its last item can still be reached', async ({ editor, page }) => {
-    // 280px is a narrow, measured sweet spot for this menu (~157px tall) and this demo
-    // page's own chrome: short enough to force a scroll (300px is already roomy enough not
-    // to), but not so short the editor's own content area disappears (260px already does).
-    await page.setViewportSize({ width: 1280, height: 280 });
+    // 270px is a measured sweet spot for a mukhammas block's context menu
+    // (~178px of content, single-column's ~154px no longer reliably forces a
+    // scroll here): short enough to force a scroll (stable across ~261-276px;
+    // 280px+ is roomy enough not to), but not so short the editor's own
+    // content area disappears (260px already does).
+    await page.setViewportSize({ width: 1280, height: 270 });
     await editor.open({ preset: 'poetry', locale: 'ur' });
+    // The 'poetry' preset's default layouts list has more than one entry, so
+    // the insert button is a menu (layout choices) rather than a direct insert.
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
+    await item(page, 'مخمس شامل کریں').click();
     await editor.type('شعر');
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
     await expect(menu(page)).toBeVisible();

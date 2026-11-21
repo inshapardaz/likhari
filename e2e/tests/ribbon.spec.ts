@@ -248,7 +248,10 @@ test.describe('context tabs', () => {
     expect(await tabNames(page)).not.toContain('شاعری');
 
     await tab(page, 'شامل کریں').click(); // Insert
+    // The 'poetry' preset's default layouts list has more than one entry, so
+    // the insert command is a menu (layout choices) rather than a direct insert.
     await cmd(page, 'شعر شامل کریں').click();
+    await page.getByRole('menuitem', { name: 'ایک کالم' }).click();
     await editor.type('شعر');
 
     await expect(tab(page, 'شاعری')).toHaveAttribute('data-contextual', 'true');
