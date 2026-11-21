@@ -4,15 +4,27 @@
  * exported page looks the same outside the editor.
  */
 
-export const POETRY_LAYOUTS = ['single', 'two-column', 'staggered'] as const;
+/** The five layout choices, folded into one flat set (lexical-editor-spec.md
+ * §4.11, amended): single/two-column/staggered are 2-line couplets;
+ * musaddas (6) and mukhammas (5) render the same flat single-column shape
+ * as `single`, just with a larger stanza. */
+export const POETRY_LAYOUTS = ['single', 'two-column', 'staggered', 'musaddas', 'mukhammas'] as const;
 export type PoetryLayout = (typeof POETRY_LAYOUTS)[number];
 
-/** The verse form — how many misra lines make up one stanza
- * (lexical-editor-spec.md §4.11, amended). `two-column`/`staggered` stay
- * couplet-only; mukhammas/musaddas only ever render `single`. */
-export const POETRY_FORMS = ['couplet', 'mukhammas', 'musaddas'] as const;
-export type PoetryForm = (typeof POETRY_FORMS)[number];
-export const POETRY_STANZA_SIZE: Record<PoetryForm, number> = { couplet: 2, mukhammas: 5, musaddas: 6 };
+export const POETRY_STANZA_SIZE: Record<PoetryLayout, number> = {
+  single: 2,
+  'two-column': 2,
+  staggered: 2,
+  musaddas: 6,
+  mukhammas: 5,
+};
+
+/** The layouts that render as a flat single-column stack of paragraphs —
+ * the only shapes `autoWidth` (fit-content) is valid for (a percentage
+ * width inside a fit-content parent is circular, so `two-column`/
+ * `staggered` are excluded). Mirrors packages/react/src/blocks/PoetryNode.tsx's
+ * own SINGLE_COLUMN_SHAPED_LAYOUTS. */
+export const SINGLE_COLUMN_SHAPED_LAYOUTS = new Set<PoetryLayout>(['single', 'musaddas', 'mukhammas']);
 
 /** How many couplets share one side before `staggered` flips (request 3);
  * `1` reproduces the original fixed alternation. */
@@ -59,10 +71,6 @@ export function scaleOrDefault(value: unknown): PoetryScaleName {
 
 export function layoutOrDefault(value: unknown): PoetryLayout {
   return POETRY_LAYOUTS.find((name) => name === value) ?? 'single';
-}
-
-export function formOrDefault(value: unknown): PoetryForm {
-  return POETRY_FORMS.find((name) => name === value) ?? 'couplet';
 }
 
 /** Parses a boolean that may have come through as a literal boolean (Lexical

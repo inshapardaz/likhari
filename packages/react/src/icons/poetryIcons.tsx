@@ -127,3 +127,26 @@ export const IconCoupletGutterWide = createPoetryIcon('couplet-gutter-wide', [
   'M10 9l-3 3l3 3',
   'M14 9l3 3l-3 3',
 ]);
+
+/** Six short, evenly-spaced horizontal lines: a musaddas stanza's six misras,
+ * stacked with no grouping — distinct from mukhammas' 5-then-1 split below. */
+export const IconPoetryMusaddas = createPoetryIcon('poetry-musaddas', [
+  'M5 2h14',
+  'M5 6h14',
+  'M5 10h14',
+  'M5 14h14',
+  'M5 18h14',
+  'M5 22h14',
+]);
+
+/** Five closely-stacked horizontal lines, a visible gap, then one more,
+ * shorter line below: a mukhammas stanza's 5-line group (the shared radif
+ * lines) plus its own distinct closing misra. */
+export const IconPoetryMukhammas = createPoetryIcon('poetry-mukhammas', [
+  'M5 2h14',
+  'M5 5h14',
+  'M5 8h14',
+  'M5 11h14',
+  'M5 14h14',
+  'M7 21h10',
+]);

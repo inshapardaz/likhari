@@ -59,8 +59,8 @@ import {
   POETRY_GUTTERS,
   POETRY_SPACINGS,
   POETRY_STAGGERS,
+  SINGLE_COLUMN_SHAPED_LAYOUTS,
   type PoetryCenterWidth,
-  type PoetryForm,
   type PoetryGutter,
   type PoetryLayout,
   type PoetrySpacing,
@@ -202,6 +202,8 @@ import {
   IconCoupletStaggerNarrow,
   IconCoupletStaggerWide,
   IconPoetryDelete,
+  IconPoetryMukhammas,
+  IconPoetryMusaddas,
 } from '../icons/poetryIcons';
 
 type BlockType = 'paragraph' | 'quote' | `h${1 | 2 | 3 | 4 | 5 | 6}`;
@@ -236,10 +238,10 @@ interface ToolbarState {
   /** The caret is inside a poetry couplet; layout mirrors that couplet's own. */
   inPoetry: boolean;
   poetryLayout: PoetryLayout;
-  poetryForm: PoetryForm;
   poetryScale: PoetryScale;
   poetryCentered: boolean;
-  /** fit-content width (request 2); only meaningful in `layout === 'single'`. */
+  /** fit-content width (request 2); only meaningful for the single-column-shaped
+   * layouts (single/musaddas/mukhammas). */
   poetryAutoWidth: boolean;
   /** How many couplets share one side before `staggered` flips (request 3). */
   poetryStaggerGroup: PoetryStaggerGroup;
@@ -269,7 +271,6 @@ const INITIAL_STATE: ToolbarState = {
   canUnmergeCell: false,
   inPoetry: false,
   poetryLayout: 'single',
-  poetryForm: 'couplet',
   poetryScale: { spacing: 'normal', gutter: 'normal', stagger: 'normal', centerWidth: 'normal' },
   poetryCentered: false,
   poetryAutoWidth: false,
@@ -735,7 +736,6 @@ function canStep<T extends string>(scale: readonly T[], value: T, step: 1 | -1):
 function PoetryMenuItems({
   strings,
   layout,
-  form,
   scale,
   centered,
   autoWidth,
@@ -746,7 +746,6 @@ function PoetryMenuItems({
   mode?: ItemMode;
   strings: Strings;
   layout: PoetryLayout;
-  form: PoetryForm;
   scale: PoetryScale;
   centered: boolean;
   autoWidth: boolean;
@@ -762,17 +761,20 @@ function PoetryMenuItems({
     if (node) $setPoetryLayout(node, next);
   };
 
-  // Which layout applies, kept apart from what that layout's selection then allows
-  // (insert, spacing, centering, delete) — two rows of icon buttons in `icons` mode,
-  // one heading-less list everywhere else. two-column/staggered stay couplet-form
-  // only (lexical-editor-spec.md §4.11, amended): a musaddas/mukhammas block only
-  // ever offers single-column, so the choice itself is hidden rather than disabled.
-  const isCouplet = form === 'couplet';
+  // One flat list of all five layout choices — musaddas/mukhammas are just
+  // two more entries alongside single/two-column/staggered, not a separate
+  // "form" axis layered on top (lexical-editor-spec.md §4.11, amended):
+  // since single/musaddas/mukhammas all render the same flat single-column
+  // shape, the only thing distinguishing them is their stanza size
+  // (POETRY_STANZA_SIZE[layout]), so there's no longer a reason to hide any
+  // of the five behind another choice.
   const layoutItems = (
     <>
       {item(IconColumns1, t.singleColumn, setLayout('single'), layout === 'single')}
-      {isCouplet && item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
-      {isCouplet && item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
+      {item(IconColumns2, t.twoColumn, setLayout('two-column'), layout === 'two-column')}
+      {item(IconArrowsShuffle, t.staggered, setLayout('staggered'), layout === 'staggered')}
+      {item(IconPoetryMusaddas, strings.toolbar.insertPoetryMusaddas, setLayout('musaddas'), layout === 'musaddas')}
+      {item(IconPoetryMukhammas, strings.toolbar.insertPoetryMukhammas, setLayout('mukhammas'), layout === 'mukhammas')}
     </>
   );
   // `icons` mode puts a divider between each group of similar actions (insert /
@@ -787,7 +789,7 @@ function PoetryMenuItems({
       {groupDivider}
       {item(IconCoupletSpacingTight, t.tighterSpacing, () => $adjustPoetrySpacing(-1), !canStep(POETRY_SPACINGS, scale.spacing, -1))}
       {item(IconCoupletSpacingLoose, t.looserSpacing, () => $adjustPoetrySpacing(1), !canStep(POETRY_SPACINGS, scale.spacing, 1))}
-      {layout === 'single' && (
+      {SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout) && (
         <>
           {groupDivider}
           {item(IconArrowAutofitWidth, autoWidth ? t.fixedWidth : t.autoWidth, () => $setPoetryAutoWidth(!autoWidth))}
@@ -1010,7 +1012,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       const elementFormat = ($isElementNode(element) ? element.getFormatType() : 'start') || 'start';
       const canJoinLines = $canJoinLines();
       const poetryLayout = poetryBlock?.getLayout();
-      const poetryForm = poetryBlock?.getForm();
       const poetryCentered = $getCoupletCenteredFromSelection();
       const poetryAutoWidth = poetryBlock?.getAutoWidth();
       const poetryStaggerGroup = poetryBlock?.getStaggerGroup();
@@ -1036,7 +1037,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
         canUnmergeCell,
         inPoetry: poetryBlock !== null,
         poetryLayout: poetryLayout ?? s.poetryLayout,
-        poetryForm: poetryForm ?? s.poetryForm,
         poetryScale: poetryScale ?? s.poetryScale,
         poetryCentered: poetryCentered ?? false,
         poetryAutoWidth: poetryAutoWidth ?? false,
@@ -1883,46 +1883,63 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
       )}
       {/* UI spec §3.1 item 8: poetry mode is hidden entirely (not greyed out)
           outside an Urdu/Punjabi editing context, not just when the feature is off.
-          config.poetry.forms (lexical-editor-spec.md §5, amended) restricts which
-          insert-menu entries show, same idea as blocks.headingLevels — one plain
-          button when only couplet is offered (today's exact toolbar), a small menu
-          once musaddas/mukhammas are available too. Both forms always insert
-          `layout: 'single'`, the only layout they support. */}
-      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.forms.length <= 1 && (
+          config.poetry.layouts (lexical-editor-spec.md §5, amended) restricts which
+          of the five flat layout choices (single, two-column, staggered, musaddas,
+          mukhammas) the insert menu offers, same idea as blocks.headingLevels — one
+          plain button when only one layout is offered, a small menu once more than
+          one is available. Each choice carries its own stanza size
+          (POETRY_STANZA_SIZE[layout]), so there's nothing else to pass alongside it. */}
+      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.layouts.length <= 1 && (
         <ToolbarButton
           icon={IconFeather}
           title={strings.toolbar.insertPoetryCouplet}
-          onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, form: config.poetry.forms[0] ?? 'couplet' })}
+          onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.layouts[0] ?? config.poetry.defaultLayout })}
         />
       )}
-      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.forms.length > 1 && (
+      {config.poetry.enabled && locale !== 'en' && !isHidden('poetry') && config.poetry.layouts.length > 1 && (
         <Menu position="bottom-start" withinPortal portalProps={{ target: portalTarget }} shadow="sm" width={200}>
           <Menu.Target>
             <ToolbarButton icon={IconFeather} title={strings.toolbar.insertPoetryCouplet} aria-haspopup="menu" />
           </Menu.Target>
           <Menu.Dropdown>
-            {config.poetry.forms.includes('couplet') && (
+            {config.poetry.layouts.includes('single') && (
               <Menu.Item
-                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
-                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: config.poetry.defaultLayout, form: 'couplet' })}
+                leftSection={<IconColumns1 size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single' })}
               >
-                {strings.toolbar.insertPoetryCouplet}
+                {strings.poetryMenu.singleColumn}
               </Menu.Item>
             )}
-            {config.poetry.forms.includes('mukhammas') && (
+            {config.poetry.layouts.includes('two-column') && (
               <Menu.Item
-                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
-                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single', form: 'mukhammas' })}
+                leftSection={<IconColumns2 size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'two-column' })}
               >
-                {strings.toolbar.insertPoetryMukhammas}
+                {strings.poetryMenu.twoColumn}
               </Menu.Item>
             )}
-            {config.poetry.forms.includes('musaddas') && (
+            {config.poetry.layouts.includes('staggered') && (
               <Menu.Item
-                leftSection={<IconFeather size={ICON_SIZE} stroke={ICON_STROKE} />}
-                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'single', form: 'musaddas' })}
+                leftSection={<IconArrowsShuffle size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'staggered' })}
+              >
+                {strings.poetryMenu.staggered}
+              </Menu.Item>
+            )}
+            {config.poetry.layouts.includes('musaddas') && (
+              <Menu.Item
+                leftSection={<IconPoetryMusaddas size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'musaddas' })}
               >
                 {strings.toolbar.insertPoetryMusaddas}
+              </Menu.Item>
+            )}
+            {config.poetry.layouts.includes('mukhammas') && (
+              <Menu.Item
+                leftSection={<IconPoetryMukhammas size={ICON_SIZE} stroke={ICON_STROKE} />}
+                onClick={() => editor.dispatchCommand(INSERT_POETRY_COUPLET_COMMAND, { layout: 'mukhammas' })}
+              >
+                {strings.toolbar.insertPoetryMukhammas}
               </Menu.Item>
             )}
           </Menu.Dropdown>
@@ -1937,7 +1954,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
             <PoetryMenuItems
               strings={strings}
               layout={state.poetryLayout}
-              form={state.poetryForm}
               scale={state.poetryScale}
               centered={state.poetryCentered}
               autoWidth={state.poetryAutoWidth}
@@ -2485,7 +2501,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
                 mode="icons"
                 strings={strings}
                 layout={state.poetryLayout}
-                form={state.poetryForm}
                 scale={state.poetryScale}
                 centered={state.poetryCentered}
                 autoWidth={state.poetryAutoWidth}
@@ -2605,7 +2620,6 @@ export function Toolbar({ config, toolbarStyle, dictionaryStores = [], thesaurus
               mode="ribbon"
               strings={strings}
               layout={state.poetryLayout}
-              form={state.poetryForm}
               scale={state.poetryScale}
               centered={state.poetryCentered}
               autoWidth={state.poetryAutoWidth}

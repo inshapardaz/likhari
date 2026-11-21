@@ -2,7 +2,8 @@ import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
   POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, POETRY_STANZA_SIZE,
-  boolOrDefault, formOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault,
+  SINGLE_COLUMN_SHAPED_LAYOUTS,
+  boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault,
 } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
@@ -164,19 +165,18 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const gutter = scaleOrDefault(node.gutter);
   const stagger = scaleOrDefault(node.stagger);
   const centerWidth = scaleOrDefault(node.centerWidth);
-  const form = formOrDefault(node.form);
-  const autoWidth = boolOrDefault(node.autoWidth) && layout === 'single';
+  const autoWidth = boolOrDefault(node.autoWidth) && SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout);
   const staggerGroup = staggerGroupOrDefault(node.staggerGroup);
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
   const children = node.children ?? [];
   const dir = firstDirection(children);
   const gap = POETRY_COUPLET_GAP[spacing];
   const separator = `border-top: ${POETRY_RULE}; margin-top: ${gap}; padding-top: calc(${gap} * 0.6)`;
-  const stanzaSize = POETRY_STANZA_SIZE[form];
+  const stanzaSize = POETRY_STANZA_SIZE[layout];
   // Lines per side before `staggered` flips — generalizes the original fixed
   // one-couplet-per-side alternation (staggerGroup 1) to `staggerGroup`
-  // couplets at a time (request 3); staggered is couplet-form only, so
-  // `stanzaSize` is always 2 whenever this is actually used.
+  // couplets at a time (request 3); `stanzaSize` is always 2 whenever this
+  // is actually used, since `staggered` is one of the three 2-line layouts.
   const staggerPeriod = staggerGroup * 4;
 
   let body: string;
@@ -237,7 +237,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
     `line-height: ${rtl ? '2.1' : '1.6'}`,
   ].join('; ');
   const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-form="${form}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

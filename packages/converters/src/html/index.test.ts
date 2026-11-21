@@ -217,21 +217,22 @@ describe('poetry export', () => {
     expect(back).toMatchObject({ layout: 'staggered', stagger: 'loose', width: 480 });
   });
 
-  it('round-trips a musaddas (6-line) stanza, single-column only', () => {
+  it('round-trips a musaddas (6-line) stanza, single-column shaped', () => {
     const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)]));
-    const block = elementBase('poetry-couplet', lines, { layout: 'single', form: 'musaddas' });
+    const block = elementBase('poetry-couplet', lines, { layout: 'musaddas' });
     const html = htmlConverter.serialize(makeState([block]));
-    expect(html).toContain('data-likhari-poetry-form="musaddas"');
+    expect(html).toContain('data-likhari-poetry-layout="musaddas"');
+    expect(html).not.toContain('data-likhari-poetry-form');
     const [back] = blocksOf(roundTrip([block]));
-    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', form: 'musaddas' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas' });
     expect(back.children).toHaveLength(6);
   });
 
   it('round-trips a mukhammas (5-line) stanza', () => {
     const lines = ['a', 'b', 'c', 'd', 'e'].map((t) => paragraph([textNode(t)]));
-    const block = elementBase('poetry-couplet', lines, { layout: 'single', form: 'mukhammas' });
+    const block = elementBase('poetry-couplet', lines, { layout: 'mukhammas' });
     const [back] = blocksOf(roundTrip([block]));
-    expect(back).toMatchObject({ type: 'poetry-couplet', form: 'mukhammas' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas' });
     expect(back.children).toHaveLength(5);
   });
 

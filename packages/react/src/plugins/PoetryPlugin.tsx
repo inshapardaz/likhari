@@ -11,7 +11,7 @@ import {
 } from 'lexical';
 import { mergeRegister } from '@lexical/utils';
 import { LayoutContainerNode, LayoutItemNode } from '../blocks/LayoutNode';
-import { PoetryBlockNode, type PoetryForm, type PoetryLayout } from '../blocks/PoetryNode';
+import { PoetryBlockNode, type PoetryLayout } from '../blocks/PoetryNode';
 import {
   $deletePoetryForward,
   $deletePoetryOnBackspace,
@@ -21,9 +21,7 @@ import {
   $insertPoetryCouplet,
 } from '../blocks/poetryActions';
 
-/** `form` defaults to 'couplet' when omitted — existing dispatchers that
- * only ever passed `layout` keep working unchanged. */
-export const INSERT_POETRY_COUPLET_COMMAND: LexicalCommand<{ layout: PoetryLayout; form?: PoetryForm }> = createCommand(
+export const INSERT_POETRY_COUPLET_COMMAND: LexicalCommand<{ layout: PoetryLayout }> = createCommand(
   'INSERT_POETRY_COUPLET_COMMAND',
 );
 
@@ -50,7 +48,7 @@ export function PoetryPlugin() {
     return mergeRegister(
       editor.registerCommand(
         INSERT_POETRY_COUPLET_COMMAND,
-        ({ layout, form }) => $insertPoetryCouplet(layout, form),
+        ({ layout }) => $insertPoetryCouplet(layout),
         COMMAND_PRIORITY_EDITOR,
       ),
       editor.registerNodeTransform(PoetryBlockNode, (node) => {

@@ -439,16 +439,18 @@
    like table rows" — so stanza boundaries get the same visible divider as a
    table's internal row borders, not just extra space. Every stanza but the
    first gets a border-top in place of the previous stanza's margin-bottom.
-   `form` (lexical-editor-spec.md §4.11, amended) picks how many paragraphs
-   make up one stanza — couplet stays 2 (nth-child(odd), since its first
-   misra always lands on an odd position), mukhammas is 5 and musaddas is 6.
-   Each selector requires its own `--form-*` class, so only the one matching
-   the block's actual form ever applies — kept this explicit, rather than a
-   single `nth-child(Xn+1)` with X swapped via a custom property, so the
-   rule reads directly off the form name. */
-.likhari-poetry--form-couplet.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child),
-.likhari-poetry--form-mukhammas.likhari-poetry--single .likhari-paragraph:nth-child(5n+1):not(:first-child),
-.likhari-poetry--form-musaddas.likhari-poetry--single .likhari-paragraph:nth-child(6n+1):not(:first-child) {
+   `layout` (lexical-editor-spec.md §4.11, amended) itself now picks how many
+   paragraphs make up one stanza for the single-column-shaped layouts —
+   `single` stays 2 (nth-child(odd), since its first misra always lands on
+   an odd position), `mukhammas` is 5 and `musaddas` is 6 — keyed directly
+   off the layout modifier class PoetryNode.tsx already applies, rather than
+   a separate `--form-*` class. Each selector requires its own layout class,
+   so only the one matching the block's actual layout ever applies — kept
+   this explicit, rather than a single `nth-child(Xn+1)` with X swapped via
+   a custom property, so the rule reads directly off the layout name. */
+.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child),
+.likhari-poetry--mukhammas .likhari-paragraph:nth-child(5n+1):not(:first-child),
+.likhari-poetry--musaddas .likhari-paragraph:nth-child(6n+1):not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
   margin-top: var(--poetry-couplet-gap);
   padding-top: calc(var(--poetry-couplet-gap) * 0.6);
@@ -457,8 +459,9 @@
 /* Auto-width (request 2): `fit-content` instead of a max-width, so the
    block sizes itself to its longest misra and every other line's own
    text-align-last: justify (createDOM/exportDOM) stretches to fill that
-   same width. `single`-layout only (PoetryNode.tsx) — a percentage width
-   is circular inside a fit-content parent, so this is never combined with
+   same width. Single-column-shaped layouts only (single/musaddas/mukhammas
+   — PoetryNode.tsx's SINGLE_COLUMN_SHAPED_LAYOUTS) — a percentage width is
+   circular inside a fit-content parent, so this is never combined with
    `--two-column`/`--staggered`. */
 .likhari-poetry--width-auto {
   width: fit-content;
@@ -486,7 +489,7 @@
 .likhari-poetry--center-relaxed { --poetry-center-width: 72%; }
 .likhari-poetry--center-loose { --poetry-center-width: 85%; }
 
-/* Staggered (couplet form only): couplets are the same flat misra
+/* Staggered (always 2-line stanzas): couplets are the same flat misra
    paragraphs as single column, but each couplet's two misras are placed in
    a 65%-wide box that alternates sides — pushed to the start edge for
    `staggerGroup` couplets at a time, then the end edge for the next

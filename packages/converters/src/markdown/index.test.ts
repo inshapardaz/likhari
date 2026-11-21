@@ -221,19 +221,20 @@ describe('poetry settings', () => {
     expect(back).toMatchObject({ layout: 'two-column', centerWidth: 'relaxed' });
   });
 
-  it('omits form from the directive for a plain couplet, but writes it for musaddas/mukhammas', () => {
+  it('writes layout="musaddas"/"mukhammas" directly, with no separate form attribute', () => {
     const couplet = elementBase('poetry-couplet', [paragraph([textNode('a')]), paragraph([textNode('b')])], { layout: 'single' });
     expect(md([couplet])).not.toContain('form=');
 
     const musaddas = elementBase(
       'poetry-couplet',
       ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)])),
-      { layout: 'single', form: 'musaddas' },
+      { layout: 'musaddas' },
     );
     const out = md([musaddas]);
-    expect(out).toContain('form="musaddas"');
+    expect(out).toContain('layout="musaddas"');
+    expect(out).not.toContain('form=');
     const [back] = parse(out);
-    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', form: 'musaddas' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas' });
     expect(back.children).toHaveLength(6);
   });
 
@@ -241,10 +242,10 @@ describe('poetry settings', () => {
     const mukhammas = elementBase(
       'poetry-couplet',
       ['a', 'b', 'c', 'd', 'e'].map((t) => paragraph([textNode(t)])),
-      { layout: 'single', form: 'mukhammas' },
+      { layout: 'mukhammas' },
     );
     const [back] = roundTrip([mukhammas]);
-    expect(back).toMatchObject({ type: 'poetry-couplet', form: 'mukhammas' });
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas' });
     expect(back.children).toHaveLength(5);
   });
 

@@ -1269,61 +1269,33 @@ describe('$swapMisras', () => {
   });
 });
 
-describe('musaddas and mukhammas forms (lexical-editor-spec.md §4.11, amended)', () => {
-  it('inserts a musaddas block with six empty misras in a single stanza, single-column', () => {
+describe('musaddas and mukhammas layouts (lexical-editor-spec.md §4.11, amended)', () => {
+  it('inserts a musaddas block with six empty misras in a single stanza, flat single-column', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'musaddas'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
     editor.getEditorState().read(() => {
       const block = getBlock();
-      expect(block.getForm()).toBe('musaddas');
-      expect(block.getLayout()).toBe('single');
+      expect(block.getLayout()).toBe('musaddas');
       expect($getMisraParagraphs(block)).toHaveLength(6);
       expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
     });
   });
 
-  it('inserts a mukhammas block with five empty misras, forcing layout to single even if two-column was requested', () => {
+  it('inserts a mukhammas block with five empty misras, flat single-column', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column', 'mukhammas'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
     editor.getEditorState().read(() => {
       const block = getBlock();
-      expect(block.getForm()).toBe('mukhammas');
-      expect(block.getLayout()).toBe('single'); // two-column stays couplet-form only
+      expect(block.getLayout()).toBe('mukhammas');
       expect($getMisraParagraphs(block)).toHaveLength(5);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
     });
-  });
-
-  it('defaults to the couplet form when none is given, unchanged from before this feature', () => {
-    const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
-    editor.getEditorState().read(() => {
-      expect(getBlock().getForm()).toBe('couplet');
-      expect($getMisraParagraphs(getBlock())).toHaveLength(2);
-    });
-  });
-
-  it('$setPoetryLayout refuses two-column/staggered for a non-couplet form', () => {
-    const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'musaddas'));
-    editor.update(
-      () => {
-        $setPoetryLayout(getBlock(), 'two-column');
-      },
-      { discrete: true },
-    );
-    editor.getEditorState().read(() => expect(getBlock().getLayout()).toBe('single'));
-    editor.update(
-      () => {
-        $setPoetryLayout(getBlock(), 'staggered');
-      },
-      { discrete: true },
-    );
-    editor.getEditorState().read(() => expect(getBlock().getLayout()).toBe('single'));
   });
 
   it('Enter at the end of a non-empty last stanza appends a whole new empty stanza, not a single misra', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'musaddas'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
     editor.update(
       () => {
         const misras = $getMisraParagraphs(getBlock());
@@ -1342,7 +1314,7 @@ describe('musaddas and mukhammas forms (lexical-editor-spec.md §4.11, amended)'
 
   it('Backspace on an all-empty stanza removes the whole stanza, keeping earlier ones intact', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'mukhammas'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
     editor.update(
       () => {
         const misras = $getMisraParagraphs(getBlock());
@@ -1370,7 +1342,7 @@ describe('musaddas and mukhammas forms (lexical-editor-spec.md §4.11, amended)'
 
   it('$completeSingleCoupletBlock pads to a full stanza, not just an even count', () => {
     const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('single', 'musaddas'));
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
     editor.update(
       () => {
         const block = getBlock();
@@ -1383,7 +1355,126 @@ describe('musaddas and mukhammas forms (lexical-editor-spec.md §4.11, amended)'
   });
 });
 
-describe('$convertSelectionToPoetry forms', () => {
+describe('$setPoetryLayout re-chunking across stanza sizes', () => {
+  it('re-chunks 6 misras in single into 3 couplet rows when switching to two-column', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('two-column');
+      expect($getCouplets(block)).toHaveLength(3);
+      expect(block.getChildren().every((c) => c.getType() === 'layout-container')).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('pads 4 misras in single out to a full 6-line musaddas stanza when switching to musaddas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectStart();
+        $insertCoupletRelativeToSelection('after'); // 4 misras total, 2 couplets
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'musaddas');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('musaddas');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect($getMisraParagraphs(block)).toHaveLength(6);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', '', '']);
+  });
+
+  it('re-chunks a two-column block into a single mukhammas stanza, padding the short remainder', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
+    editor.update(
+      () => {
+        const [a, b] = $getMisraParagraphs(getBlock());
+        a.append($createTextNode('x'));
+        b.append($createTextNode('y'));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'mukhammas');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect($getMisraParagraphs(block)).toHaveLength(5);
+    });
+    expect(misraTexts(editor)).toEqual(['x', 'y', '', '', '']);
+  });
+
+  it('clears autoWidth when switching from single to two-column, but keeps it when switching to musaddas/mukhammas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        $setPoetryAutoWidth(true);
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'musaddas');
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(true));
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+  });
+});
+
+describe('$convertSelectionToPoetry layouts', () => {
   it('pads a short selection out to a full musaddas stanza (6 lines)', () => {
     const editor = makeEditor();
     editor.update(
@@ -1403,14 +1494,13 @@ describe('$convertSelectionToPoetry forms', () => {
     );
     editor.getEditorState().read(() => {
       const block = getBlock();
-      expect(block.getForm()).toBe('musaddas');
-      expect(block.getLayout()).toBe('single');
+      expect(block.getLayout()).toBe('musaddas');
       expect($getMisraParagraphs(block)).toHaveLength(6);
     });
     expect(misraTexts(editor)).toEqual(['one', 'two', 'three', '', '', '']);
   });
 
-  it('threads form through $insertPoetryCouplet, forcing single-column, when text is selected outside a block', () => {
+  it('falls back to single-column when two-column/staggered is requested for a selection conversion', () => {
     const editor = makeEditor();
     editor.update(
       () => {
@@ -1418,14 +1508,32 @@ describe('$convertSelectionToPoetry forms', () => {
         const second = $createTextNode('b');
         $getRoot().append($createParagraphNode().append(first), $createParagraphNode().append(second));
         $selectAcross(first, second);
-        expect($insertPoetryCouplet('two-column', 'mukhammas')).toBe(true);
+        expect($insertPoetryCouplet('two-column')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      // Conversion is always single-column-shaped, whatever layout was requested.
+      expect(getBlock().getLayout()).toBe('single');
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b']);
+  });
+
+  it('threads mukhammas through $insertPoetryCouplet when text is selected outside a block', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('a');
+        const second = $createTextNode('b');
+        $getRoot().append($createParagraphNode().append(first), $createParagraphNode().append(second));
+        $selectAcross(first, second);
+        expect($insertPoetryCouplet('mukhammas')).toBe(true);
       },
       { discrete: true },
     );
     editor.getEditorState().read(() => {
       const block = getBlock();
-      expect(block.getForm()).toBe('mukhammas');
-      expect(block.getLayout()).toBe('single');
+      expect(block.getLayout()).toBe('mukhammas');
       expect($getMisraParagraphs(block)).toHaveLength(5);
     });
     expect(misraTexts(editor)).toEqual(['a', 'b', '', '', '']);
@@ -1471,22 +1579,39 @@ describe('PoetryBlockNode autoWidth (request 2)', () => {
     );
   });
 
-  it('is refused outside single layout', () => {
-    const editor = makeEditor();
-    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
-    let result = true;
-    editor.update(
-      () => {
-        getBlock().getFirstChild()!.selectStart();
-        result = $setPoetryAutoWidth(true);
-      },
-      { discrete: true },
-    );
-    expect(result).toBe(false);
-    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+  it('is accepted for musaddas and mukhammas too, not just single', () => {
+    for (const layout of ['musaddas', 'mukhammas'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          expect($setPoetryAutoWidth(true)).toBe(true);
+        },
+        { discrete: true },
+      );
+      editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(true));
+    }
   });
 
-  it('is forced back off when the layout changes away from single', () => {
+  it('is refused outside the single-column-shaped layouts (two-column, staggered)', () => {
+    for (const layout of ['two-column', 'staggered'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      let result = true;
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          result = $setPoetryAutoWidth(true);
+        },
+        { discrete: true },
+      );
+      expect(result).toBe(false);
+      editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+    }
+  });
+
+  it('is forced back off when the layout changes to two-column/staggered', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
     editor.update(

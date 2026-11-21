@@ -173,9 +173,9 @@ shared `font-size`/`line-height` variable drive both scripts.
 each pair (per the spec's "paragraph break between couplets" requirement) — implement
 as `margin-block-end: 1.4em` on the couplet block, distinct from ordinary paragraph
 spacing (`1em`), so verse reads as visually separated units even before a reader
-processes the content. The same gap applies between stanzas for the musaddas (6-line)
-and mukhammas (5-line) forms (requirements doc §4.11, amended) — a stanza boundary, not
-a fixed every-2nd-line rule.
+processes the content. The same gap applies between stanzas for the `musaddas` (6-line)
+and `mukhammas` (5-line) layouts (requirements doc §4.11, amended) — a stanza boundary,
+not a fixed every-2nd-line rule.
 
 ---
 

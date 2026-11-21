@@ -91,42 +91,52 @@ standard node contract (`getType`, `clone`, `importJSON`, `exportJSON`, `createD
 > (per-instance scales for couplet spacing/two-column gutter/staggered box
 > width/centered-couplet width) that predate this amendment and were never added
 > here; `align` was never implemented (poetry text is always CSS-justified). The
-> two attributes below — `form` and `autoWidth`, plus `stagger`'s own
-> `staggerGroup` companion — are this amendment's addition, kept orthogonal to
-> `layout` per requirements doc §4.11.
+> `autoWidth` attribute, plus `stagger`'s own `staggerGroup` companion, are this
+> amendment's addition. An earlier revision of this amendment added `musaddas`/
+> `mukhammas` as a second, orthogonal `form` attribute; that was folded back into
+> `layout` itself (see below) once the toolbar exposed all five choices as one
+> flat list, since `form` and `layout` together only ever produced 5 valid
+> combinations out of 9 (`two-column`/`staggered` were always `form: 'couplet'`).
 
 ```ts
-type PoetryLayout = 'single' | 'two-column' | 'staggered';
-// Stanza size — orthogonal to `layout`. 'two-column' and 'staggered' stay
-// couplet-only: a musaddas/mukhammas block only ever renders 'single'.
-type PoetryForm = 'couplet' | 'mukhammas' | 'musaddas'; // 2 / 5 / 6 misras
+// Single flat set, not a layout × stanza-size pair: single/two-column/staggered
+// are 2-line couplets; musaddas (6) and mukhammas (5) render the same flat
+// single-column shape 'single' does, just with a larger stanza.
+type PoetryLayout = 'single' | 'two-column' | 'staggered' | 'musaddas' | 'mukhammas';
+const POETRY_STANZA_SIZE: Record<PoetryLayout, number> =
+  { single: 2, 'two-column': 2, staggered: 2, musaddas: 6, mukhammas: 5 };
 
 class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
-  __form: PoetryForm; // default 'couplet' — backward compatible with every
-                       // document written before this amendment
-  __width?: number; // user-dragged, 'single' layout only
-  __autoWidth: boolean; // fit-content instead of __width; 'single'-only,
-                         // mutually exclusive with __width (forced false
-                         // when `layout` changes away from 'single')
+  __width?: number; // user-dragged, single-column-shaped layouts only
+  __autoWidth: boolean; // fit-content instead of __width; single-column-shaped
+                         // layouts only (single/musaddas/mukhammas), mutually
+                         // exclusive with __width (forced false when `layout`
+                         // changes to 'two-column'/'staggered')
   __staggerGroup: 1 | 2; // couplets sharing one side before 'staggered' flips
-  // children: for 'single'/'staggered' layout, POETRY_STANZA_SIZE[form]
-  // ParagraphNode misras stacked per stanza; for 'two-column' layout (couplet
-  // form only), internally composes a LayoutContainerNode with two
-  // LayoutItemNodes (one misra each) per couplet — see §4 note on composition.
+  // children: for the single-column-shaped layouts, POETRY_STANZA_SIZE[layout]
+  // ParagraphNode misras stacked per stanza; for 'two-column' layout, internally
+  // composes a LayoutContainerNode with two LayoutItemNodes (one misra each) per
+  // couplet — see §4 note on composition.
 }
 ```
 
-- `setLayoutAttribute()` / `setFormAttribute()` mutate the node in place (same node
-  identity, different rendering) so converting a stanza between layouts or forms
-  doesn't require deleting/recreating it and losing selection/undo coherence —
-  the actual child restructuring (regrouping paragraphs into the new stanza size
-  or column shape) is a `$`-prefixed tree operation in `poetryActions.ts`, not a
-  node method.
+- `setLayoutAttribute()` mutates the node in place (same node identity, different
+  rendering) so converting a stanza between layouts doesn't require
+  deleting/recreating it and losing selection/undo coherence — the actual child
+  restructuring (regrouping paragraphs into the new stanza size or column shape)
+  is a `$`-prefixed tree operation (`$setPoetryLayout`) in `poetryActions.ts`, not
+  a node method. Since a layout change can also change the stanza size now
+  (e.g. `single` → `musaddas`), `$setPoetryLayout` flattens every misra across the
+  block's current stanzas and re-chunks that flat sequence into groups of the
+  target layout's stanza size, padding the last group with empty paragraphs if
+  it falls short — a transition that doesn't change stanza size (any
+  single/two-column/staggered pairing) is just a special case of the same
+  re-chunking, since the group size doesn't change.
 - A document is a sequence of `PoetryBlockNode`s (and ordinary paragraphs, for prose
   interleaved with verse) — this directly satisfies all four poetry templates in the
-  spec, plus musaddas/mukhammas, as combinations of per-instance `layout`/`form`,
-  rather than fixed node types per template.
+  spec, plus musaddas/mukhammas, as instances of one `layout` enum, rather than
+  fixed node types per template.
 
 ### 3.2 `LayoutContainerNode` + `LayoutItemNode` (extend `ElementNode`)
 
@@ -201,7 +211,7 @@ One plugin per feature area, each independently registerable, matching the shape
 | `PoetryPlugin` | poetry insert menu, per-couplet layout toggle UI | `config.poetry.*` |
 | `FindReplacePlugin` | search overlay, match navigation | `config.findReplace` |
 | — (`Toolbar`'s own handler, no separate plugin) | Join lines: toolbar button and right-click menu item | `config.joinLines` |
-| `DraggableBlockPlugin` | Drag grip beside the hovered block to move it; inside a poetry block, a grip to move the whole stanza (couplet, or musaddas'/mukhammas' larger stanza — into any poetry block of the same form, or out as a new one) and a grip to swap the line with another | `config.dragBlocks` |
+| `DraggableBlockPlugin` | Drag grip beside the hovered block to move it; inside a poetry block, a grip to move the whole stanza (couplet, or musaddas'/mukhammas' larger stanza — into any poetry block, rebuilt for that block's own layout, or out as a new one) and a grip to swap the line with another | `config.dragBlocks` |
 | `LanguageServicesPlugin` | spawns/manages workers, decorator marks for spellcheck | `config.language.*` |
 | `AutosavePlugin` | localStorage draft read/write, restore-draft prompt | always on if `documentId` present |
 | `NavigationGuardPlugin` | dirty tracking, `beforeunload`, exposes `hasUnsavedChanges()` | always on |
