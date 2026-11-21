@@ -86,26 +86,76 @@ standard node contract (`getType`, `clone`, `importJSON`, `exportJSON`, `createD
 
 ### 3.1 `PoetryBlockNode` (extends `ElementNode`)
 
+> Simplified sketch — the shipped node (`packages/react/src/blocks/PoetryNode.tsx`)
+> additionally carries `width`, `spacing`, `gutter`, `stagger` and `centerWidth`
+> (per-instance scales for couplet spacing/two-column gutter/staggered box
+> width/centered-couplet width) that predate this amendment and were never added
+> here; `align` was never implemented (poetry text is always CSS-justified). The
+> `autoWidth` attribute, plus `stagger`'s own `staggerGroup` companion, are this
+> amendment's addition. An earlier revision of this amendment added `musaddas`/
+> `mukhammas` as a second, orthogonal `form` attribute; that was folded back into
+> `layout` itself (see below) once the toolbar exposed all five choices as one
+> flat list, since `form` and `layout` together only ever produced 5 valid
+> combinations out of 9 (`two-column`/`staggered` were always `form: 'couplet'`).
+> `stanzaVariant` is a later, independent addition — a sub-choice *within* a
+> musaddas/mukhammas stanza, not another layout axis, so it never grows the
+> `layout` enum the way `form` almost did.
+
 ```ts
-type PoetryLayout = 'single' | 'two-column';
-type PoetryAlign = 'justify' | 'left' | 'right' | 'start';
+// Single flat set, not a layout × stanza-size pair: single/two-column/staggered
+// are 2-line couplets; musaddas (6) and mukhammas (5) render the same flat
+// single-column shape 'single' does, just with a larger stanza.
+type PoetryLayout = 'single' | 'two-column' | 'staggered' | 'musaddas' | 'mukhammas';
+const POETRY_STANZA_SIZE: Record<PoetryLayout, number> =
+  { single: 2, 'two-column': 2, staggered: 2, musaddas: 6, mukhammas: 5 };
+
+// Secondary grouping within a musaddas/mukhammas stanza — meaningless (always
+// 'continuous') for the other three layouts. 'continuous' is today's flat
+// rendering; 'split' is the same flat shape plus a CSS-only secondary divider
+// before the stanza's last 2 lines; 'mixed' is a real shape change — the
+// stanza's first 4 misras become 2 two-column rows, the rest stay flat.
+type PoetryStanzaVariant = 'continuous' | 'split' | 'mixed';
 
 class PoetryBlockNode extends ElementNode {
   __layout: PoetryLayout;
-  __align: PoetryAlign;
-  // children: for 'single' layout, two ParagraphNode misras stacked;
-  // for 'two-column' layout, internally composes a LayoutContainerNode
-  // with two LayoutItemNodes (one misra each) — see §4 note on composition.
+  __width?: number; // user-dragged, single-column-shaped layouts only
+  __autoWidth: boolean; // fit-content instead of __width; single-column-shaped
+                         // layouts only (single/musaddas/mukhammas), mutually
+                         // exclusive with __width (forced false when `layout`
+                         // changes to 'two-column'/'staggered')
+  __staggerGroup: 1 | 2; // couplets sharing one side before 'staggered' flips
+  __stanzaVariant: PoetryStanzaVariant; // musaddas/mukhammas only; forced back
+                                        // to 'continuous' when `layout` changes
+                                        // away from them
+  // children: for 'continuous'/'split' (and single/two-column/staggered,
+  // which are always 'continuous'), POETRY_STANZA_SIZE[layout] ParagraphNode
+  // misras stacked flat per stanza; for 'two-column' layout, a
+  // LayoutContainerNode with two LayoutItemNodes (one misra each) per couplet
+  // (see §4 note on composition); for a 'mixed' stanza, 2 such
+  // LayoutContainerNode rows (the stanza's first 4 misras) followed by
+  // POETRY_STANZA_SIZE[layout] - 4 flat ParagraphNode misras — poetryActions.ts's
+  // $getCouplets is the one place that reads any of these three physical
+  // shapes back into a uniform per-stanza misra array, and $buildCoupletNodes
+  // is the one place that builds any of them.
 }
 ```
 
-- `setLayout()` / `setAlign()` mutate the node in place (same node identity, different
-  rendering) so converting a couplet between layouts doesn't require deleting/
-  recreating it and losing selection/undo coherence.
+- `setLayoutAttribute()` mutates the node in place (same node identity, different
+  rendering) so converting a stanza between layouts doesn't require
+  deleting/recreating it and losing selection/undo coherence — the actual child
+  restructuring (regrouping paragraphs into the new stanza size or column shape)
+  is a `$`-prefixed tree operation (`$setPoetryLayout`) in `poetryActions.ts`, not
+  a node method. Since a layout change can also change the stanza size now
+  (e.g. `single` → `musaddas`), `$setPoetryLayout` flattens every misra across the
+  block's current stanzas and re-chunks that flat sequence into groups of the
+  target layout's stanza size, padding the last group with empty paragraphs if
+  it falls short — a transition that doesn't change stanza size (any
+  single/two-column/staggered pairing) is just a special case of the same
+  re-chunking, since the group size doesn't change.
 - A document is a sequence of `PoetryBlockNode`s (and ordinary paragraphs, for prose
   interleaved with verse) — this directly satisfies all four poetry templates in the
-  spec as combinations of per-instance `layout`/`align`, rather than four fixed node
-  types.
+  spec, plus musaddas/mukhammas, as instances of one `layout` enum, rather than
+  fixed node types per template.
 
 ### 3.2 `LayoutContainerNode` + `LayoutItemNode` (extend `ElementNode`)
 
@@ -180,7 +230,7 @@ One plugin per feature area, each independently registerable, matching the shape
 | `PoetryPlugin` | poetry insert menu, per-couplet layout toggle UI | `config.poetry.*` |
 | `FindReplacePlugin` | search overlay, match navigation | `config.findReplace` |
 | — (`Toolbar`'s own handler, no separate plugin) | Join lines: toolbar button and right-click menu item | `config.joinLines` |
-| `DraggableBlockPlugin` | Drag grip beside the hovered block to move it; inside a poetry block, a grip to move the couplet (into any poetry block, or out as a new one) and a grip to swap the line with another | `config.dragBlocks` |
+| `DraggableBlockPlugin` | Drag grip beside the hovered block to move it; inside a poetry block, a grip to move the whole stanza (couplet, or musaddas'/mukhammas' larger stanza — into any poetry block, rebuilt for that block's own layout, or out as a new one) and a grip to swap the line with another | `config.dragBlocks` |
 | `LanguageServicesPlugin` | spawns/manages workers, decorator marks for spellcheck | `config.language.*` |
 | `AutosavePlugin` | localStorage draft read/write, restore-draft prompt | always on if `documentId` present |
 | `NavigationGuardPlugin` | dirty tracking, `beforeunload`, exposes `hasUnsavedChanges()` | always on |

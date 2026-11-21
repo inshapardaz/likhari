@@ -1,7 +1,9 @@
 import type { SerializedEditorState } from 'lexical';
 import type { ConverterContext } from '../types';
 import {
-  POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, layoutOrDefault, scaleOrDefault,
+  POETRY_CENTER_WIDTH, POETRY_COUPLET_GAP, POETRY_GUTTER_PX, POETRY_RULE, POETRY_STAGGER_WIDTH, POETRY_STANZA_SIZE,
+  SINGLE_COLUMN_SHAPED_LAYOUTS, STANZA_VARIANT_LAYOUTS,
+  boolOrDefault, layoutOrDefault, scaleOrDefault, staggerGroupOrDefault, stanzaVariantOrDefault,
 } from '../shared/poetry';
 import {
   FORMAT_BOLD, FORMAT_CODE, FORMAT_HIGHLIGHT, FORMAT_ITALIC, FORMAT_STRIKETHROUGH,
@@ -163,11 +165,20 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const gutter = scaleOrDefault(node.gutter);
   const stagger = scaleOrDefault(node.stagger);
   const centerWidth = scaleOrDefault(node.centerWidth);
+  const autoWidth = boolOrDefault(node.autoWidth) && SINGLE_COLUMN_SHAPED_LAYOUTS.has(layout);
+  const staggerGroup = staggerGroupOrDefault(node.staggerGroup);
+  const stanzaVariant = stanzaVariantOrDefault(node.stanzaVariant, layout);
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : undefined;
   const children = node.children ?? [];
   const dir = firstDirection(children);
   const gap = POETRY_COUPLET_GAP[spacing];
   const separator = `border-top: ${POETRY_RULE}; margin-top: ${gap}; padding-top: calc(${gap} * 0.6)`;
+  const stanzaSize = POETRY_STANZA_SIZE[layout];
+  // Lines per side before `staggered` flips — generalizes the original fixed
+  // one-couplet-per-side alternation (staggerGroup 1) to `staggerGroup`
+  // couplets at a time (request 3); `stanzaSize` is always 2 whenever this
+  // is actually used, since `staggered` is one of the three 2-line layouts.
+  const staggerPeriod = staggerGroup * 4;
 
   let body: string;
   if (layout === 'two-column') {
@@ -199,15 +210,70 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
         return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}">${cells}</div>`;
       })
       .join('');
+  } else if (STANZA_VARIANT_LAYOUTS.has(layout) && stanzaVariant === 'mixed') {
+    // A `mixed` stanza is 2 two-column rows (the first 4 misras) followed by
+    // POETRY_STANZA_SIZE[layout] - 4 flat paragraphs — children mix
+    // layout-container and paragraph SNodes, unlike every other layout's
+    // uniform shape, so this walks them by type rather than assuming every
+    // child is a flat "line" the way the branch below does. `period` is how
+    // many DOM children make up one stanza (2 rows + however many trailing
+    // flats); row 1 of a later stanza gets the heavier stanza-boundary
+    // divider, row 2 (within the same stanza) a lighter one — same
+    // distinction as editor.css's --variant-mixed rules.
+    const trailing = stanzaSize - 4;
+    const period = 2 + trailing;
+    const px = POETRY_GUTTER_PX[gutter];
+    body = children
+      .map((child, i) => {
+        const posInStanza = i % period;
+        const isStanzaStart = posInStanza === 0 && i >= period;
+        if (child.type === 'layout-container') {
+          const items = child.children ?? [];
+          // mukhammas's single trailing misra (never musaddas's 2) can be
+          // centered/narrowed the same way a two-column couplet row is —
+          // same single-item encoding, same --poetry-center-width scale, no
+          // gutter divider since there's only the one column.
+          if (items.length === 1) {
+            const rowStyle = [
+              'display: grid',
+              'gap: 0',
+              'grid-template-columns: 1fr',
+              'margin: 0',
+              `width: ${POETRY_CENTER_WIDTH[centerWidth]}`,
+              'margin-inline: auto',
+              ...(isStanzaStart ? [separator] : posInStanza === 1 ? [`border-top: ${POETRY_RULE}`] : []),
+            ].join('; ');
+            const lines = (items[0].children ?? []).map((line) => poetryLineToHtml(line, '', ctx)).join('');
+            return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}"><div data-likhari-layout-item style="padding-inline: 0">${lines}</div></div>`;
+          }
+          const rowStyle = [
+            'display: grid',
+            'gap: 0',
+            'grid-template-columns: repeat(2, 1fr)',
+            'margin: 0',
+            ...(isStanzaStart ? [separator] : posInStanza === 1 ? [`border-top: ${POETRY_RULE}`] : []),
+          ].join('; ');
+          const cells = items
+            .map((item, idx) => {
+              const cellStyle = idx === 0 ? `padding-inline-end: ${px}px` : `border-inline-start: ${POETRY_RULE}; padding-inline-start: ${px}px`;
+              const lines = (item.children ?? []).map((line) => poetryLineToHtml(line, '', ctx)).join('');
+              return `<div data-likhari-layout-item style="${escapeAttr(cellStyle)}">${lines}</div>`;
+            })
+            .join('');
+          return `<div data-likhari-layout-container style="${escapeAttr(rowStyle)}">${cells}</div>`;
+        }
+        return poetryLineToHtml(child, isStanzaStart ? separator : '', ctx);
+      })
+      .join('');
   } else {
     body = children
       .map((line, i) => {
-        const couplet = Math.floor(i / 2);
+        const stanzaIndex = Math.floor(i / stanzaSize);
         const parts: string[] = [];
-        if (i % 2 === 0 && couplet > 0) parts.push(separator);
+        if (i % stanzaSize === 0 && stanzaIndex > 0) parts.push(separator);
         if (layout === 'staggered') {
           parts.push(`width: ${POETRY_STAGGER_WIDTH[stagger]}`);
-          parts.push(couplet % 2 === 0 ? 'margin-inline-end: auto' : 'margin-inline-start: auto');
+          parts.push(i % staggerPeriod < staggerPeriod / 2 ? 'margin-inline-end: auto' : 'margin-inline-start: auto');
         }
         return poetryLineToHtml(line, parts.join('; '), ctx);
       })
@@ -218,7 +284,8 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
   const blockStyle = [
     'box-sizing: border-box',
     'margin: 0 auto 1.4em auto',
-    `max-width: ${width !== undefined ? `${width}px` : '70%'}`,
+    autoWidth ? 'width: fit-content' : `max-width: ${width !== undefined ? `${width}px` : '70%'}`,
+    ...(autoWidth ? ['max-width: 100%'] : []),
     'padding: 10px 16px',
     'text-align: justify',
     'text-align-last: justify',
@@ -226,7 +293,7 @@ function poetryToHtml(node: SNode, ctx?: ConverterContext): string {
     `line-height: ${rtl ? '2.1' : '1.6'}`,
   ].join('; ');
   const widthAttr = width !== undefined ? ` data-likhari-poetry-width="${width}"` : '';
-  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
+  return `<div data-likhari-poetry-layout="${layout}" data-likhari-poetry-spacing="${spacing}" data-likhari-poetry-gutter="${gutter}" data-likhari-poetry-stagger="${stagger}" data-likhari-poetry-center-width="${centerWidth}" data-likhari-poetry-auto-width="${autoWidth}" data-likhari-poetry-stagger-group="${staggerGroup}" data-likhari-poetry-stanza-variant="${stanzaVariant}"${widthAttr} dir="${dir}" style="${escapeAttr(blockStyle)}">${body}</div>`;
 }
 
 function imageToHtml(node: SNode, ctx?: ConverterContext): string {

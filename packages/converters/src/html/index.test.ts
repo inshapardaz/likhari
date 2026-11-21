@@ -216,6 +216,126 @@ describe('poetry export', () => {
     const [back] = blocksOf(roundTrip([block]));
     expect(back).toMatchObject({ layout: 'staggered', stagger: 'loose', width: 480 });
   });
+
+  it('round-trips a musaddas (6-line) stanza, single-column shaped', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'musaddas' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-layout="musaddas"');
+    expect(html).not.toContain('data-likhari-poetry-form');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas' });
+    expect(back.children).toHaveLength(6);
+  });
+
+  it('round-trips a mukhammas (5-line) stanza', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'mukhammas' });
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas' });
+    expect(back.children).toHaveLength(5);
+  });
+
+  it('round-trips a split stanzaVariant — same flat shape, just the extra attribute', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'musaddas', stanzaVariant: 'split' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-stanza-variant="split"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas', stanzaVariant: 'split' });
+    expect(back.children).toHaveLength(6);
+  });
+
+  it('defaults stanzaVariant to continuous for single/two-column/staggered', () => {
+    const lines = ['a', 'b'].map((t) => paragraph([textNode(t)]));
+    const block = elementBase('poetry-couplet', lines, { layout: 'single' });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-stanza-variant="continuous"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'single', stanzaVariant: 'continuous' });
+  });
+
+  it('round-trips a mixed stanzaVariant — 2 two-column rows + trailing flat paragraphs — for musaddas and mukhammas', () => {
+    const row = (a: string, b: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(a)])]), elementBase('layout-item', [paragraph([textNode(b)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+
+    // musaddas: 2 rows (4 misras) + 2 trailing flat paragraphs.
+    const musaddasBlock = elementBase(
+      'poetry-couplet',
+      [row('a', 'b'), row('c', 'd'), paragraph([textNode('e')]), paragraph([textNode('f')])],
+      { layout: 'musaddas', stanzaVariant: 'mixed' },
+    );
+    const musaddasHtml = htmlConverter.serialize(makeState([musaddasBlock]));
+    expect(musaddasHtml).toContain('data-likhari-poetry-stanza-variant="mixed"');
+    const [musaddasBack] = blocksOf(roundTrip([musaddasBlock]));
+    expect(musaddasBack).toMatchObject({ type: 'poetry-couplet', layout: 'musaddas', stanzaVariant: 'mixed' });
+    expect(musaddasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+    expect((musaddasBack.children![2] as SNode).children![0]).toMatchObject({ text: 'e' });
+    expect((musaddasBack.children![3] as SNode).children![0]).toMatchObject({ text: 'f' });
+
+    // mukhammas: 2 rows (4 misras) + 1 trailing flat paragraph.
+    const mukhammasBlock = elementBase(
+      'poetry-couplet',
+      [row('a', 'b'), row('c', 'd'), paragraph([textNode('e')])],
+      { layout: 'mukhammas', stanzaVariant: 'mixed' },
+    );
+    const [mukhammasBack] = blocksOf(roundTrip([mukhammasBlock]));
+    expect(mukhammasBack).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed' });
+    expect(mukhammasBack.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'paragraph']);
+  });
+
+  it('round-trips a centered trailing line in a mukhammas-mixed stanza, narrowed by centerWidth', () => {
+    const row = (a: string, b: string) =>
+      elementBase(
+        'layout-container',
+        [elementBase('layout-item', [paragraph([textNode(a)])]), elementBase('layout-item', [paragraph([textNode(b)])])],
+        { templateColumns: 'repeat(2, 1fr)' },
+      );
+    // The trailing misra, centered: a LayoutContainerNode('1fr') holding one
+    // LayoutItemNode holding the one paragraph — same encoding a centered
+    // two-column row uses, reused for mukhammas's single trailing line.
+    const centeredTrailing = elementBase('layout-container', [elementBase('layout-item', [paragraph([textNode('e')])])], {
+      templateColumns: '1fr',
+    });
+    const block = elementBase('poetry-couplet', [row('a', 'b'), row('c', 'd'), centeredTrailing], {
+      layout: 'mukhammas',
+      stanzaVariant: 'mixed',
+      centerWidth: 'loose',
+    });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: 85%'); // loose centerWidth
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', layout: 'mukhammas', stanzaVariant: 'mixed', centerWidth: 'loose' });
+    expect(back.children!.map((c) => c.type)).toEqual(['layout-container', 'layout-container', 'layout-container']);
+    const trailing = back.children![2] as SNode;
+    expect(trailing.children).toHaveLength(1);
+    const trailingItem = trailing.children![0] as SNode;
+    expect(trailingItem.children).toHaveLength(1);
+    expect((trailingItem.children![0] as SNode).children![0]).toMatchObject({ text: 'e' });
+  });
+
+  it('round-trips autoWidth as fit-content, single-layout only', () => {
+    const lines = [paragraph([textNode('a')]), paragraph([textNode('b')])];
+    const block = elementBase('poetry-couplet', lines, { layout: 'single', autoWidth: true });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('width: fit-content');
+    expect(html).toContain('data-likhari-poetry-auto-width="true"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ type: 'poetry-couplet', autoWidth: true });
+  });
+
+  it('keeps a non-default stagger group through a round trip (request 3)', () => {
+    const lines = [paragraph([textNode('a')]), paragraph([textNode('b')]), paragraph([textNode('c')]), paragraph([textNode('d')])];
+    const block = elementBase('poetry-couplet', lines, { layout: 'staggered', staggerGroup: 2 });
+    const html = htmlConverter.serialize(makeState([block]));
+    expect(html).toContain('data-likhari-poetry-stagger-group="2"');
+    const [back] = blocksOf(roundTrip([block]));
+    expect(back).toMatchObject({ layout: 'staggered', staggerGroup: 2 });
+  });
 });
 
 describe('html tables and footnotes export', () => {

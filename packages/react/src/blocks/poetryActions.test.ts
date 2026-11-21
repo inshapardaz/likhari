@@ -38,7 +38,10 @@ import {
   $setCoupletCentered,
   $insertCoupletRelativeToSelection,
   $insertPoetryCouplet,
+  $setPoetryAutoWidth,
   $setPoetryLayout,
+  $setPoetryStaggerGroup,
+  $setPoetryStanzaVariant,
 } from './poetryActions';
 
 function makeEditor(): LexicalEditor {
@@ -871,6 +874,134 @@ describe('$setCoupletCentered', () => {
   });
 });
 
+/** Builds a `mukhammas` block, in `stanzaVariant: 'mixed'`, with misra text
+ * 'a'..'e' — the shape the centered-trailing-line tests below toggle. */
+function buildMixedMukhammas(editor: LexicalEditor): void {
+  withCaretInParagraph(editor, () => {
+    $insertPoetryCouplet('mukhammas');
+    const misras = $getMisraParagraphs(getBlock());
+    ['a', 'b', 'c', 'd', 'e'].forEach((t, i) => misras[i].append($createTextNode(t)));
+    getBlock().getFirstChild()!.selectStart();
+    $setPoetryStanzaVariant('mixed');
+  });
+}
+
+describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () => {
+  it('is centered by default — $buildCoupletNodes defaults mukhammas-mixed\'s trailing line to centered (matching IconPoetryMixed\'s depiction) — and can be un-centered and re-centered', () => {
+    const editor = makeEditor();
+    buildMixedMukhammas(editor);
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+    editor.update(() => {
+      $getCouplets(getBlock())[0][4].selectEnd();
+      expect($getCoupletCenteredFromSelection()).toBe(true);
+    }, { discrete: true });
+
+    editor.update(() => {
+      $getCouplets(getBlock())[0][4].selectEnd();
+      expect($setCoupletCentered(false)).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      misras[4].selectEnd(); // 'e', the trailing line, now bare
+      expect($setCoupletCentered(true)).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+  });
+
+  it('$getCouplets reads the stanza correctly whether the trailing line is bare or centered-wrapped', () => {
+    const editor = makeEditor();
+    buildMixedMukhammas(editor);
+    editor.update(() => {
+      // Centered-wrapped by default (see the first test in this block).
+      expect($getCouplets(getBlock())[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+      $getMisraParagraphs(getBlock())[4].selectEnd();
+      $setCoupletCentered(false);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      // Reads the same 5 misras back, in the same order, once un-wrapped.
+      expect($getCouplets(getBlock())[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+  });
+
+  it('is a no-op (false/null) for musaddas-mixed — its 2-line trailing is out of scope', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => {
+      $insertPoetryCouplet('musaddas');
+      const misras = $getMisraParagraphs(getBlock());
+      ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      getBlock().getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    });
+    editor.update(() => {
+      $getMisraParagraphs(getBlock())[4].selectEnd(); // 'e', first of the 2 trailing flats
+      expect($getCoupletCenteredFromSelection()).toBe(null);
+      expect($setCoupletCentered(true)).toBe(false);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      expect(getBlock().getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+    });
+  });
+
+  it('is a no-op (false/null) for mukhammas in continuous or split stanzaVariant', () => {
+    for (const stanzaVariant of ['continuous', 'split'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => {
+        $insertPoetryCouplet('mukhammas');
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd', 'e'].forEach((t, i) => misras[i].append($createTextNode(t)));
+        if (stanzaVariant !== 'continuous') {
+          getBlock().getFirstChild()!.selectStart();
+          $setPoetryStanzaVariant(stanzaVariant);
+        }
+      });
+      editor.update(() => {
+        $getMisraParagraphs(getBlock())[4].selectEnd();
+        expect($getCoupletCenteredFromSelection()).toBe(null);
+        expect($setCoupletCentered(true)).toBe(false);
+      }, { discrete: true });
+    }
+  });
+
+  it('round-trips a centered mukhammas-mixed block through full editor-state JSON', () => {
+    const editor = makeEditor();
+    buildMixedMukhammas(editor);
+    editor.update(() => {
+      $getMisraParagraphs(getBlock())[4].selectEnd();
+      $setCoupletCentered(true);
+    }, { discrete: true });
+
+    const json = editor.getEditorState().toJSON();
+    const restoredState = editor.parseEditorState(json);
+    editor.setEditorState(restoredState);
+
+    editor.update(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect(block.getStanzaVariant()).toBe('mixed');
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      const couplet = $getCouplets(block)[0];
+      expect(couplet.map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e']);
+      couplet[4].selectEnd();
+      expect($getCoupletCenteredFromSelection()).toBe(true);
+    }, { discrete: true });
+  });
+});
+
 describe('$deletePoetryBlock', () => {
   it('removes the whole block with all its couplets', () => {
     const editor = makeEditor();
@@ -1264,5 +1395,906 @@ describe('$swapMisras', () => {
       { discrete: true },
     );
     expect(misraTexts(editor)).toEqual(['a1', 'b1', 'a2', 'b2', 'c1', 'c2']);
+  });
+});
+
+describe('musaddas and mukhammas layouts (lexical-editor-spec.md §4.11, amended)', () => {
+  it('inserts a musaddas block with six empty misras in a single stanza, flat single-column', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('musaddas');
+      expect($getMisraParagraphs(block)).toHaveLength(6);
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+  });
+
+  it('inserts a mukhammas block with five empty misras, flat single-column', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect($getMisraParagraphs(block)).toHaveLength(5);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+  });
+
+  it('Enter at the end of a non-empty last stanza appends a whole new empty stanza, not a single misra', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].append($createTextNode('line six'));
+        misras[5].selectEnd();
+        expect($exitPoetryOnEnter()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      expect($getMisraParagraphs(block)).toHaveLength(12);
+    });
+  });
+
+  it('Backspace on an all-empty stanza removes the whole stanza, keeping earlier ones intact', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[0].append($createTextNode('a1'));
+        misras[4].selectEnd();
+        $exitPoetryOnEnter(); // appends a second, empty 5-line stanza
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].selectStart(); // start of the second stanza's first misra
+        expect($deletePoetryOnBackspace()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+      expect($getMisraParagraphs(block)).toHaveLength(5);
+    });
+    expect(misraTexts(editor)).toEqual(['a1', '', '', '', '']);
+  });
+
+  it('$completeSingleCoupletBlock pads to a full stanza, not just an even count', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        block.append($createParagraphNode()); // 7 children: one short of a second 6-line stanza
+        $completeSingleCoupletBlock(block);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect($getMisraParagraphs(getBlock())).toHaveLength(12));
+  });
+});
+
+describe('$setPoetryLayout re-chunking across stanza sizes', () => {
+  it('re-chunks 6 misras in single into 3 couplet rows when switching to two-column', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('two-column');
+      expect($getCouplets(block)).toHaveLength(3);
+      expect(block.getChildren().every((c) => c.getType() === 'layout-container')).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('pads 4 misras in single out to a full 6-line musaddas stanza when switching to musaddas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        const block = getBlock();
+        $getMisraParagraphs(block)[0].selectStart();
+        $insertCoupletRelativeToSelection('after'); // 4 misras total, 2 couplets
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'musaddas');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('musaddas');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect($getMisraParagraphs(block)).toHaveLength(6);
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', '', '']);
+  });
+
+  it('re-chunks a two-column block into a single mukhammas stanza, padding the short remainder', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('two-column'));
+    editor.update(
+      () => {
+        const [a, b] = $getMisraParagraphs(getBlock());
+        a.append($createTextNode('x'));
+        b.append($createTextNode('y'));
+      },
+      { discrete: true },
+    );
+
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'mukhammas');
+      },
+      { discrete: true },
+    );
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect($getCouplets(block)).toHaveLength(1);
+      expect($getMisraParagraphs(block)).toHaveLength(5);
+    });
+    expect(misraTexts(editor)).toEqual(['x', 'y', '', '', '']);
+  });
+
+  it('clears autoWidth when switching from single to two-column, but keeps it when switching to musaddas/mukhammas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        $setPoetryAutoWidth(true);
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'musaddas');
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(true));
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+  });
+});
+
+describe('$convertSelectionToPoetry layouts', () => {
+  it('pads a short selection out to a full musaddas stanza (6 lines)', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('one');
+        const second = $createTextNode('two');
+        const third = $createTextNode('three');
+        $getRoot().append(
+          $createParagraphNode().append(first),
+          $createParagraphNode().append(second),
+          $createParagraphNode().append(third),
+        );
+        $selectAcross(first, third);
+        expect($convertSelectionToPoetry('musaddas')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('musaddas');
+      expect($getMisraParagraphs(block)).toHaveLength(6);
+    });
+    expect(misraTexts(editor)).toEqual(['one', 'two', 'three', '', '', '']);
+  });
+
+  it('falls back to single-column when two-column/staggered is requested for a selection conversion', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('a');
+        const second = $createTextNode('b');
+        $getRoot().append($createParagraphNode().append(first), $createParagraphNode().append(second));
+        $selectAcross(first, second);
+        expect($insertPoetryCouplet('two-column')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      // Conversion is always single-column-shaped, whatever layout was requested.
+      expect(getBlock().getLayout()).toBe('single');
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b']);
+  });
+
+  it('threads mukhammas through $insertPoetryCouplet when text is selected outside a block', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const first = $createTextNode('a');
+        const second = $createTextNode('b');
+        $getRoot().append($createParagraphNode().append(first), $createParagraphNode().append(second));
+        $selectAcross(first, second);
+        expect($insertPoetryCouplet('mukhammas')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect($getMisraParagraphs(block)).toHaveLength(5);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', '', '', '']);
+  });
+});
+
+describe('PoetryBlockNode autoWidth (request 2)', () => {
+  it('defaults to false and round-trips through JSON and DOM', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getAutoWidth()).toBe(false);
+      expect(block.exportJSON().autoWidth).toBe(false);
+      expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-auto-width')).toBe('false');
+    });
+  });
+
+  it('$setPoetryAutoWidth turns it on in single layout and round-trips through JSON/DOM', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryAutoWidth(true)).toBe(true);
+      },
+      { discrete: true },
+    );
+    let json: ReturnType<PoetryBlockNode['exportJSON']>;
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getAutoWidth()).toBe(true);
+      json = block.exportJSON();
+      expect(json.autoWidth).toBe(true);
+      expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-auto-width')).toBe('true');
+    });
+    editor.update(
+      () => {
+        const restored = PoetryBlockNode.importJSON(json);
+        expect(restored.getAutoWidth()).toBe(true);
+      },
+      { discrete: true },
+    );
+  });
+
+  it('is accepted for musaddas and mukhammas too, not just single', () => {
+    for (const layout of ['musaddas', 'mukhammas'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          expect($setPoetryAutoWidth(true)).toBe(true);
+        },
+        { discrete: true },
+      );
+      editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(true));
+    }
+  });
+
+  it('is refused outside the single-column-shaped layouts (two-column, staggered)', () => {
+    for (const layout of ['two-column', 'staggered'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      let result = true;
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          result = $setPoetryAutoWidth(true);
+        },
+        { discrete: true },
+      );
+      expect(result).toBe(false);
+      editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+    }
+  });
+
+  it('is forced back off when the layout changes to two-column/staggered', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        $setPoetryAutoWidth(true);
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $setPoetryLayout(getBlock(), 'two-column');
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => expect(getBlock().getAutoWidth()).toBe(false));
+  });
+
+  it('PoetryBlockNode.importJSON ignores a hand-edited autoWidth when layout is not single', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const block = PoetryBlockNode.importJSON({
+          type: 'poetry-couplet',
+          version: 1,
+          layout: 'two-column',
+          autoWidth: true,
+          children: [],
+          direction: null,
+          format: '',
+          indent: 0,
+        });
+        expect(block.getAutoWidth()).toBe(false);
+      },
+      { discrete: true },
+    );
+  });
+});
+
+describe('PoetryBlockNode staggerGroup (request 3)', () => {
+  it('defaults to 1 and round-trips through JSON and DOM', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('staggered'));
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getStaggerGroup()).toBe(1);
+      expect(block.exportJSON().staggerGroup).toBe(1);
+      expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-stagger-group')).toBe('1');
+    });
+  });
+
+  it('$setPoetryStaggerGroup sets it to 2 only while staggered, and round-trips through JSON', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('staggered'));
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryStaggerGroup(2)).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getStaggerGroup()).toBe(2);
+      expect(block.exportJSON().staggerGroup).toBe(2);
+      expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-stagger-group')).toBe('2');
+    });
+  });
+
+  it('is refused outside staggered layout', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('single'));
+    let result = true;
+    editor.update(
+      () => {
+        getBlock().getFirstChild()!.selectStart();
+        result = $setPoetryStaggerGroup(2);
+      },
+      { discrete: true },
+    );
+    expect(result).toBe(false);
+  });
+
+  it('PoetryBlockNode.importJSON falls back to 1 for an invalid staggerGroup', () => {
+    const editor = makeEditor();
+    editor.update(
+      () => {
+        const block = PoetryBlockNode.importJSON({
+          type: 'poetry-couplet',
+          version: 1,
+          layout: 'staggered',
+          staggerGroup: 3 as unknown as 1,
+          children: [],
+          direction: null,
+          format: '',
+          indent: 0,
+        });
+        expect(block.getStaggerGroup()).toBe(1);
+      },
+      { discrete: true },
+    );
+  });
+});
+
+/** Same as makeEditor(), but attached to a real (jsdom) root element, so
+ * createDOM/updateDOM actually run and editor.getElementByKey can inspect
+ * the rendered class list — mirrors LayoutNode.test.ts's own pattern. */
+function makeEditorWithRoot(): LexicalEditor {
+  const editor = makeEditor();
+  editor.setRootElement(document.createElement('div'));
+  return editor;
+}
+
+describe('PoetryBlockNode stanzaVariant (lexical-editor-spec.md §4.11, further amended)', () => {
+  it('defaults to continuous for musaddas/mukhammas and round-trips through JSON and DOM', () => {
+    for (const layout of ['musaddas', 'mukhammas'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      editor.getEditorState().read(() => {
+        const block = getBlock();
+        expect(block.getStanzaVariant()).toBe('continuous');
+        expect(block.exportJSON().stanzaVariant).toBe('continuous');
+        expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-stanza-variant')).toBe('continuous');
+      });
+    }
+  });
+
+  it('always reads back continuous for single/two-column/staggered, even with a hand-edited JSON value', () => {
+    for (const layout of ['single', 'two-column', 'staggered'] as const) {
+      const editor = makeEditor();
+      editor.update(
+        () => {
+          const block = PoetryBlockNode.importJSON({
+            type: 'poetry-couplet',
+            version: 1,
+            layout,
+            stanzaVariant: 'mixed' as unknown as 'continuous',
+            children: [],
+            direction: null,
+            format: '',
+            indent: 0,
+          });
+          expect(block.getStanzaVariant()).toBe('continuous');
+        },
+        { discrete: true },
+      );
+    }
+  });
+
+  it('$setPoetryStanzaVariant sets split, applies the CSS modifier class, and round-trips through JSON/DOM, for both musaddas and mukhammas', () => {
+    for (const layout of ['musaddas', 'mukhammas'] as const) {
+      const editor = makeEditorWithRoot();
+      let key = '';
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      editor.update(
+        () => {
+          const block = getBlock();
+          key = block.getKey();
+          block.getFirstChild()!.selectStart();
+          expect($setPoetryStanzaVariant('split')).toBe(true);
+        },
+        { discrete: true },
+      );
+      expect(editor.getElementByKey(key)!.classList.contains('likhari-poetry--variant-split')).toBe(true);
+      expect(editor.getElementByKey(key)!.classList.contains('likhari-poetry--variant-continuous')).toBe(false);
+
+      let json!: ReturnType<PoetryBlockNode['exportJSON']>;
+      editor.getEditorState().read(() => {
+        const block = getBlock();
+        expect(block.getStanzaVariant()).toBe('split');
+        json = block.exportJSON();
+        expect(json.stanzaVariant).toBe('split');
+        expect((block.exportDOM().element as HTMLElement).getAttribute('data-likhari-poetry-stanza-variant')).toBe('split');
+      });
+      editor.update(
+        () => {
+          const restored = PoetryBlockNode.importJSON(json);
+          expect(restored.getStanzaVariant()).toBe('split');
+        },
+        { discrete: true },
+      );
+    }
+  });
+
+  it('is refused outside musaddas/mukhammas', () => {
+    for (const layout of ['single', 'two-column', 'staggered'] as const) {
+      const editor = makeEditor();
+      withCaretInParagraph(editor, () => $insertPoetryCouplet(layout));
+      let result = true;
+      editor.update(
+        () => {
+          getBlock().getFirstChild()!.selectStart();
+          result = $setPoetryStanzaVariant('split');
+        },
+        { discrete: true },
+      );
+      expect(result).toBe(false);
+      editor.getEditorState().read(() => expect(getBlock().getStanzaVariant()).toBe('continuous'));
+    }
+  });
+
+  it('is a no-op (returns true, nothing rebuilt) when already in the requested variant', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    let firstChildKey = '';
+    editor.update(() => {
+      const block = getBlock();
+      firstChildKey = block.getFirstChild()!.getKey();
+      block.getFirstChild()!.selectStart();
+      expect($setPoetryStanzaVariant('continuous')).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      expect(getBlock().getFirstChild()!.getKey()).toBe(firstChildKey);
+    });
+  });
+});
+
+describe('stanzaVariant "mixed" physical shape', () => {
+  it('builds 2 two-column rows + trailing flat paragraphs, and $getCouplets reads it back as one stanza, for musaddas (4+2)', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryStanzaVariant('mixed')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      const children = block.getChildren();
+      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      expect($getCouplets(block)).toHaveLength(1);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('builds 2 two-column rows + 1 centered trailing line for mukhammas (4+1) — centered by default', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        ['a', 'b', 'c', 'd', 'e'].forEach((t, i) => misras[i].append($createTextNode(t)));
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryStanzaVariant('mixed')).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      const children = block.getChildren();
+      // The trailing slot is a centered layout-container, not a bare
+      // paragraph — mukhammas-mixed defaults to centered ($buildCoupletNodes).
+      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      expect($getCouplets(block)).toHaveLength(1);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('repeats the pattern across multiple stanzas, in order', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => {
+      $insertPoetryCouplet('mukhammas');
+      const misras = $getMisraParagraphs(getBlock());
+      ['a1', 'a2', 'a3', 'a4', 'a5'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      misras[4].selectEnd();
+      $exitPoetryOnEnter(); // appends a second, empty 5-line stanza
+      const second = $getMisraParagraphs(getBlock()).slice(5);
+      ['b1', 'b2', 'b3', 'b4', 'b5'].forEach((t, i) => second[i].append($createTextNode(t)));
+      getBlock().getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual([
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
+      ]);
+      expect($getCouplets(block)).toHaveLength(2);
+    });
+    expect(misraTexts(editor)).toEqual(['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5']);
+  });
+
+  it('applies the likhari-poetry--variant-mixed CSS modifier class', () => {
+    const editor = makeEditorWithRoot();
+    let key = '';
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(() => {
+      const block = getBlock();
+      key = block.getKey();
+      block.getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    }, { discrete: true });
+    expect(editor.getElementByKey(key)!.classList.contains('likhari-poetry--variant-mixed')).toBe(true);
+  });
+});
+
+describe('$setPoetryStanzaVariant conversions preserve content', () => {
+  it('round-trips continuous -> split -> mixed -> continuous, keeping every misra\'s text, for musaddas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+    }, { discrete: true });
+
+    const texts = ['a', 'b', 'c', 'd', 'e', 'f'];
+    for (const variant of ['split', 'mixed', 'continuous'] as const) {
+      editor.update(() => {
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryStanzaVariant(variant)).toBe(true);
+      }, { discrete: true });
+      editor.getEditorState().read(() => expect(getBlock().getStanzaVariant()).toBe(variant));
+      expect(misraTexts(editor)).toEqual(texts);
+    }
+  });
+
+  it('round-trips continuous -> mixed -> split -> continuous, keeping every misra\'s text, for mukhammas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('mukhammas'));
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      ['a', 'b', 'c', 'd', 'e'].forEach((t, i) => misras[i].append($createTextNode(t)));
+    }, { discrete: true });
+
+    const texts = ['a', 'b', 'c', 'd', 'e'];
+    for (const variant of ['mixed', 'split', 'continuous'] as const) {
+      editor.update(() => {
+        getBlock().getFirstChild()!.selectStart();
+        expect($setPoetryStanzaVariant(variant)).toBe(true);
+      }, { discrete: true });
+      editor.getEditorState().read(() => expect(getBlock().getStanzaVariant()).toBe(variant));
+      expect(misraTexts(editor)).toEqual(texts);
+    }
+  });
+});
+
+describe('stanzaVariant forced back to continuous on layout change', () => {
+  it('$setPoetryLayout forces stanzaVariant back to continuous when moving away from musaddas/mukhammas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(() => {
+      getBlock().getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    }, { discrete: true });
+    editor.update(() => {
+      $setPoetryLayout(getBlock(), 'single');
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getStanzaVariant()).toBe('continuous');
+      expect(block.getChildren().every((c) => c.getType() === 'paragraph')).toBe(true);
+    });
+  });
+
+  it('keeps a mixed stanzaVariant, rebuilt at the new stanza size, when moving between musaddas and mukhammas', () => {
+    const editor = makeEditor();
+    withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
+    editor.update(() => {
+      const misras = $getMisraParagraphs(getBlock());
+      ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      getBlock().getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    }, { discrete: true });
+    editor.update(() => {
+      $setPoetryLayout(getBlock(), 'mukhammas');
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getLayout()).toBe('mukhammas');
+      expect(block.getStanzaVariant()).toBe('mixed');
+      // Re-chunked to mukhammas' own 5-line stanza size: the former 6th
+      // misra ('f') pads out a second (new, empty) 5-line stanza instead —
+      // each mukhammas-mixed stanza is 2 rows + 1 trailing flat (3 physical
+      // children), so 2 stanzas is 6 children total. The trailing slot is a
+      // centered layout-container, not a bare paragraph — mukhammas-mixed
+      // defaults to centered ($buildCoupletNodes), including when rebuilt by
+      // a layout change.
+      expect(block.getChildren().map((c) => c.getType())).toEqual([
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
+      ]);
+      expect($getCouplets(block)).toHaveLength(2);
+    });
+  });
+});
+
+describe('editing interactions on a mixed-variant stanza', () => {
+  function buildMixedMusaddas(editor: LexicalEditor): void {
+    withCaretInParagraph(editor, () => {
+      $insertPoetryCouplet('musaddas');
+      const misras = $getMisraParagraphs(getBlock());
+      ['a', 'b', 'c', 'd', 'e', 'f'].forEach((t, i) => misras[i].append($createTextNode(t)));
+      getBlock().getFirstChild()!.selectStart();
+      $setPoetryStanzaVariant('mixed');
+    });
+  }
+
+  it('Enter at the end of a non-empty mixed stanza appends a whole new mixed-shaped stanza', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].selectEnd(); // end of 'f', the last trailing flat misra
+        expect($exitPoetryOnEnter()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      expect(block.getChildren().map((c) => c.getType())).toEqual([
+        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+      ]);
+    });
+  });
+
+  it('Enter at the boundary between the 2-column rows and the trailing flats just moves the caret, inserting nothing', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[3].selectEnd(); // end of 'd' — last misra of the 2-column section
+        expect($exitPoetryOnEnter()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1); // nothing inserted
+      // selectEnd() on a non-empty paragraph lands on its text child, not
+      // the paragraph itself — check containment, not an exact key match.
+      const nextMisra = $getMisraParagraphs(block)[4]; // 'e', the first trailing flat misra
+      const selection = $getSelection();
+      const anchorNode = $isRangeSelection(selection) ? selection.anchor.getNode() : null;
+      expect(anchorNode !== null && (nextMisra.getKey() === anchorNode.getKey() || nextMisra.isParentOf(anchorNode))).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('Backspace at the start of the first trailing flat line moves to the end of the 2-column section, without merging', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[4].selectStart(); // start of 'e', the first trailing flat misra
+        expect($deletePoetryOnBackspace()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      // selectEnd() on a non-empty paragraph lands on its text child, not
+      // the paragraph itself — check containment, not an exact key match
+      // (same caveat the pre-existing "merges an empty couplet" test above notes).
+      const lastOfRows = $getMisraParagraphs(getBlock())[3]; // 'd', last misra of the 2-column section
+      const selection = $getSelection();
+      const anchorNode = $isRangeSelection(selection) ? selection.anchor.getNode() : null;
+      expect(anchorNode !== null && (lastOfRows.getKey() === anchorNode.getKey() || lastOfRows.isParentOf(anchorNode))).toBe(true);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('Backspace on an all-empty mixed stanza removes its 2 rows AND its trailing flats together, keeping the previous stanza intact', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].selectEnd();
+        $exitPoetryOnEnter(); // appends a second, empty mixed stanza
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[6].selectStart(); // start of the second stanza's first misra
+        expect($deletePoetryOnBackspace()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+    });
+    expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+  });
+
+  it('$deletePoetryCouplet removes a whole mixed stanza (both rows and its trailing flats)', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].selectEnd();
+        $exitPoetryOnEnter(); // second, empty mixed stanza
+        const second = $getMisraParagraphs(getBlock()).slice(6);
+        ['g', 'h', 'i', 'j', 'k', 'l'].forEach((t, i) => second[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $getMisraParagraphs(getBlock())[0].selectStart(); // caret in the first stanza
+        expect($deletePoetryCouplet()).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(1);
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+    });
+    expect(misraTexts(editor)).toEqual(['g', 'h', 'i', 'j', 'k', 'l']);
+  });
+
+  it('$moveCouplet moves a whole mixed stanza (both rows and its trailing flats) within the same block', () => {
+    const editor = makeEditor();
+    buildMixedMusaddas(editor);
+    editor.update(
+      () => {
+        const misras = $getMisraParagraphs(getBlock());
+        misras[5].selectEnd();
+        $exitPoetryOnEnter(); // second, empty mixed stanza
+        const second = $getMisraParagraphs(getBlock()).slice(6);
+        ['g', 'h', 'i', 'j', 'k', 'l'].forEach((t, i) => second[i].append($createTextNode(t)));
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        const block = getBlock();
+        const second = $getCouplets(block)[1];
+        const first = $getCouplets(block)[0];
+        expect($moveCouplet(second, { kind: 'couplet', couplet: first, position: 'before' })).toBe(true);
+      },
+      { discrete: true },
+    );
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect($getCouplets(block)).toHaveLength(2);
+      expect(block.getChildren().map((c) => c.getType())).toEqual([
+        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+      ]);
+    });
+    expect(misraTexts(editor)).toEqual(['g', 'h', 'i', 'j', 'k', 'l', 'a', 'b', 'c', 'd', 'e', 'f']);
   });
 });

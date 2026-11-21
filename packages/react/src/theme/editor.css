@@ -435,16 +435,93 @@
   margin: 0;
 }
 
-/* A poetry block is "one object with multiple couplets, add/remove like
-   table rows" — so couplet boundaries get the same visible divider as a
-   table's internal row borders, not just extra space. Every couplet but
-   the first (nth-child(odd), since each couplet is two paragraph
-   children — its first misra always lands on an odd position) gets a
-   border-top in place of the previous couplet's margin-bottom. */
-.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child) {
+/* A poetry block is "one object with multiple couplets/stanzas, add/remove
+   like table rows" — so stanza boundaries get the same visible divider as a
+   table's internal row borders, not just extra space. Every stanza but the
+   first gets a border-top in place of the previous stanza's margin-bottom.
+   `layout` (lexical-editor-spec.md §4.11, amended) itself now picks how many
+   paragraphs make up one stanza for the single-column-shaped layouts —
+   `single` stays 2 (nth-child(odd), since its first misra always lands on
+   an odd position), `mukhammas` is 5 and `musaddas` is 6 — keyed directly
+   off the layout modifier class PoetryNode.tsx already applies, rather than
+   a separate `--form-*` class. Each selector requires its own layout class,
+   so only the one matching the block's actual layout ever applies — kept
+   this explicit, rather than a single `nth-child(Xn+1)` with X swapped via
+   a custom property, so the rule reads directly off the layout name.
+   `:not(.likhari-poetry--variant-mixed)` on the musaddas/mukhammas selectors
+   matters, not just belt-and-suspenders: a `mixed` stanza's children are a
+   mix of LayoutContainerNode rows and flat paragraphs, so `.likhari-paragraph`'s
+   raw nth-child position no longer lands on a stanza boundary every
+   `stanzaSize`th paragraph (see the `--variant-mixed` rules further down) —
+   without this guard, this rule would still fire on whichever trailing flat
+   paragraph happens to land on a 5n+1/6n+1 position by coincidence. `split`
+   keeps this rule (same flat shape as `continuous`, just with an added
+   secondary divider below), so only `--variant-mixed` is excluded. */
+.likhari-poetry--single .likhari-paragraph:nth-child(odd):not(:first-child),
+.likhari-poetry--mukhammas:not(.likhari-poetry--variant-mixed) .likhari-paragraph:nth-child(5n+1):not(:first-child),
+.likhari-poetry--musaddas:not(.likhari-poetry--variant-mixed) .likhari-paragraph:nth-child(6n+1):not(:first-child) {
   border-top: 1px dashed var(--editor-line-strong);
   margin-top: var(--poetry-couplet-gap);
   padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+/* `stanzaVariant: 'split'` (musaddas/mukhammas only — lexical-editor-spec.md
+   §4.11, amended): a secondary divider before the stanza's last two lines —
+   musaddas 4+2 (nth-child(6n+5), position 5 of every 6). Lighter than the
+   primary stanza-boundary rule above: border only, no margin/padding-top
+   bump, so the two levels of grouping stay visually distinct. CSS-only —
+   `split` keeps the exact same flat physical shape as `continuous`. */
+.likhari-poetry--musaddas.likhari-poetry--variant-split .likhari-paragraph:nth-child(6n+5) {
+  border-top: 1px dotted var(--editor-line-strong);
+}
+
+/* Mukhammas 3+2 split: pure spacing, no divider line — extra margin before
+   the last two lines is the visual grouping cue by itself, rather than a
+   second line alongside the stanza boundary's own dashed one (nth-child(5n+4),
+   position 4 of every 5). */
+.likhari-poetry--mukhammas.likhari-poetry--variant-split .likhari-paragraph:nth-child(5n+4) {
+  margin-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+/* `stanzaVariant: 'mixed'` (musaddas/mukhammas only): each stanza is 2
+   two-column rows (the first 4 misras) followed by POETRY_STANZA_SIZE - 4
+   flat paragraphs (musaddas 2, mukhammas 1) — a real physical shape change
+   (poetryActions.ts's $buildCoupletNodes), not just a CSS modifier. Child
+   positions no longer line up with a uniform `nth-child(stanzaSize*n+1)`
+   the way the flat layouts above do, since every stanza is `4 + trailing`
+   DOM children, not `stanzaSize` — musaddas is 4 children per stanza (2
+   rows + 2 flats), mukhammas is 3 (2 rows + 1 flat). Musaddas's own second
+   row gets a lighter divider from its first (same weight as `split`'s own
+   secondary divider, for the same "distinct from the stanza boundary"
+   reason); mukhammas gets pure spacing there instead, no divider line — same
+   treatment as mukhammas's `split` 3+2 (its trailing single line already
+   reads as its own grouping via centering, so a second internal line on top
+   of that plus the stanza boundary below would be one divider too many). The
+   *next* stanza's first row (either form) gets the usual heavier
+   stanza-boundary treatment. */
+.likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+2) {
+  border-top: 1px dotted var(--editor-line-strong);
+}
+.likhari-poetry--mukhammas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(3n+2) {
+  margin-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+.likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+1):not(:first-child),
+.likhari-poetry--mukhammas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(3n+1):not(:first-child) {
+  border-top: 1px dashed var(--editor-line-strong);
+  margin-top: var(--poetry-couplet-gap);
+  padding-top: calc(var(--poetry-couplet-gap) * 0.6);
+}
+
+/* Auto-width (request 2): `fit-content` instead of a max-width, so the
+   block sizes itself to its longest misra and every other line's own
+   text-align-last: justify (createDOM/exportDOM) stretches to fill that
+   same width. Single-column-shaped layouts only (single/musaddas/mukhammas
+   — PoetryNode.tsx's SINGLE_COLUMN_SHAPED_LAYOUTS) — a percentage width is
+   circular inside a fit-content parent, so this is never combined with
+   `--two-column`/`--staggered`. */
+.likhari-poetry--width-auto {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .likhari-poetry--spacing-compact { --poetry-couplet-gap: 0.4em; }
@@ -468,21 +545,40 @@
 .likhari-poetry--center-relaxed { --poetry-center-width: 72%; }
 .likhari-poetry--center-loose { --poetry-center-width: 85%; }
 
-/* Staggered: couplets are the same flat misra paragraphs as single column,
-   but each couplet's two misras are placed in a 65%-wide box that alternates
-   sides — the first couplet pushed to the start edge, the next to the end
-   edge, and so on. Logical properties keep the alternation mirrored for RTL. */
+/* Staggered (always 2-line stanzas): couplets are the same flat misra
+   paragraphs as single column, but each couplet's two misras are placed in
+   a 65%-wide box that alternates sides — pushed to the start edge for
+   `staggerGroup` couplets at a time, then the end edge for the next
+   `staggerGroup`, and so on (request 3 — generalizes the original fixed
+   one-couplet-per-side alternation, still the default). Logical properties
+   keep the alternation mirrored for RTL. The per-couplet box width and the
+   dashed divider below stay unchanged by the grouping — only which side a
+   couplet lands on depends on it. */
 .likhari-poetry--staggered .likhari-paragraph {
   width: var(--poetry-stagger-width, 65%);
 }
 
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+1),
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+2) {
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+1),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+2) {
   margin-inline-end: auto;
 }
 
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+3),
-.likhari-poetry--staggered .likhari-paragraph:nth-child(4n+4) {
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+3),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-1 .likhari-paragraph:nth-child(4n+4) {
+  margin-inline-start: auto;
+}
+
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+1),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+2),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+3),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+4) {
+  margin-inline-end: auto;
+}
+
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+5),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+6),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+7),
+.likhari-poetry--staggered.likhari-poetry--stagger-group-2 .likhari-paragraph:nth-child(8n+8) {
   margin-inline-start: auto;
 }
 
@@ -504,7 +600,12 @@
   padding-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
 
-.likhari-poetry--two-column .likhari-layout-container {
+/* Shared by two-column's own rows and a `mixed` stanza's 2 two-column rows
+   (musaddas/mukhammas) — both are built the same way (poetryActions.ts's
+   $buildCoupletNodes), so they need the same column styling. Kept as one
+   generalized selector rather than duplicating the whole rule per shape. */
+.likhari-poetry--two-column .likhari-layout-container,
+.likhari-poetry--variant-mixed .likhari-layout-container {
   margin: 0;
   /* No grid gap — the column divider sits exactly on the track boundary,
      so spacing instead comes from matching padding on each side of it,
@@ -521,7 +622,8 @@
   padding-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
 
-.likhari-poetry--two-column .likhari-layout-item {
+.likhari-poetry--two-column .likhari-layout-item,
+.likhari-poetry--variant-mixed .likhari-layout-item {
   text-align: inherit;
 }
 
@@ -529,23 +631,30 @@
    $setCoupletCentered) — narrowed to the middle of the block, with no column
    divider or gutter since there's only one column. The row carries this
    itself (LayoutNode.tsx), rather than :has(), which needs Firefox 121+
-   (issue #25). Width is the --poetry-center-width scale (issue #27). */
-.likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column] {
+   (issue #25). Width is the --poetry-center-width scale (issue #27). Also
+   matches a mukhammas-mixed stanza's single trailing misra when centered
+   the same way ($wrapTrailingMisra) — same marker attribute, same width
+   variable, no separate rule needed for it. */
+.likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column],
+.likhari-poetry--mukhammas.likhari-poetry--variant-mixed > .likhari-layout-container[data-likhari-single-column] {
   width: var(--poetry-center-width, 60%);
   margin-inline: auto;
 }
 
-.likhari-poetry--two-column .likhari-layout-item:only-child {
+.likhari-poetry--two-column .likhari-layout-item:only-child,
+.likhari-poetry--variant-mixed .likhari-layout-item:only-child {
   padding-inline-end: 0;
 }
 
-.likhari-poetry--two-column .likhari-layout-item:first-child {
+.likhari-poetry--two-column .likhari-layout-item:first-child,
+.likhari-poetry--variant-mixed .likhari-layout-item:first-child {
   padding-inline-end: var(--poetry-gutter, 20px);
 }
 
 /* A visible divider between misra columns, same dashed language as the
    couplet's own border — matches a table's internal cell borders. */
-.likhari-poetry--two-column .likhari-layout-item:not(:first-child) {
+.likhari-poetry--two-column .likhari-layout-item:not(:first-child),
+.likhari-poetry--variant-mixed .likhari-layout-item:not(:first-child) {
   border-inline-start: 1px dashed var(--editor-line-strong);
   padding-inline-start: var(--poetry-gutter, 20px);
 }

@@ -35,7 +35,19 @@ export interface EditorFeatureConfig {
   tables?: boolean;
   columns?: boolean;
   footnotes?: boolean;
-  poetry?: { enabled?: boolean; defaultLayout?: 'single' | 'two-column' };
+  poetry?: {
+    enabled?: boolean;
+    defaultLayout?: 'single' | 'two-column';
+    /** Restricts which of the five layout choices (single, two-column,
+     * staggered, musaddas, mukhammas — lexical-editor-spec.md §4.11) the
+     * insert menu offers — same idea as blocks.headingLevels restricting a
+     * list elsewhere in this config. All custom node attributes stay
+     * supported regardless of this toggle (architecture doc §2): a document
+     * already containing a musaddas/mukhammas block still renders and edits
+     * correctly even if a host later narrows `layouts` to `['single']`,
+     * since this only hides the *insert* entries, not node registration. */
+    layouts?: ('single' | 'two-column' | 'staggered' | 'musaddas' | 'mukhammas')[];
+  };
   findReplace?: boolean;
   /** Joins the selected lines into one paragraph, from the toolbar and the right-click menu. */
   joinLines?: boolean;
@@ -93,7 +105,7 @@ export const FULL_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   tables: true,
   columns: true,
   footnotes: true,
-  poetry: { enabled: true, defaultLayout: 'single' },
+  poetry: { enabled: true, defaultLayout: 'single', layouts: ['single', 'two-column', 'staggered', 'musaddas', 'mukhammas'] },
   findReplace: true,
   joinLines: true,
   dragBlocks: true,
@@ -170,7 +182,7 @@ export const POETRY_FEATURE_CONFIG: EditorFeatureConfig = {
   // is one of the four poetry templates (spec §4.11), independent of the
   // block's logical direction.
   alignment: { ...STANDARD_FEATURE_CONFIG.alignment, left: true, right: true },
-  poetry: { enabled: true, defaultLayout: 'single' },
+  poetry: { enabled: true, defaultLayout: 'single', layouts: ['single', 'two-column', 'staggered', 'musaddas', 'mukhammas'] },
 };
 
 export const FEATURE_CONFIG_PRESETS = {
@@ -233,7 +245,11 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
   tables: false,
   columns: false,
   footnotes: false,
-  poetry: { enabled: false, defaultLayout: 'single' },
+  // Backward-compat default: single/two-column/staggered only, matching
+  // every document and config written before musaddas/mukhammas existed.
+  // Irrelevant while `enabled: false`, but ResolvedEditorFeatureConfig
+  // requires the field.
+  poetry: { enabled: false, defaultLayout: 'single', layouts: ['single', 'two-column', 'staggered'] },
   findReplace: false,
   joinLines: false,
   dragBlocks: false,
