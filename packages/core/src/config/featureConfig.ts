@@ -62,6 +62,8 @@ export interface EditorFeatureConfig {
     autocomplete?: boolean;
     autocorrect?: boolean;
     textCleanup?: boolean;
+    /** Adds vowel marks (harakat) to right-to-left text from a dictionary, at a chosen level. */
+    diacritics?: boolean;
   };
   formats?: { markdown?: boolean; html?: boolean; plainText?: boolean; lexicalJson?: boolean };
 }
@@ -116,6 +118,7 @@ export const FULL_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
     autocomplete: true,
     autocorrect: true,
     textCleanup: true,
+    diacritics: true,
   },
   formats: { markdown: true, html: true, plainText: true, lexicalJson: true },
 };
@@ -260,6 +263,7 @@ const ALL_OFF_FEATURE_CONFIG: ResolvedEditorFeatureConfig = {
     autocomplete: false,
     autocorrect: false,
     textCleanup: false,
+    diacritics: false,
   },
   formats: { markdown: false, html: false, plainText: false, lexicalJson: false },
 };

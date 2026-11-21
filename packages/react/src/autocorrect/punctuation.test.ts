@@ -122,7 +122,23 @@ describe('$correctPunctuationDocument', () => {
       { discrete: true },
     );
     expect(count).toBeGreaterThan(0);
-    expect(textOf(editor)).toBe('ہے۔ وہ “ٹھیک” ہے۔“');
+    // The quote uses the Urdu/RTL convention from the Urdu text around it, even though this
+    // block is left-to-right — Lexical's own block `dir` is only a fallback (punctuationRules.ts).
+    expect(textOf(editor)).toBe('ہے۔ وہ ”ٹھیک“ ہے۔“');
+  });
+
+  it('uses the right-to-left convention from the surrounding Urdu text, not the block\'s own (possibly mislabelled) direction', () => {
+    // A single stray Latin letter before any Urdu character marks the whole block ltr in
+    // Lexical's own direction detection (see autoCorrectActions.ts) — the quote must still
+    // follow the Urdu text immediately around it, not that block-wide label.
+    const editor = editorWith('X وہ "ٹھیک" ہے۔', 0);
+    editor.update(
+      () => {
+        $correctPunctuationDocument(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('X وہ ”ٹھیک“ ہے۔');
   });
 
   it('uses the reversed ”/“ pair for a right-to-left block', () => {

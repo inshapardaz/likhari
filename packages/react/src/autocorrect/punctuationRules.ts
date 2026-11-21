@@ -4,6 +4,8 @@
  * Bundled so the editor works offline and does not depend on that service;
  * refresh the list when the service changes.
  */
+import { nearestDirection } from './scriptDirection';
+
 export interface PunctuationRule {
   incorrect: string;
   correct: string;
@@ -11,12 +13,14 @@ export interface PunctuationRule {
   completeWord: boolean;
   /**
    * When set, chooses the replacement from the text immediately before the
-   * match (and whether the block is right-to-left) instead of using the
-   * fixed `correct` form. Used for the straight double quote, which opens
-   * or closes depending on what comes before it — macOS's native text
-   * substitution already does this, so without it the same editor behaves
-   * differently depending on OS — and, in a right-to-left block, which of
-   * “ / ” is the opening mark is the reverse of the Latin convention.
+   * match, instead of using the fixed `correct` form. Used for the straight
+   * double quote, which opens or closes depending on what comes before it —
+   * macOS's native text substitution already does this, so without it the
+   * same editor behaves differently depending on OS — and, in right-to-left
+   * text, which of “ / ” is the opening mark is the reverse of the Latin
+   * convention. `rtl` is only a fallback for when `before` holds no
+   * strongly-directional character of its own to judge that from (e.g. the
+   * quote opens the block): most callers pass the block's own direction.
    */
   resolve?: (before: string, rtl: boolean) => string;
 }
@@ -78,10 +82,23 @@ export interface PunctuationOptions {
 const LTR_OPENING_QUOTE_CONTEXT = /[\s([{—–-“‘]$/u;
 const RTL_OPENING_QUOTE_CONTEXT = /[\s([{—–-”’]$/u;
 
+/**
+ * Whether the quote's own context is right-to-left: judged from the script
+ * of the nearest word in `before`, so a quote inside Urdu text picks the
+ * Urdu convention even if the surrounding block's `dir` (passed as `rtl`,
+ * used only as a fallback) is wrong — which happens whenever anything
+ * earlier in the same block started with a Latin character.
+ */
+function isRtlHere(before: string, rtl: boolean): boolean {
+  const direction = nearestDirection(before);
+  return direction === null ? rtl : direction === 'rtl';
+}
+
 function resolveDoubleQuote(before: string, rtl: boolean): string {
-  const context = rtl ? RTL_OPENING_QUOTE_CONTEXT : LTR_OPENING_QUOTE_CONTEXT;
+  const rtlHere = isRtlHere(before, rtl);
+  const context = rtlHere ? RTL_OPENING_QUOTE_CONTEXT : LTR_OPENING_QUOTE_CONTEXT;
   const opens = before === '' || context.test(before);
-  return rtl ? (opens ? '”' : '“') : opens ? '“' : '”';
+  return rtlHere ? (opens ? '”' : '“') : opens ? '“' : '”';
 }
 
 /** The rules in use for the options, longest match first, so `۔"` wins over `"`. */

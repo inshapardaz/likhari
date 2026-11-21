@@ -79,6 +79,44 @@ for (const [key, values] of Object.entries(CORRECT_URDU_CHARACTERS)) {
 /** Combining diacritics (harakat and similar), as urduhack's URDU_DIACRITICS. */
 const DIACRITICS = new Set(['َ', 'ً', 'ٰ', 'ِ', 'ُ', 'ٍ']);
 
+/**
+ * How heavily a fully-vowelled word's diacritics are kept, for the optional
+ * "add diacritics" feature (distinct from `removeDiacritics` above, which
+ * strips them from text the user already typed). Each level is a superset
+ * of the one before it:
+ *  - minimal: tashdid and the dagger alif only — marks that change a word's
+ *    sound or length rather than just hinting at its short vowels, and that
+ *    fluent readers often write even in otherwise plain Urdu.
+ *  - normal: minimal, plus the three short vowel marks (fatha/kasra/damma).
+ *  - maximum: normal, plus tanwin — full ikhraab.
+ */
+export type DiacriticLevel = 'minimal' | 'normal' | 'maximum';
+
+const STRUCTURAL_DIACRITICS = new Set(['ّ', 'ٰ']);
+const SHORT_VOWEL_DIACRITICS = new Set(['َ', 'ِ', 'ُ']);
+const TANWIN_DIACRITICS = new Set(['ً', 'ٍ']);
+
+const DIACRITICS_FOR_LEVEL: Record<DiacriticLevel, Set<string>> = {
+  minimal: STRUCTURAL_DIACRITICS,
+  normal: new Set([...STRUCTURAL_DIACRITICS, ...SHORT_VOWEL_DIACRITICS]),
+  maximum: new Set([...STRUCTURAL_DIACRITICS, ...SHORT_VOWEL_DIACRITICS, ...TANWIN_DIACRITICS]),
+};
+
+/**
+ * A fully-vowelled word (or text), thinned to the marks `level` keeps. Marks
+ * outside the three tiers above (there are none today, but a future one
+ * would otherwise pass through unfiltered) are kept as-is.
+ */
+export function filterDiacriticsByLevel(text: string, level: DiacriticLevel): string {
+  const keep = DIACRITICS_FOR_LEVEL[level];
+  let out = '';
+  for (const char of text) {
+    const isDiacritic = STRUCTURAL_DIACRITICS.has(char) || SHORT_VOWEL_DIACRITICS.has(char) || TANWIN_DIACRITICS.has(char);
+    if (!isDiacritic || keep.has(char)) out += char;
+  }
+  return out;
+}
+
 const ENGLISH_DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const URDU_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
 

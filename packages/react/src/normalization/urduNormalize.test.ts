@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeUrdu, normalizeUrduCharacters, removeUrduDiacritics, replaceUrduDigits } from './urduNormalize';
+import { filterDiacriticsByLevel, normalizeUrdu, normalizeUrduCharacters, removeUrduDiacritics, replaceUrduDigits } from './urduNormalize';
 
 describe('normalizeUrdu', () => {
   it('replaces Arabic and presentation-form letters, as urduhack does', () => {
@@ -26,5 +26,26 @@ describe('normalizeUrdu', () => {
     expect(replaceUrduDigits('۲۰ سال', 'english')).toBe('20 سال');
     expect(replaceUrduDigits('20', 'urdu')).toBe('۲۰');
     expect(normalizeUrdu('۲۰', { digits: 'keep' })).toBe('۲۰');
+  });
+});
+
+describe('filterDiacriticsByLevel', () => {
+  it('keeps only tashdid/maddah at the minimal level', () => {
+    expect(filterDiacriticsByLevel('اُمّید', 'minimal')).toBe('امّید');
+  });
+
+  it('adds short vowels at the normal level', () => {
+    expect(filterDiacriticsByLevel('اُمّید', 'normal')).toBe('اُمّید');
+  });
+
+  it('drops tanwin unless the level is maximum', () => {
+    expect(filterDiacriticsByLevel('فوراً', 'minimal')).toBe('فورا');
+    expect(filterDiacriticsByLevel('فوراً', 'normal')).toBe('فورا');
+    expect(filterDiacriticsByLevel('فوراً', 'maximum')).toBe('فوراً');
+  });
+
+  it('leaves text with no diacritics unchanged at every level', () => {
+    expect(filterDiacriticsByLevel('امید', 'minimal')).toBe('امید');
+    expect(filterDiacriticsByLevel('امید', 'maximum')).toBe('امید');
   });
 });

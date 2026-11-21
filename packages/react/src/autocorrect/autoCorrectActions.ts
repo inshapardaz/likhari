@@ -10,6 +10,7 @@ import {
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
 import { spacePunctuationText, type PunctuationRule } from './punctuationRules';
+import { isRtlWord } from './scriptDirection';
 import { autoCorrectDebugLog } from './autoCorrectDebug';
 
 /** The part of a word that counts as word characters at its end. */
@@ -20,9 +21,14 @@ const WORD_CHAR = /[\p{L}\p{M}'’]/u;
  * Corrects the word that ends just before the caret, when the character just
  * typed (the word boundary: space or punctuation) is not a word character. The
  * correction replaces only the word, and the caret stays right after the
- * boundary. Returns true if a correction was made.
+ * boundary. The word's own script picks `ltrTable` or `rtlTable`. Returns
+ * true if a correction was made.
  */
-export function $correctWordBeforeCaret(table: Map<string, string>, normalize?: (word: string) => string): boolean {
+export function $correctWordBeforeCaret(
+  ltrTable: Map<string, string>,
+  rtlTable: Map<string, string>,
+  normalizeRtl?: (word: string) => string,
+): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
 
@@ -37,9 +43,10 @@ export function $correctWordBeforeCaret(table: Map<string, string>, normalize?: 
   const body = before.slice(0, -1);
   const word = WORD_END.exec(body)?.[0];
   if (!word) return false;
-  const replacement = correctionFor(word, table, normalize);
+  const rtl = isRtlWord(word);
+  const replacement = correctionFor(word, rtl ? rtlTable : ltrTable, rtl ? normalizeRtl : undefined);
   if (replacement === undefined || replacement === word) {
-    autoCorrectDebugLog('$correctWordBeforeCaret: no correction for word', JSON.stringify(word), 'tableSize:', table.size);
+    autoCorrectDebugLog('$correctWordBeforeCaret: no correction for word', JSON.stringify(word), 'rtl:', rtl, 'tableSize:', (rtl ? rtlTable : ltrTable).size);
     return false;
   }
   autoCorrectDebugLog('$correctWordBeforeCaret: correcting', JSON.stringify(word), '->', JSON.stringify(replacement));
@@ -64,8 +71,11 @@ export function $correctWordBeforeCaret(table: Map<string, string>, normalize?: 
 /**
  * Corrects every whole word in the document, for text that never went through
  * typing (pasted or loaded content). Words are found per paragraph or cell, so a
- * word split by formatting is still one word. Each block uses the table for its
- * direction. Returns how many words were corrected.
+ * word split by formatting is still one word. Each word uses the table for its
+ * own script — not the block's `dir`, which Lexical derives from only the
+ * first strongly-directional character in the block and so mislabels a block
+ * that starts with one stray Latin letter before its Urdu text. Returns how
+ * many words were corrected.
  */
 export function $correctDocument(
   ltr: Map<string, string>,
@@ -74,7 +84,6 @@ export function $correctDocument(
 ): number {
   if (normalizeRtl) {
     for (const node of $getRoot().getAllTextNodes()) {
-      if (node.getParentOrThrow().getDirection() !== 'rtl') continue;
       const text = node.getTextContent();
       const normalized = normalizeRtl(text);
       if (normalized !== text) node.setTextContent(normalized);
@@ -83,11 +92,12 @@ export function $correctDocument(
 
   let corrected = 0;
   for (const group of $textGroups()) {
-    const rightToLeft = group[0].getParentOrThrow().getDirection() === 'rtl';
-    const table = rightToLeft ? rtl : ltr;
     const text = group.map((node) => node.getTextContent()).join('');
     const spans = wordsIn(text)
-      .map((span) => ({ span, replacement: correctionFor(span.word, table, rightToLeft ? normalizeRtl : undefined) }))
+      .map((span) => {
+        const rightToLeft = isRtlWord(span.word);
+        return { span, replacement: correctionFor(span.word, rightToLeft ? rtl : ltr, rightToLeft ? normalizeRtl : undefined) };
+      })
       .filter((item) => item.replacement !== undefined && item.replacement !== item.span.word);
     // Right to left, so earlier positions stay valid as each word is replaced.
     for (const { span, replacement } of spans.reverse()) {
@@ -231,10 +241,14 @@ export function $spacePunctuationDocument(): number {
 
 /**
  * Corrects the word that ends at the caret when nothing follows it, which is the
- * end of a line: the caret is about to leave the line (Enter). The caret ends
- * after the replacement.
+ * end of a line: the caret is about to leave the line (Enter). The word's own
+ * script picks `ltrTable` or `rtlTable`. The caret ends after the replacement.
  */
-export function $correctWordEndingAtCaret(table: Map<string, string>, normalize?: (word: string) => string): boolean {
+export function $correctWordEndingAtCaret(
+  ltrTable: Map<string, string>,
+  rtlTable: Map<string, string>,
+  normalizeRtl?: (word: string) => string,
+): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
 
@@ -245,7 +259,8 @@ export function $correctWordEndingAtCaret(table: Map<string, string>, normalize?
   const before = node.getTextContent().slice(0, anchor.offset);
   const word = WORD_END.exec(before)?.[0];
   if (!word) return false;
-  const replacement = correctionFor(word, table, normalize);
+  const rtl = isRtlWord(word);
+  const replacement = correctionFor(word, rtl ? rtlTable : ltrTable, rtl ? normalizeRtl : undefined);
   if (replacement === undefined || replacement === word) {
     autoCorrectDebugLog('$correctWordEndingAtCaret: no correction for word', JSON.stringify(word));
     return false;
