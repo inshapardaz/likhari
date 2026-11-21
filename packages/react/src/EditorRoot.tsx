@@ -35,6 +35,9 @@ import { DraftRestore, type DraftRestoreMode } from './components/DraftRestore';
 import { FindReplaceBar } from './components/FindReplaceBar';
 import { AutoCorrectPanel } from './components/AutoCorrectPanel';
 import { AutoCorrectPlugin } from './autocorrect/AutoCorrectPlugin';
+import { DiacritizationPlugin } from './diacritics/DiacritizationPlugin';
+import type { DiacriticsStore } from './diacritics/diacriticsStore';
+import type { DiacriticLevel } from './normalization/urduNormalize';
 import { localStorageAutoCorrectStore, type AutoCorrectStore } from './autocorrect/autoCorrectStores';
 import type { UrduNormalizationOptions } from './normalization/urduNormalize';
 import type { PunctuationOptions } from './autocorrect/punctuationRules';
@@ -109,6 +112,8 @@ export interface EditorRootProps {
   urduNormalization?: UrduNormalizationOptions;
   /** Common punctuation fixes, and whether a straight " becomes ”. Both on by default. */
   punctuation?: PunctuationOptions;
+  /** Where fully-vowelled word forms come from, and how many of a word's diacritics to add. */
+  diacritics?: { stores: DiacriticsStore[]; level: DiacriticLevel };
   initialContent?: EditorInitialContent;
   featureConfig?: EditorFeatureConfig;
   featurePreset?: FeatureConfigPresetName;
@@ -286,6 +291,7 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
     spellCheckLanguage = 'auto',
     urduNormalization,
     punctuation,
+    diacritics,
     initialContent,
     featureConfig,
     featurePreset,
@@ -771,6 +777,9 @@ export const EditorRoot = forwardRef<EditorRef, EditorRootProps>(function Editor
               urduNormalization={urduNormalization}
               punctuation={punctuation}
             />}
+          {config.language.diacritics && diacritics && (
+            <DiacritizationPlugin stores={diacritics.stores} level={diacritics.level} enabled typing />
+          )}
           {config.columns && <LayoutPlugin />}
           {config.footnotes && <FootnotePlugin />}
           {config.poetry.enabled && <PoetryPlugin />}

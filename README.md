@@ -159,6 +159,7 @@ Every prop is optional. Defaults are shown where they apply.
 | `onFontChange` | `(change: { fontFamily: string \| undefined; zoom: number }) => void` | none | `fontMode="uniform"` only. Called when the user picks a font or zoom in the toolbar. |
 | `punctuation` | `PunctuationOptions` | both on | Common punctuation fixes, and whether a straight `"` becomes `”`. |
 | `urduNormalization` | `UrduNormalizationOptions` | built-in | Urdu normalisation applied during auto-correct. Set `removeDiacritics` to strip diacritics. |
+| `diacritics` | `{ stores: DiacriticsStore[]; level: 'minimal' \| 'normal' \| 'maximum' }` | none | Adds vowel marks (harakat) to right-to-left text from a dictionary of fully-vowelled word forms. `level` picks how many of a word's diacritics to add: `minimal` (tashdid/maddah only), `normal` (+ short vowels), `maximum` (+ tanwin). Requires `featureConfig.language.diacritics`. |
 | `autoCorrectStores` | `AutoCorrectStore[]` | built-in | Where auto-corrections are loaded from and saved to, in priority order. Pass a stable array. |
 | `dictionaryStores` | `UserWordStore[]` | built-in | Where words added to the spelling dictionary are saved, in priority order. Pass a stable array. |
 | `completionStores` | `CompletionStore[]` | dictionaries and user words | Where autocomplete words come from. Pass a stable array. |
