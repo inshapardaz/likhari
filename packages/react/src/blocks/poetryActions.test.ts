@@ -886,7 +886,7 @@ function buildMixedMukhammas(editor: LexicalEditor): void {
   });
 }
 
-describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () => {
+describe('$setCoupletCentered on a mixed stanza\'s trailing misra group', () => {
   it('is centered by default — $buildCoupletNodes defaults mukhammas-mixed\'s trailing line to centered (matching IconPoetryMixed\'s depiction) — and can be un-centered and re-centered', () => {
     const editor = makeEditor();
     buildMixedMukhammas(editor);
@@ -938,7 +938,7 @@ describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () 
     });
   });
 
-  it('is a no-op (false/null) for musaddas-mixed — its 2-line trailing is out of scope', () => {
+  it('is centered by default for musaddas-mixed too, as a group of both trailing lines together, and can be un-centered and re-centered', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => {
       $insertPoetryCouplet('musaddas');
@@ -947,13 +947,32 @@ describe('$setCoupletCentered on a mukhammas-mixed stanza\'s trailing line', () 
       getBlock().getFirstChild()!.selectStart();
       $setPoetryStanzaVariant('mixed');
     });
+
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      // Both trailing misras ('e', 'f') share one centered layout-container,
+      // not two bare paragraphs.
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    });
     editor.update(() => {
-      $getMisraParagraphs(getBlock())[4].selectEnd(); // 'e', first of the 2 trailing flats
-      expect($getCoupletCenteredFromSelection()).toBe(null);
-      expect($setCoupletCentered(true)).toBe(false);
+      $getCouplets(getBlock())[0][5].selectEnd(); // 'f', the last trailing misra
+      expect($getCoupletCenteredFromSelection()).toBe(true);
+      expect($setCoupletCentered(false)).toBe(true);
     }, { discrete: true });
     editor.getEditorState().read(() => {
-      expect(getBlock().getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    });
+    editor.update(() => {
+      $getMisraParagraphs(getBlock())[4].selectEnd(); // 'e', now bare
+      expect($setCoupletCentered(true)).toBe(true);
+    }, { discrete: true });
+    editor.getEditorState().read(() => {
+      const block = getBlock();
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
+      expect($getCouplets(block)[0].map((p) => p.getTextContent())).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
     });
   });
 
@@ -1959,7 +1978,7 @@ describe('PoetryBlockNode stanzaVariant (lexical-editor-spec.md §4.11, further 
 });
 
 describe('stanzaVariant "mixed" physical shape', () => {
-  it('builds 2 two-column rows + trailing flat paragraphs, and $getCouplets reads it back as one stanza, for musaddas (4+2)', () => {
+  it('builds 2 two-column rows + a centered trailing group for musaddas (4+2) — centered by default', () => {
     const editor = makeEditor();
     withCaretInParagraph(editor, () => $insertPoetryCouplet('musaddas'));
     editor.update(
@@ -1974,7 +1993,9 @@ describe('stanzaVariant "mixed" physical shape', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       const children = block.getChildren();
-      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      // The trailing 2 misras share one centered layout-container, not two
+      // bare paragraphs — mixed defaults to centered ($buildCoupletNodes).
+      expect(children.map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
       expect($getCouplets(block)).toHaveLength(1);
     });
     expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
@@ -2156,9 +2177,11 @@ describe('editing interactions on a mixed-variant stanza', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect($getCouplets(block)).toHaveLength(2);
+      // Each stanza's 2 trailing misras share one centered layout-container
+      // by default, not two bare paragraphs.
       expect(block.getChildren().map((c) => c.getType())).toEqual([
-        'layout-container', 'layout-container', 'paragraph', 'paragraph',
-        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
       ]);
     });
   });
@@ -2232,7 +2255,7 @@ describe('editing interactions on a mixed-variant stanza', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect($getCouplets(block)).toHaveLength(1);
-      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
     });
     expect(misraTexts(editor)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
@@ -2260,7 +2283,7 @@ describe('editing interactions on a mixed-variant stanza', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect($getCouplets(block)).toHaveLength(1);
-      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'paragraph', 'paragraph']);
+      expect(block.getChildren().map((c) => c.getType())).toEqual(['layout-container', 'layout-container', 'layout-container']);
     });
     expect(misraTexts(editor)).toEqual(['g', 'h', 'i', 'j', 'k', 'l']);
   });
@@ -2290,9 +2313,10 @@ describe('editing interactions on a mixed-variant stanza', () => {
     editor.getEditorState().read(() => {
       const block = getBlock();
       expect($getCouplets(block)).toHaveLength(2);
+      // Centering is preserved across the move ($detachCouplet/$moveCouplet).
       expect(block.getChildren().map((c) => c.getType())).toEqual([
-        'layout-container', 'layout-container', 'paragraph', 'paragraph',
-        'layout-container', 'layout-container', 'paragraph', 'paragraph',
+        'layout-container', 'layout-container', 'layout-container',
+        'layout-container', 'layout-container', 'layout-container',
       ]);
     });
     expect(misraTexts(editor)).toEqual(['g', 'h', 'i', 'j', 'k', 'l', 'a', 'b', 'c', 'd', 'e', 'f']);

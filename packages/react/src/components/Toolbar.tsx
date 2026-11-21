@@ -835,13 +835,14 @@ function PoetryMenuItems({
         </>
       )}
       {/* Centering/width applies to a two-column couplet's own row, and —
-          mukhammas only — its mixed stanza's single trailing misra, reusing
-          the exact same toggle/steppers (poetryActions.ts's
+          musaddas/mukhammas mixed — its trailing misra group (1 line for
+          mukhammas, 2 for musaddas, wrapped together), reusing the exact
+          same toggle/steppers (poetryActions.ts's
           $getCoupletCenteredFromSelection/$setCoupletCentered already widen
           their own guard the same way). The gutter steppers stay
           two-column-only: a gutter is the space either side of a column
-          divider, which a single centered line never has. */}
-      {(layout === 'two-column' || (layout === 'mukhammas' && stanzaVariant === 'mixed')) && (
+          divider, which a centered trailing group never has. */}
+      {(layout === 'two-column' || (STANZA_VARIANT_LAYOUTS.has(layout) && stanzaVariant === 'mixed')) && (
         <>
           {groupDivider}
           {item(IconAlignCenter, centered ? t.uncenterCouplet : t.centerCouplet, () => $setCoupletCentered(!centered))}

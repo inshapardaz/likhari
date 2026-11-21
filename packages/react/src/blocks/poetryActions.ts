@@ -63,20 +63,19 @@ function $misrasFromRow(container: LayoutContainerNode): [ParagraphNode, Paragra
   return $isParagraphNode(a) && $isParagraphNode(b) ? [a, b] : null;
 }
 
-/** Reads a mixed stanza's trailing slot, which is either a bare misra
- * paragraph or (mukhammas only, via $wrapTrailingMisra/$setCoupletCentered)
- * that same paragraph centered inside a LayoutContainerNode('1fr') >
- * LayoutItemNode wrapper — the same single-item encoding a centered
- * two-column row uses, just for one misra instead of two. Reads either
- * shape uniformly, the same way $misrasFromRow abstracts over a two-column
- * row's 1-item-vs-2-item shapes. Returns null for anything else. */
-function $misraFromTrailingSlot(node: LexicalNode): ParagraphNode | null {
-  if ($isParagraphNode(node)) return node;
+/** Reads a mixed stanza's trailing misra(s) out of a single LayoutContainerNode
+ * ('1fr') > LayoutItemNode wrapper — the centered-group encoding
+ * $wrapTrailingGroup/$setCoupletCentered builds, holding all of the
+ * stanza's trailing misras together in one item (1 for mukhammas, 2 for
+ * musaddas — the same single-item encoding a centered two-column row uses
+ * for its own two misras). Returns null for anything else (a bare flat
+ * paragraph, or a container that isn't this exact shape). */
+function $misrasFromTrailingGroup(node: LexicalNode): ParagraphNode[] | null {
   if (!$isLayoutContainerNode(node)) return null;
   const items = node.getChildren().filter($isLayoutItemNode);
   if (items.length !== 1) return null;
-  const misra = items[0].getFirstChild();
-  return $isParagraphNode(misra) ? misra : null;
+  const misras = items[0].getChildren();
+  return misras.length > 0 && misras.every($isParagraphNode) ? (misras as ParagraphNode[]) : null;
 }
 
 export function $getCouplets(node: PoetryBlockNode): Couplet[] {
@@ -108,19 +107,33 @@ export function $getCouplets(node: PoetryBlockNode): Couplet[] {
       const pair1 = $misrasFromRow(row1);
       const pair2 = $misrasFromRow(row2);
       if (!pair1 || !pair2) break;
-      const trailing: ParagraphNode[] = [];
-      for (let t = 0; t < trailingCount; t++) {
-        const candidate = children[i + 2 + t];
-        // Only mukhammas's single trailing slot (trailingCount === 1) can be
-        // the centered wrapped shape — musaddas's 2 trailing slots stay
-        // bare-paragraph-only (centering is out of scope for them).
-        const misra = trailingCount === 1 ? $misraFromTrailingSlot(candidate) : $isParagraphNode(candidate) ? candidate : null;
-        if (!misra) break;
-        trailing.push(misra);
+
+      // The trailing misras are either one combined centered-group wrapper
+      // (consuming 1 physical child — $wrapTrailingGroup/$setCoupletCentered)
+      // or `trailingCount` separate flat paragraphs (consuming `trailingCount`
+      // physical children) — try the wrapped shape first, since it's always
+      // exactly one node regardless of `trailingCount`.
+      let trailing: ParagraphNode[] | null = null;
+      let consumed = 0;
+      const wrapped = $misrasFromTrailingGroup(children[i + 2]);
+      if (wrapped && wrapped.length === trailingCount) {
+        trailing = wrapped;
+        consumed = 1;
+      } else {
+        const flat: ParagraphNode[] = [];
+        for (let t = 0; t < trailingCount; t++) {
+          const candidate = children[i + 2 + t];
+          if (!$isParagraphNode(candidate)) break;
+          flat.push(candidate);
+        }
+        if (flat.length === trailingCount) {
+          trailing = flat;
+          consumed = trailingCount;
+        }
       }
-      if (trailing.length !== trailingCount) break;
+      if (!trailing) break;
       couplets.push([...pair1, ...pair2, ...trailing]);
-      i += 2 + trailingCount;
+      i += 2 + consumed;
     }
     return couplets;
   }
@@ -181,27 +194,29 @@ function $isMixedStanza(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant
   return STANZA_VARIANT_LAYOUTS.has(layout) && stanzaVariant === 'mixed';
 }
 
-/** Whether `layout`/`stanzaVariant` has a row that can be centered/narrowed
- * at all — a two-column couplet's own row, or (mukhammas only — its mixed
- * trailing is exactly 1 line; musaddas's 2-line trailing is out of scope)
- * a mukhammas-mixed stanza's single trailing misra. */
+/** Whether `layout`/`stanzaVariant` has a row/group that can be
+ * centered/narrowed at all — a two-column couplet's own row, or a mixed
+ * musaddas/mukhammas stanza's trailing misra group (1 line for mukhammas,
+ * 2 for musaddas — see $wrapTrailingGroup). */
 function $isCenterableStanza(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant): boolean {
-  return layout === 'two-column' || (layout === 'mukhammas' && stanzaVariant === 'mixed');
+  return layout === 'two-column' || $isMixedStanza(layout, stanzaVariant);
 }
 
-/** Wraps a mixed stanza's single trailing misra (mukhammas only) in a
+/** Wraps a mixed stanza's trailing misra(s) — together, as one group — in a
  * LayoutContainerNode('1fr') > LayoutItemNode, in place — the exact same
- * single-item encoding a centered two-column row uses (same
- * data-likhari-single-column marker, same --poetry-center-width CSS), just
- * holding one misra instead of two. Builds the wrapper at `misra`'s current
- * position (inserted as its sibling first, then `misra` moved inside it) so
- * this also works on an already-attached misra, not just a fresh one. */
-function $wrapTrailingMisra(misra: ParagraphNode): LayoutContainerNode {
+ * single-item encoding a centered two-column row uses for its own two
+ * misras, just holding however many trailing misras this stanza has (1 for
+ * mukhammas, 2 for musaddas) instead of always two. Builds the wrapper at
+ * the first misra's current position (inserted as its sibling first, then
+ * every misra moved inside it, in order) so this also works on already-
+ * attached misras, not just fresh ones. */
+function $wrapTrailingGroup(misras: ParagraphNode[]): LayoutContainerNode {
   const row = $createLayoutContainerNode('1fr');
   const item = $createLayoutItemNode();
-  if (misra.isAttached()) misra.insertAfter(row);
+  const [first] = misras;
+  if (first.isAttached()) first.insertAfter(row);
   row.append(item);
-  item.append(misra);
+  item.append(...misras);
   return row;
 }
 
@@ -213,19 +228,19 @@ function $wrapTrailingMisra(misra: ParagraphNode): LayoutContainerNode {
  *  - `layout === 'two-column'`: one row (centered, single item, when
  *    `centered`; otherwise one item per misra) — `misras` is always length 2.
  *  - musaddas/mukhammas with `stanzaVariant === 'mixed'`: 2 two-column rows
- *    (the first 4 misras, 2 per row) followed by the remaining misras as
- *    plain siblings — `misras.length` is `POETRY_STANZA_SIZE[layout]`. For
- *    mukhammas specifically (exactly 1 trailing misra), `centered` also
- *    controls whether that trailing misra is wrapped centered/narrowed the
- *    same way a two-column row is — ignored for musaddas (2 trailing
- *    misras: no single line to center).
+ *    (the first 4 misras, 2 per row) followed by the remaining misras —
+ *    `misras.length` is `POETRY_STANZA_SIZE[layout]`. `centered` controls
+ *    whether those trailing misras (1 for mukhammas, 2 for musaddas) are
+ *    wrapped together, as one group, centered/narrowed the same way a
+ *    two-column row is ($wrapTrailingGroup) — when false, they're plain
+ *    flat siblings instead.
  *  - everything else: the misras themselves, as flat siblings.
  *
  * `centered`'s default is smart, not a flat `false`: every call site that
  * doesn't already have an opinion (a fresh stanza, a layout/variant change,
  * $setPoetryStanzaVariant's rebuild) gets `false` for a two-column row
  * (unchanged — centering a couplet has always been an explicit opt-in) but
- * `true` for a mukhammas-mixed trailing line, matching how that shape is
+ * `true` for a mixed stanza's trailing group, matching how that shape is
  * depicted everywhere it's chosen (the IconPoetryMixed glyph, the reference
  * site) — centered-by-default, not full-width-by-default. Call sites that
  * DO have an opinion (drag-move, preserving whatever state $detachCouplet
@@ -235,7 +250,7 @@ function $buildCoupletNodes(
   layout: PoetryLayout,
   stanzaVariant: PoetryStanzaVariant,
   misras: ParagraphNode[],
-  centered: boolean = layout === 'mukhammas' && $isMixedStanza(layout, stanzaVariant),
+  centered: boolean = $isMixedStanza(layout, stanzaVariant),
 ): LexicalNode[] {
   if (layout === 'two-column') {
     const [a, b] = misras;
@@ -256,7 +271,7 @@ function $buildCoupletNodes(
     row1.append($createLayoutItemNode().append(a), $createLayoutItemNode().append(b));
     const row2 = $createLayoutContainerNode('repeat(2, 1fr)');
     row2.append($createLayoutItemNode().append(c), $createLayoutItemNode().append(d));
-    const trailing: LexicalNode[] = layout === 'mukhammas' && rest.length === 1 && centered ? [$wrapTrailingMisra(rest[0])] : rest;
+    const trailing: LexicalNode[] = centered && rest.length > 0 ? [$wrapTrailingGroup(rest)] : rest;
     return [row1, row2, ...trailing];
   }
   return [...misras];
@@ -264,19 +279,25 @@ function $buildCoupletNodes(
 
 /** The physical node a mixed stanza's trailing misra occupies as a direct
  * sibling of the block's other children — the misra paragraph itself when
- * bare, or its LayoutContainerNode wrapper when centered (mukhammas only,
- * via $wrapTrailingMisra/$setCoupletCentered). Every operation that treats a
- * trailing misra as a sibling node to insert/remove/anchor next to
+ * bare (every trailing misra its own sibling), or the shared
+ * LayoutContainerNode wrapper all of them sit inside when centered as one
+ * group (via $wrapTrailingGroup/$setCoupletCentered) — every trailing misra
+ * in a centered group maps to the SAME wrapper node. Every operation that
+ * treats a trailing misra as a sibling node to insert/remove/anchor next to
  * ($findCoupletBounds, $removeCoupletNodes, $detachCouplet) goes through
- * this rather than assuming the misra itself is that sibling. */
+ * this rather than assuming the misra itself is that sibling, and dedupes
+ * (e.g. via a Set) when iterating more than one trailing misra, since a
+ * centered group's misras all resolve to one shared node. */
 function $trailingSlotNode(misra: ParagraphNode): LexicalNode {
   return ($findMatchingParent(misra, $isLayoutContainerNode) as LayoutContainerNode | null) ?? misra;
 }
 
-/** Whether a mixed stanza's trailing misra is currently centered/wrapped
- * (always false for musaddas — its 2 trailing misras are never wrapped). */
-function $isTrailingSlotCentered(misra: ParagraphNode): boolean {
-  return $trailingSlotNode(misra) !== misra;
+/** Whether a mixed stanza's trailing misra group (1 line for mukhammas, 2
+ * for musaddas) is currently centered/wrapped — checking any one of its
+ * misras is enough, since a centered group's misras all share the same
+ * wrapper. False (and safe) for an empty group. */
+function $isTrailingGroupCentered(misras: ParagraphNode[]): boolean {
+  return misras.length > 0 && $trailingSlotNode(misras[0]) !== misras[0];
 }
 
 /** The first/last physical node holding a stanza — the anchor(s) insert/move
@@ -314,7 +335,16 @@ function $removeCoupletNodes(couplet: Couplet, layout: PoetryLayout, stanzaVaria
     const row2 = $findMatchingParent(couplet[2], $isLayoutContainerNode) as LayoutContainerNode | null;
     row1?.remove();
     row2?.remove();
-    for (const misra of couplet.slice(4)) $trailingSlotNode(misra).remove();
+    // A centered trailing group's misras all share one wrapper node — dedupe
+    // by node key before removing, so a shared wrapper isn't `.remove()`d
+    // more than once (musaddas's 2-misra group; mukhammas's 1-misra group
+    // never needs this, but the dedup is harmless either way).
+    const trailingNodes = new Map<string, LexicalNode>();
+    for (const misra of couplet.slice(4)) {
+      const node = $trailingSlotNode(misra);
+      trailingNodes.set(node.getKey(), node);
+    }
+    for (const node of trailingNodes.values()) node.remove();
     return;
   }
   for (const misra of couplet) misra.remove();
@@ -866,7 +896,7 @@ function $findCoupletRow(couplet: Couplet): LayoutContainerNode | null {
 
 /** Whether the couplet/line the caret is in is centered, or null outside a
  * centerable poetry block/stanza ($isCenterableStanza — a two-column
- * couplet, or a mukhammas-mixed stanza's single trailing misra). */
+ * couplet, or a mixed musaddas/mukhammas stanza's trailing misra group). */
 export function $getCoupletCenteredFromSelection(): boolean | null {
   const block = $getPoetryBlockFromSelection();
   if (!block) return null;
@@ -880,18 +910,18 @@ export function $getCoupletCenteredFromSelection(): boolean | null {
   if (!position) return null;
   const couplet = couplets[position.coupletIndex];
 
-  if (layout === 'mukhammas' && stanzaVariant === 'mixed') {
-    const misra = couplet[couplet.length - 1];
-    return misra ? $isTrailingSlotCentered(misra) : false;
+  if ($isMixedStanza(layout, stanzaVariant)) {
+    return $isTrailingGroupCentered(couplet.slice(4));
   }
   const row = $findCoupletRow(couplet);
   return row ? $isCoupletRowCentered(row) : false;
 }
 
 /** Centers (or un-centers) the caret's couplet/line — a two-column couplet's
- * row (rebuilt around its same two misra paragraphs), or a mukhammas-mixed
- * stanza's single trailing misra (wrapped/unwrapped via $wrapTrailingMisra,
- * in place) — whichever $isCenterableStanza applies to the caret's block. */
+ * row (rebuilt around its same two misra paragraphs), or a mixed
+ * musaddas/mukhammas stanza's trailing misra group (wrapped/unwrapped
+ * together via $wrapTrailingGroup, in place) — whichever $isCenterableStanza
+ * applies to the caret's block. */
 export function $setCoupletCentered(centered: boolean): boolean {
   const block = $getPoetryBlockFromSelection();
   if (!block) return false;
@@ -905,18 +935,22 @@ export function $setCoupletCentered(centered: boolean): boolean {
   if (!position) return false;
   const couplet = couplets[position.coupletIndex];
 
-  if (layout === 'mukhammas' && stanzaVariant === 'mixed') {
-    const misra = couplet[couplet.length - 1];
-    if (!misra) return false;
-    if ($isTrailingSlotCentered(misra) === centered) return true;
+  if ($isMixedStanza(layout, stanzaVariant)) {
+    const trailing = couplet.slice(4);
+    if (trailing.length === 0) return false;
+    if ($isTrailingGroupCentered(trailing) === centered) return true;
     if (centered) {
-      $wrapTrailingMisra(misra);
+      $wrapTrailingGroup(trailing);
     } else {
-      const wrapper = $trailingSlotNode(misra);
-      wrapper.insertAfter(misra);
+      const wrapper = $trailingSlotNode(trailing[0]);
+      let anchor: LexicalNode = wrapper;
+      for (const misra of trailing) {
+        anchor.insertAfter(misra);
+        anchor = misra;
+      }
       wrapper.remove();
     }
-    misra.selectStart();
+    trailing[0].selectStart();
     return true;
   }
 
@@ -977,12 +1011,10 @@ export function $getCoupletContaining(node: LexicalNode): { block: PoetryBlockNo
 
 /** Pulls a couplet's misras out of whatever currently holds them (and drops
  * any row wrapper(s) left behind — one for `layout === 'two-column'`, two
- * for a musaddas/mukhammas `mixed` stanza, plus — mukhammas only — its
- * trailing misra's own centered wrapper, via $trailingSlotNode). Returns
- * whether a two-column row, or a mukhammas-mixed trailing misra, was
- * centered, so the couplet can be rebuilt the same way elsewhere (always
- * false for musaddas's `mixed` — its 2 trailing misras are never
- * centered/wrapped). */
+ * for a musaddas/mukhammas `mixed` stanza, plus its trailing misra group's
+ * own centered wrapper, via $trailingSlotNode, if there is one). Returns
+ * whether a two-column row, or a mixed stanza's trailing group, was
+ * centered, so the couplet can be rebuilt the same way elsewhere. */
 function $detachCouplet(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant, couplet: Couplet): boolean {
   if (layout === 'two-column') {
     const row = $findCoupletRow(couplet);
@@ -995,9 +1027,16 @@ function $detachCouplet(layout: PoetryLayout, stanzaVariant: PoetryStanzaVariant
     const row1 = $findMatchingParent(couplet[0], $isLayoutContainerNode) as LayoutContainerNode | null;
     const row2 = $findMatchingParent(couplet[2], $isLayoutContainerNode) as LayoutContainerNode | null;
     const trailing = couplet.slice(4);
-    const centered = layout === 'mukhammas' && trailing.length === 1 && $isTrailingSlotCentered(trailing[0]);
+    const centered = $isTrailingGroupCentered(trailing);
     for (const misra of couplet.slice(0, 4)) misra.remove();
-    for (const misra of trailing) $trailingSlotNode(misra).remove();
+    // Dedupe by node key — a centered group's misras all share one wrapper
+    // node (same reasoning as $removeCoupletNodes).
+    const trailingNodes = new Map<string, LexicalNode>();
+    for (const misra of trailing) {
+      const node = $trailingSlotNode(misra);
+      trailingNodes.set(node.getKey(), node);
+    }
+    for (const node of trailingNodes.values()) node.remove();
     row1?.remove();
     row2?.remove();
     return centered;

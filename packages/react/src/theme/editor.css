@@ -466,19 +466,13 @@
 }
 
 /* `stanzaVariant: 'split'` (musaddas/mukhammas only — lexical-editor-spec.md
-   §4.11, amended): a secondary divider before the stanza's last two lines —
-   musaddas 4+2 (nth-child(6n+5), position 5 of every 6). Lighter than the
-   primary stanza-boundary rule above: border only, no margin/padding-top
-   bump, so the two levels of grouping stay visually distinct. CSS-only —
-   `split` keeps the exact same flat physical shape as `continuous`. */
-.likhari-poetry--musaddas.likhari-poetry--variant-split .likhari-paragraph:nth-child(6n+5) {
-  border-top: 1px dotted var(--editor-line-strong);
-}
-
-/* Mukhammas 3+2 split: pure spacing, no divider line — extra margin before
-   the last two lines is the visual grouping cue by itself, rather than a
-   second line alongside the stanza boundary's own dashed one (nth-child(5n+4),
-   position 4 of every 5). */
+   §4.11, amended): pure spacing before the stanza's last two lines, no
+   divider line — musaddas 4+2 (nth-child(6n+5), position 5 of every 6),
+   mukhammas 3+2 (nth-child(5n+4), position 4 of every 5). The extra margin
+   alone is the visual grouping cue, rather than a second line alongside the
+   stanza boundary's own dashed one above it. CSS-only — `split` keeps the
+   exact same flat physical shape as `continuous`. */
+.likhari-poetry--musaddas.likhari-poetry--variant-split .likhari-paragraph:nth-child(6n+5),
 .likhari-poetry--mukhammas.likhari-poetry--variant-split .likhari-paragraph:nth-child(5n+4) {
   margin-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
@@ -490,18 +484,14 @@
    positions no longer line up with a uniform `nth-child(stanzaSize*n+1)`
    the way the flat layouts above do, since every stanza is `4 + trailing`
    DOM children, not `stanzaSize` — musaddas is 4 children per stanza (2
-   rows + 2 flats), mukhammas is 3 (2 rows + 1 flat). Musaddas's own second
-   row gets a lighter divider from its first (same weight as `split`'s own
-   secondary divider, for the same "distinct from the stanza boundary"
-   reason); mukhammas gets pure spacing there instead, no divider line — same
-   treatment as mukhammas's `split` 3+2 (its trailing single line already
-   reads as its own grouping via centering, so a second internal line on top
-   of that plus the stanza boundary below would be one divider too many). The
-   *next* stanza's first row (either form) gets the usual heavier
-   stanza-boundary treatment. */
-.likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+2) {
-  border-top: 1px dotted var(--editor-line-strong);
-}
+   rows + 2 flats), mukhammas is 3 (2 rows + 1 flat). The stanza's own second
+   row gets pure spacing from its first, no divider line — same treatment as
+   `split`'s own secondary spacing above (the trailing misra group is
+   centered by default too, which already reads as its own grouping, so a
+   divider line here on top of that plus the stanza boundary below would be
+   one too many). The *next* stanza's first row (either form) gets the usual
+   heavier stanza-boundary treatment. */
+.likhari-poetry--musaddas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(4n+2),
 .likhari-poetry--mukhammas.likhari-poetry--variant-mixed .likhari-layout-container:nth-child(3n+2) {
   margin-top: calc(var(--poetry-couplet-gap) * 0.6);
 }
@@ -632,10 +622,12 @@
    divider or gutter since there's only one column. The row carries this
    itself (LayoutNode.tsx), rather than :has(), which needs Firefox 121+
    (issue #25). Width is the --poetry-center-width scale (issue #27). Also
-   matches a mukhammas-mixed stanza's single trailing misra when centered
-   the same way ($wrapTrailingMisra) — same marker attribute, same width
-   variable, no separate rule needed for it. */
+   matches a mixed musaddas/mukhammas stanza's trailing misra group when
+   centered the same way ($wrapTrailingGroup — 1 misra for mukhammas, 2 for
+   musaddas, both inside the one item this selector matches) — same marker
+   attribute, same width variable, no separate rule needed for either. */
 .likhari-poetry--two-column > .likhari-layout-container[data-likhari-single-column],
+.likhari-poetry--musaddas.likhari-poetry--variant-mixed > .likhari-layout-container[data-likhari-single-column],
 .likhari-poetry--mukhammas.likhari-poetry--variant-mixed > .likhari-layout-container[data-likhari-single-column] {
   width: var(--poetry-center-width, 60%);
   margin-inline: auto;
