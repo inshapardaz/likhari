@@ -6,11 +6,13 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setSelection,
+  type ElementNode,
+  type LexicalNode,
 } from 'lexical';
 import { $locate, $replaceMatch, $textGroups } from '../find/findReplaceActions';
 import { wordsIn } from '../spellcheck/spellDictionaries';
 import { spacePunctuationText, type PunctuationRule } from './punctuationRules';
-import { isRtlWord } from './scriptDirection';
+import { isRtlWord, nearestDirection } from './scriptDirection';
 import { autoCorrectDebugLog } from './autoCorrectDebug';
 
 /** The part of a word that counts as word characters at its end. */
@@ -115,6 +117,26 @@ export function $correctDocument(
   return corrected;
 }
 
+/**
+ * Whether a block's writing direction is right-to-left, judged from its own
+ * text first, not Lexical's cached `getDirection()` — which Lexical only
+ * recomputes for elements reconciled in the current update, so a paragraph
+ * that is dirty for the first time (e.g. the very first character just
+ * typed into a new line split off an Urdu paragraph) keeps a stale or empty
+ * `dir` even though it sits right after RTL text. Falls back to the nearest
+ * previous sibling with directional text of its own, and only then to the
+ * (possibly stale) cached `dir`.
+ */
+function $isBlockRtl(block: ElementNode | null): boolean {
+  let element: LexicalNode | null = block;
+  while (element) {
+    const direction = nearestDirection(element.getTextContent());
+    if (direction !== null) return direction === 'rtl';
+    element = element.getPreviousSibling();
+  }
+  return block?.getDirection() === 'rtl';
+}
+
 /** What a word should become: its normalised form, then any table correction for that. */
 function correctionFor(word: string, table: Map<string, string>, normalize?: (word: string) => string): string | undefined {
   const normalized = normalize ? normalize(word) : word;
@@ -133,7 +155,7 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
   const anchor = selection.anchor;
   const node = anchor.getNode();
   if (!$isTextNode(node)) return false;
-  const rtl = node.getTopLevelElement()?.getDirection() === 'rtl';
+  const rtl = $isBlockRtl(node.getTopLevelElement());
 
   const before = node.getTextContent().slice(0, anchor.offset);
   const rule = rules.find((r) => before.endsWith(r.incorrect) && (!r.completeWord || !WORD_CHAR.test(before.charAt(before.length - r.incorrect.length - 1) || ' ')));
@@ -166,7 +188,7 @@ export function $correctPunctuationBeforeCaret(rules: PunctuationRule[]): boolea
 export function $correctPunctuationDocument(rules: PunctuationRule[]): number {
   let applied = 0;
   for (const group of $textGroups()) {
-    const rtl = group[0].getParentOrThrow().getDirection() === 'rtl';
+    const rtl = $isBlockRtl(group[0].getParentOrThrow());
     const text = group.map((node) => node.getTextContent()).join('');
     const candidates: { start: number; end: number; correct: string }[] = [];
     for (const rule of rules) {
