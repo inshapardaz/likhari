@@ -98,6 +98,37 @@ describe('$correctPunctuationBeforeCaret', () => {
     expect(textOf(editor)).toBe('”');
   });
 
+  it('opens with ” at the start of a new paragraph split off Urdu text, even though the new paragraph has no `dir` of its own yet', () => {
+    // Reproduces a real editing sequence: an Urdu paragraph already exists, Enter starts a
+    // new (empty) paragraph, and the straight quote is the very first character typed into
+    // it. Lexical only recomputes a paragraph's cached `dir` once it goes through a DOM
+    // reconcile, which this headless test never triggers — so the new paragraph's own
+    // getDirection() stays null, exactly like the real editor leaves it stale for a
+    // paragraph that is dirty for the first time (see autoCorrectActions.ts, $isBlockRtl).
+    const editor = createEditor({
+      namespace: 'punctuation-test-sibling',
+      onError: (e) => {
+        throw e;
+      },
+    });
+    editor.update(
+      () => {
+        const urdu = $createParagraphNode().append($createTextNode('حمید نے کہا۔'));
+        const empty = $createParagraphNode().append($createTextNode('"'));
+        $getRoot().clear().append(urdu, empty);
+      },
+      { discrete: true },
+    );
+    editor.update(
+      () => {
+        $getRoot().getLastChild<import('lexical').ElementNode>()!.getAllTextNodes()[0].select(1, 1);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('حمید نے کہا۔\n\n”');
+  });
+
   it('closes with “ (not ”) right after a word in a right-to-left block', () => {
     const editor = editorWith('ہے"', 3, true);
     editor.update(
@@ -108,6 +139,21 @@ describe('$correctPunctuationBeforeCaret', () => {
       { discrete: true },
     );
     expect(textOf(editor)).toBe('ہے“');
+  });
+
+  it('closes with “ and drops the space between ۔ and the quote, instead of reading the space as the start of a new quotation', () => {
+    // Without a fixed rule for "۔ \"", the space made the bare-`"` resolve rule see an
+    // opening context (any whitespace before a `"` looks like the start of a quotation)
+    // and emit the wrong mark — ” instead of the “ that actually closes the sentence.
+    const editor = editorWith('حمید نے کہا۔ "', 14, true);
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(14, 14);
+        $correctPunctuationBeforeCaret(activePunctuationRules());
+      },
+      { discrete: true },
+    );
+    expect(textOf(editor)).toBe('حمید نے کہا۔“');
   });
 });
 

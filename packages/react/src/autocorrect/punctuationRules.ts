@@ -47,7 +47,7 @@ export const URDU_PUNCTUATION_RULES: PunctuationRule[] = [
   { incorrect: " ۔۔۔", correct: "۔۔۔ ", completeWord: false },
   { incorrect: "،،", correct: "“", completeWord: false },
   { incorrect: "۔\"", correct: "۔“", completeWord: false },
-  { incorrect: "، \"", correct: "۔ ”", completeWord: false },
+  { incorrect: "۔ \"", correct: "۔“", completeWord: false },
   { incorrect: "؟\"", correct: "؟“", completeWord: false },
   { incorrect: "!\"", correct: "!“", completeWord: false },
   { incorrect: "-", correct: "۔", completeWord: false },
