@@ -176,6 +176,11 @@ test.describe('submenus', () => {
     // the insert button is a menu (layout choices) rather than a direct insert.
     await page.getByRole('button', { name: 'شعر شامل کریں' }).click();
     await item(page, 'ایک کالم').click();
+    // Wait for the insert menu's own closing transition to finish — otherwise its "دو
+    // کالم" item can still be mounted (mid fade-out) when the context menu below opens
+    // its own "دو کالم" icon button, and the two same-named menuitems make every lookup
+    // below ambiguous.
+    await expect(menu(page)).toHaveCount(0);
     await editor.type('شعر');
     await editor.content.locator('.likhari-poetry').click({ button: 'right' });
 
